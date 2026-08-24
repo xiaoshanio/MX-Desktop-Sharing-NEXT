@@ -1,0 +1,131 @@
+# 任务组
+
+**状态：功能开发完成，可部署。** `npm run typecheck`、`npm test`（26 项）、
+`npm run build`（26 条路由，零环境变量裸构建）全部通过。
+
+✅ = 已实现并验证，⬜ = 未做（末尾「有意不做」一节说明取舍）。
+
+---
+
+## G0 · 地基 ✅
+
+- [x] Next.js 15 App Router + TypeScript strict + 路径别名 `@/*`
+- [x] Neon HTTP driver + Drizzle ORM，**惰性初始化**（模块加载不碰 env，否则裸构建会挂）
+- [x] 12 张表 + 迁移 `drizzle/0000_*.sql`、`drizzle/0001_*.sql`
+- [x] 统一 route handler 包装与错误约定（`src/lib/http.ts`）
+- [x] 凭据加密 AES-256-GCM（`src/lib/crypto.ts`）
+- [x] 密码 scrypt + 定长比较（`src/lib/password.ts`）
+- [x] Cookie 会话，库里只存 token 的 sha256
+- [x] 分层：`validation.ts` 是零依赖纯 schema 模块，`parseOr400` 归 `http.ts`
+
+## G1 · 管理员初始化 ✅
+
+- [x] `GET/POST /api/setup`，只能成功一次
+- [x] 用 `app_config.initialized` 的 insert 当互斥量（neon-http 无交互式事务）
+- [x] 落库前实地打 LiveKit API 验证凭据，失败不占用初始化名额
+- [x] 中途失败自动回滚并释放锁
+- [x] `SETUP_TOKEN` 守卫（定长比较）
+- [x] `/setup` 页面 + 完成后回显 webhook 地址
+- [x] **管理后台 `/admin`**：改内置节点 `allowPublic`/`maxRooms`/启停
+- [x] **用户管理**：停用/启用、升降管理员；停用时连带作废其所有会话
+- [x] 守卫：不能改自己的角色/状态；不能把最后一个管理员降级
+
+## G2 · LiveKit 节点接入 ✅
+
+- [x] `livekit_nodes` 区分 `builtin`/`user`，`api_secret` 加密存储
+- [x] `POST /api/nodes` 接入，落库前体检
+- [x] `POST /api/nodes/[id]` 重新体检并写回
+- [x] **`PATCH /api/nodes/[id]` 改名 / 换密钥**（换密钥先体检，两个字段必须同时给）
+- [x] `DELETE`：内置节点不可删，有活跃房间时拒绝
+- [x] 体检区分能力：`listRooms` 失败=凭据错；`ingress` 失败只降级不阻断
+- [x] 地址容错：`https://` 自动转 `wss://`、剥路径尾斜杠（有测试覆盖）
+- [x] 「三分钟开一个免费 LiveKit Cloud 节点」内置引导
+- [x] 每个节点在控制台显示各自的 webhook 地址（一键复制）
+- [x] Secret 只写不读
+
+## G3 · 房间与鉴权 ✅
+
+- [x] 房间绑定节点，媒体流量与额度归该节点
+- [x] 建房节点三选一：现场接新凭据 / 选已有 / 落到内置
+- [x] `assertNodeUsable`：不能用别人的节点；内置受 `allowPublic`+`maxRooms` 约束
+- [x] 房间码无歧义字母表、全库唯一，同时作 LiveKit room name（有测试）
+- [x] 建房先 `ensureRoom`，客户端 token 无需 `roomCreate`
+- [x] **签 token 是鉴权收口**：`requireMember` + `VideoGrant.room` 只写一个房间名
+- [x] 非成员返回 404 而非 403，不让人拿房间码探测
+- [x] 成员增删；踢人三步做全（删成员行 + `RemoveParticipant` + 删 ingress）
+- [x] 关闭房间：清所有 ingress + `is_active=false`
+- [x] **邀请链接**：`room_invites` 表，token 存哈希，支持有效期/次数上限/撤销
+- [x] 兑换用条件 UPDATE 原子占名额，并发下 `max_uses` 不会被击穿
+- [x] `/join/[token]` 落地页：未登录先跳登录（`next` 参数做了 open-redirect 防护）
+- [x] **token 到期前 5 分钟自动续签**，长时间观看不再莫名掉线
+
+## G4 · OBS 推流 ✅
+
+- [x] 生成绑定「该用户+该房间」的 WHIP 地址，一人一址
+- [x] **`enableTranscoding: false`** —— WHIP 直通，不吃 60 分钟/月的 transcode 额度
+- [x] `?rotate=1` 重新生成、`DELETE` 撤销
+- [x] `stream_key` 加密落库，只对本人解密回显，前端默认打码
+- [x] identity 带 `obs:` 前缀，webhook 侧据此区分推流端/观众
+- [x] 未撤销 ingress 每 (房间,用户) 只允许一条（partial unique index）
+- [x] 节点 ingress 不可用时前端明确降级提示
+- [x] `createRtmpIngress` 备用实现（protobuf oneof 写法正确）
+- [x] OBS 配置指引 + 一键复制 + simulcast 说明（直通需 OBS 32.1.0+ 自行开启）
+
+## G5 · 上线检测 ✅
+
+- [x] `POST /api/webhooks/livekit/[nodeId]`，**路径带 nodeId**——验签要用该节点自己的密钥
+- [x] `WebhookReceiver.receive()` 验 JWT 签名 + body 摘要
+- [x] 校验房间确实属于该节点，防止跨节点污染状态
+- [x] **事件去重**（`webhook_events` 主键冲突即跳过），LiveKit 重投不会写乱在线状态
+- [x] `room_presence` upsert；`room_finished` 整房标下线
+- [x] 前端在线状态走 SDK 事件，**不轮询数据库**（Neon CU-hours 考虑）
+
+## G6 · 前端 ✅
+
+- [x] `/` 分流、`/setup`、`/login`（登录/注册合一，支持 `next` 回跳）
+- [x] `/dashboard` 房间列表 + 建房（节点选择器）+ 节点管理 + webhook 地址
+- [x] `/room/[code]` 画面（优先屏幕共享）+ OBS 面板 + 邀请面板 + 成员面板 + 日志面板
+- [x] `/admin` 管理后台
+- [x] `/join/[token]` 邀请落地页
+- [x] **浏览器直接共享屏幕**（1920×1080@15fps，桌面共享优先分辨率而非帧率）
+- [x] 复制组件（密钥默认打码）
+- [x] **审计日志查看**（房间内可展开）
+
+## G7 · 安全与运维 ✅
+
+- [x] **登录限流**：邮箱 15 分钟 8 次 / IP 15 分钟 30 次，在校验密码之前拦截
+- [x] 登录成功清空失败计数；对不存在的邮箱也走一遍 hash 防时序探测
+- [x] 审计日志用 **`after()`** 写入——serverless 返回后会冻结，裸 promise 会丢
+- [x] 审计不记录任何密钥
+- [x] **定时清理**（`/api/cron/cleanup` + `vercel.json`）：过期会话、旧限流记录、旧去重记录
+- [x] cron 端点用 `CRON_SECRET` 定长比较保护
+- [x] **26 项测试**：AES-GCM 往返/篡改检测、scrypt 往返/Unicode 归一化/畸形输入、
+      URL 归一化、房间码字符集与碰撞、schema 默认值与边界
+- [x] 停用用户时连带作废会话
+
+## 部署 ✅
+
+- [x] 零环境变量裸构建通过（db 惰性化的直接结果）
+- [x] 全部 26 条路由声明 `runtime = "nodejs"`
+- [x] `vercel.json` cron（Hobby 每天一次的限制已适配）
+- [x] webhook 地址在未设 `NEXT_PUBLIC_APP_URL` 时从请求头推导，preview 部署也正确
+- [x] [DEPLOY.md](DEPLOY.md) 完整步骤与约束
+
+---
+
+## 有意不做（及原因）
+
+- **密钥轮换工具**：`CREDENTIAL_ENCRYPTION_KEY` 换掉需要全表重新加密。做对需要
+  双密钥并行期，工程量不小而收益低。当前策略是文档里反复强调备份。
+- **额度看板**：LiveKit 的用量 API 与免费层可见性不稳定，做个会骗人的仪表盘不如不做。
+  DEPLOY.md 和 README 里给了实算表，让人自己心里有数。
+- **节点定时体检**：Hobby 版 cron 每天只能一次，一天一次的体检意义有限；
+  控制台上的手动「检测」按钮更实用。升到 Pro 后值得加。
+- **E2E 测试**：需要真实 LiveKit 项目和真实 Neon 库，跑在 CI 里要塞真凭据。
+  当前把测试重心放在纯函数和安全原语上。
+
+## 上线前仍需你决策的
+
+1. **Vercel Hobby 禁止商业用途** —— 对外运营需上 Pro（$20/月）。
+2. **Neon 免费版 100 CU-hours/月** —— 别加数据库轮询，会烧穿。
+3. **备份 `CREDENTIAL_ENCRYPTION_KEY`** —— 丢了所有节点凭据作废。
