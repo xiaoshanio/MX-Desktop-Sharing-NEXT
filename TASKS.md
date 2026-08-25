@@ -39,8 +39,12 @@
 - [x] `emailSchema` 放宽到接受无点单标签域名，否则默认的 `admin@localhost`
       被 zod 的 `.email()` 判非法，账户建得出来却永远登不进去
 - [x] 公开端点回显的底层错误一律过 `redactSecrets()`，避免抖出连接串里的口令
-- [x] 「表不存在」类报错自动补一句「跑 npm run db:migrate」—— `login_attempts` 在第二个
-      迁移里，只迁一半的症状恰好是「库连得上但登录挂掉」
+- [x] `/api/health` 加 `tables` 一项：拿 `information_schema` 对着 schema 推导出的表名
+      做差集，直接列出缺哪几张，不靠猜报错字符串。表名从 schema 模块推导，不另维护清单
+- [x] `describeDbError()` 顺着 `cause` 链挖真实原因：drizzle 把驱动异常包进
+      `DrizzleQueryError`，最外层的 message 只有 `Failed query: <SQL>\nparams: <参数>`，
+      既没用又会把 SQL 和参数抖给公开端点。按 SQLSTATE（`42P01` 等）补可操作的指引
+- [x] 「表不存在」类报错自动补一句「跑 npm run db:migrate」
 - [x] 刻意**不用** `instrumentation.ts`：它会让 webpack 把 `node:crypto` 拖进不支持
       `node:` scheme 的编译目标，dev 下每个请求都 500（已实测确认并移除）
 - [x] 引导与密钥加载都缓存 promise，失败不缓存以便重试

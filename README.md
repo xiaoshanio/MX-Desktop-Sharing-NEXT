@@ -49,18 +49,22 @@ LiveKit 不占用任何环境变量。
 curl -s http://localhost:3000/api/health | python -m json.tool
 ```
 
+五项依次是：`DATABASE_URL` 有没有设 → 库连不连得上 → **12 张表建没建** →
+`ADMIN_PASSWORD` 有没有设 → 启动引导过不过。前面的项没过时后面的会跳过，
+所以永远只需要修最上面那个红的。
+
 登录接口按原因分开了状态码：
 
 | 返回 | 含义 |
 | --- | --- |
-| `503 not_configured` | 数据库连不上，或 `DATABASE_URL` 没配 |
+| `503 not_configured` | 数据库连不上、表没建，或 `DATABASE_URL` 没配 |
 | `503 admin_not_configured` | 库是通的，但 `ADMIN_PASSWORD` 为空，管理员账户没建出来 |
 | `401 invalid_credentials` | 账户存在，密码不对 |
 | `429 rate_limited` | 同一邮箱 15 分钟内失败 8 次（同 IP 30 次） |
 
-一个容易误判的坑：**忘了 `npm run db:migrate` 的症状是「数据库连得上但登录挂掉」**。
-因为限流表 `login_attempts` 在第二个迁移里，而登录是第一个碰它的接口。
-`/api/health` 会明确提示「表还没建齐」。
+最容易误判的一种：**忘了 `npm run db:migrate`**。症状是 `database` 显示「连接正常」
+但凡是碰到表的接口全挂 —— 因为连接和建表是两件事。`/api/health` 的 `tables`
+那一项会直接列出缺哪几张表。
 
 ### 环境变量清单
 

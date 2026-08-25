@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { httpUrl } from "../src/lib/livekit.ts";
-import { parseOr400, redactSecrets } from "../src/lib/http.ts";
+import { describeDbError, parseOr400, redactSecrets } from "../src/lib/http.ts";
 import { generateRoomCode } from "../src/lib/room-code.ts";
 import {
   createInviteSchema,
@@ -80,6 +80,69 @@ describe("redactSecrets", () => {
   it("不含口令的 URL 原样保留", () => {
     const msg = "timeout talking to https://ep-x.aws.neon.tech/db";
     assert.equal(redactSecrets(msg), msg);
+  });
+});
+
+describe("describeDbError", () => {
+  /** 复刻真实结构：drizzle 把驱动异常包进 DrizzleQueryError，真实原因在 cause 里。 */
+  function drizzleWrapped(causeMessage: string, code?: string): Error {
+    const cause = new Error(causeMessage) as Error & { code?: string };
+    if (code) cause.code = code;
+    const wrapper = new Error(
+      'Failed query: select "value" from "app_config" where "app_config"."key" = $1 limit $2\n' +
+        "params: credential_encryption_key,1",
+    ) as Error & { cause?: Error };
+    wrapper.cause = cause;
+    return wrapper;
+  }
+
+  it("挖出 cause 里的真实原因，不返回 drizzle 那层的 Failed query", () => {
+    const out = describeDbError(drizzleWrapped('relation "app_config" does not exist', "42P01"));
+    assert.ok(!out.message.includes("Failed query"), out.message);
+    assert.ok(out.message.includes('relation "app_config" does not exist'), out.message);
+  });
+
+  it("按 SQLSTATE 补一句可操作的指引", () => {
+    const out = describeDbError(drizzleWrapped('relation "users" does not exist', "42P01"));
+    assert.equal(out.code, "42P01");
+    assert.ok(out.message.includes("npm run db:migrate"), out.message);
+  });
+
+  it("认得出口令错误和连接数超限", () => {
+    assert.ok(describeDbError(drizzleWrapped("auth failed", "28P01")).message.includes("密码不对"));
+    assert.ok(
+      describeDbError(drizzleWrapped("too many clients", "53300")).message.includes("Pooled"),
+    );
+  });
+
+  it("未收录的 SQLSTATE 仍然回传原始消息和码", () => {
+    const out = describeDbError(drizzleWrapped("something odd", "XX999"));
+    assert.equal(out.code, "XX999");
+    assert.ok(out.message.includes("something odd"), out.message);
+  });
+
+  it("抹掉 cause 消息里的连接串口令", () => {
+    const out = describeDbError(drizzleWrapped("connect to postgresql://u:secret@h/db failed"));
+    assert.ok(!out.message.includes("secret"), out.message);
+  });
+
+  it("只有 Failed query 一层时给兜底文案而不是回显 SQL", () => {
+    const bare = new Error("Failed query: select 1\nparams: ");
+    const out = describeDbError(bare);
+    assert.ok(!out.message.includes("select 1"), out.message);
+    assert.equal(out.code, undefined);
+  });
+
+  it("非 Error 输入不炸", () => {
+    assert.ok(describeDbError("boom").message.length > 0);
+    assert.ok(describeDbError(null).message.length > 0);
+    assert.ok(describeDbError(undefined).message.length > 0);
+  });
+
+  it("cause 自引用不会死循环", () => {
+    const loop = new Error("outer") as Error & { cause?: unknown };
+    loop.cause = loop;
+    assert.ok(describeDbError(loop).message.includes("outer"));
   });
 });
 

@@ -42,9 +42,9 @@ postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=require
 DATABASE_URL="<你的 Neon 连接串>" npm run db:migrate
 ```
 
-**这一步漏掉的症状很有迷惑性**：数据库连得上，但登录挂掉。因为限流用的
-`login_attempts` 表在第二个迁移里，登录是第一个碰它的接口。所以 `/api/health` 显示
-数据库「连接正常」但 `bootstrap` 报「表还没建齐」时，就是这里没跑。
+**这一步漏掉是最常见的翻车点，而且症状很有迷惑性**：连接是好的，但凡是碰到表的接口
+全挂。因为「连得上」和「建过表」是两件独立的事。`/api/health` 的 `tables` 那一项
+专门查这个，会直接列出缺哪几张表。
 
 ## 3. 部署
 
@@ -80,16 +80,26 @@ Settings → Webhooks。每个节点地址不同，因为验签要用该节点�
 
 ## 排查
 
-**任何配置问题都先看 `/api/health`** —— 它逐项报告 `DATABASE_URL`、数据库连通性、
-`ADMIN_PASSWORD`、启动引导、加密密钥来源，全部正常返回 200，否则 503。
-不需要登录（回显的驱动错误会先抹掉连接串里的口令）。
+**任何配置问题都先看 `/api/health`** —— 它按依赖顺序逐项检查，前面没过就跳过后面，
+所以永远只需要修最上面那个红的：
+
+| 检查项 | 查什么 |
+| --- | --- |
+| `databaseUrl` | 环境变量有没有设 |
+| `database` | 能不能连上（`select 1`） |
+| `tables` | **12 张表建没建**，缺哪几张会列出来 |
+| `adminPassword` | 有没有设，空字符串算没设 |
+| `bootstrap` | 管理员账户和加密密钥就绪没 |
+
+不需要登录。回显的驱动错误会先顺着 cause 链挖出真实原因、按 SQLSTATE 补一句
+可操作的指引，并抹掉连接串里的口令。
 
 登录接口按失败原因分开了状态码，照着对：
 
 | 返回 | 含义 | 怎么修 |
 | --- | --- | --- |
-| `503 not_configured` | 数据库连不上或必填变量缺失，引导没跑成 | 看 `/api/health` 的 `bootstrap` 那一项 |
-| `503 admin_not_configured` | 库是通的，但 `ADMIN_PASSWORD` 为空，管理员账户压根没建 | 设一个非空值再重启 |
+| `503 not_configured` | 库连不上、表没建，或必填变量缺失 | 看 `/api/health` 最上面那个红的 |
+| `503 admin_not_configured` | 库和表都好，但 `ADMIN_PASSWORD` 为空，管理员账户压根没建 | 设一个非空值再重启 |
 | `401 invalid_credentials` | 账户存在，密码不对 | 改 `ADMIN_PASSWORD` 后重启会自动同步 |
 | `429 rate_limited` | 同一邮箱 15 分钟内失败 8 次（或同 IP 30 次） | 等 15 分钟 |
 | `500 internal` | 剩下的意外情况 | 看服务端日志里的 `[api] 未捕获异常` |

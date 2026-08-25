@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { appConfig, users } from "@/db/schema";
-import { ApiError, redactSecrets } from "./http";
+import { ApiError, describeDbError } from "./http";
 import { ensureEncryptionKey } from "./key-store";
 import { hashPassword } from "./password";
 
@@ -135,24 +135,12 @@ async function run(): Promise<BootstrapResult> {
     const adminConfigured = await ensureAdmin();
     return { ok: true, adminConfigured, adminEmail: email };
   } catch (err) {
-    const message = explain(err instanceof Error ? err.message : String(err));
+    // describeDbError 会顺着 cause 链挖到驱动那层的真实原因，并按 SQLSTATE 补一句
+    // 可操作的指引。只读最外层的话，drizzle 只会给你一句 "Failed query: select …"。
+    const { message } = describeDbError(err);
     console.error("[bootstrap] 初始化失败：", message);
     return { ok: false, adminConfigured: false, adminEmail: email, error: message };
   }
-}
-
-/**
- * 给底层报错补一句可操作的下文。
- *
- * 「表不存在」是最常见的一种：建表是手动步骤（不在构建里跑），而 login_attempts 在
- * 第二个迁移里，所以只迁移了一半的库症状恰好是「登录挂掉，别处看着正常」。
- */
-function explain(message: string): string {
-  const safe = redactSecrets(message);
-  if (/relation .+ does not exist|undefined_table|no such table/i.test(safe)) {
-    return `${safe} —— 表还没建齐，对着这个库跑一次 npm run db:migrate。`;
-  }
-  return safe;
 }
 
 /**
