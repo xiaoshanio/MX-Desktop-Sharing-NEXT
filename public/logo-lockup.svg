@@ -1,0 +1,11 @@
+<!-- Horizontal lockup: mark + wordmark. Clear space either side = half the mark's width (16px). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="608" height="128" viewBox="0 0 152 32" fill="none">
+  <path d="M6 17.8L6 22.3L16 27.3L16 22.8Z" fill="#3C2D8D"/>
+  <path d="M26 17.8L26 22.3L16 27.3L16 22.8Z" fill="#5640C9"/>
+  <path d="M16 12.8L26 17.8L16 22.8L6 17.8Z" fill="#9A8CDF"/>
+  <path d="M7 11.2L16 6.7L25 11.2" stroke="#5640C9" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="40" y="15" font-family="Inter, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif"
+        font-size="13" font-weight="600" letter-spacing="-0.2" fill="#1A1C22">MX 桌面共享</text>
+  <text x="40" y="26" font-family="Inter, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif"
+        font-size="9" font-weight="400" fill="#6B7280">LiveKit 多节点</text>
+</svg>

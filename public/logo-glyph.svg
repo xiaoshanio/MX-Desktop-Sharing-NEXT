@@ -1,0 +1,7 @@
+<!-- Single-ink variant. Change the `fill` on the <svg> to recolour the whole mark. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 32 32" fill="#5640C9">
+  <path d="M6 17.8L6 22.3L16 27.3L16 22.8Z" opacity=".48"/>
+  <path d="M26 17.8L26 22.3L16 27.3L16 22.8Z" opacity=".72"/>
+  <path d="M16 12.8L26 17.8L16 22.8L6 17.8Z"/>
+  <path d="M7 11.2L16 6.7L25 11.2" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

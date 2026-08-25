@@ -4,6 +4,8 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { api } from "@/lib/api-client";
+import { BrandMark } from "@/components/BrandMark";
+import { Banner, Button, TextField } from "@/ui";
 
 /** 只接受站内相对路径，防止 open redirect。 */
 function safeNext(raw: string | null): string {
@@ -13,15 +15,15 @@ function safeNext(raw: string | null): string {
 }
 
 export default function LoginPage() {
-  // useSearchParams() 需要 Suspense 边界（Next 15）
+  // useSearchParams() needs a Suspense boundary in Next 15.
   return (
-    <Suspense fallback={<div className="wrap" />}>
-      <LoginForm />
+    <Suspense fallback={<div className="mx-auth" />}>
+      <LoginScreen />
     </Suspense>
   );
 }
 
-function LoginForm() {
+function LoginScreen() {
   const router = useRouter();
   const next = safeNext(useSearchParams().get("next"));
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -31,74 +33,114 @@ function LoginForm() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  const registering = mode === "register";
+
+  function switchMode(target: "login" | "register") {
+    setMode(target);
+    setErr(null);
+  }
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
     setBusy(true);
     setErr(null);
     try {
-      if (mode === "login") {
-        await api("/api/auth/login", { method: "POST", json: { email, password } });
-      } else {
+      if (registering) {
         await api("/api/auth/register", {
           method: "POST",
           json: { email, displayName, password },
         });
+      } else {
+        await api("/api/auth/login", { method: "POST", json: { email, password } });
       }
       router.push(next);
       router.refresh();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="wrap" style={{ maxWidth: 420 }}>
-      <form className="panel" onSubmit={submit}>
-        <h1>{mode === "login" ? "登录" : "注册"}</h1>
-
-        <label>邮箱</label>
-        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-
-        {mode === "register" && (
-          <>
-            <label>显示名</label>
-            <input
-              type="text"
-              required
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
-          </>
-        )}
-
-        <label>密码</label>
-        <input
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        {err && <div className="err">{err}</div>}
-
-        <div className="row" style={{ marginTop: 20 }}>
-          <button type="submit" disabled={busy}>
-            {busy ? "处理中…" : mode === "login" ? "登录" : "注册"}
-          </button>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => {
-              setMode(mode === "login" ? "register" : "login");
-              setErr(null);
-            }}
-          >
-            {mode === "login" ? "没有账号？注册" : "已有账号？登录"}
-          </button>
+    <div className="mx-auth">
+      <div className="mx-auth__inner">
+        <div className="mx-auth__brand">
+          <BrandMark size={64} className="mx-auth__mark" />
+          <h1 className="mx-auth__title">MX 桌面共享</h1>
+          <p className="mx-auth__subtitle">
+            一房一节点，一人一推流地址。用 OBS 或浏览器直接把屏幕推给房间里的人。
+          </p>
         </div>
-      </form>
+
+        <form className="mx-auth__panel" onSubmit={submit}>
+          <div className="mx-auth__switcher" role="tablist" aria-label="登录或注册">
+            <button
+              type="button"
+              role="tab"
+              className="mx-auth__switch"
+              aria-selected={!registering}
+              onClick={() => switchMode("login")}
+            >
+              登录
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className="mx-auth__switch"
+              aria-selected={registering}
+              onClick={() => switchMode("register")}
+            >
+              注册
+            </button>
+          </div>
+
+          <div className="mx-form">
+            <TextField
+              label="邮箱"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+
+            {registering && (
+              <TextField
+                label="显示名"
+                type="text"
+                required
+                autoComplete="nickname"
+                hint="房间成员列表里显示的名字。"
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+              />
+            )}
+
+            <TextField
+              label="密码"
+              type="password"
+              required
+              autoComplete={registering ? "new-password" : "current-password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+
+            {err && <Banner tone="error">{err}</Banner>}
+
+            <Button type="submit" variant="primary" size="lg" full disabled={busy}>
+              {busy ? "处理中…" : registering ? "注册并进入" : "登录"}
+            </Button>
+          </div>
+        </form>
+
+        <p className="mx-auth__footnote">
+          {registering
+            ? "注册即拥有自己的工作区，可接入你自己的 LiveKit 节点。"
+            : "收到邀请链接的话，直接打开链接登录就会自动入房。"}
+        </p>
+      </div>
     </div>
   );
 }

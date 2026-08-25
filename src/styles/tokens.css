@@ -1,0 +1,209 @@
+/* ============================================================
+   MX Desktop Sharing — design tokens.
+   Fluent-inspired layered surfaces, iris accent, light + dark.
+   Light theme = :root defaults; dark theme = [data-theme="dark"].
+   Components consume these variables only — never hard-coded values.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Typography ----
+     No webfont is fetched at build time, so the build stays hermetic. Inter / JetBrains Mono
+     are used when installed (or when a font loader defines the vars below); otherwise the
+     platform UI faces take over. The CJK entries matter — the interface is Chinese. */
+  --mx-font-sans:
+    var(--mx-font-inter, "Inter"), "Segoe UI Variable", "Segoe UI", system-ui, -apple-system,
+    BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
+    sans-serif;
+  --mx-font-mono:
+    var(--mx-font-jetbrains, "JetBrains Mono"), ui-monospace, SFMono-Regular, "Cascadia Code",
+    Consolas, monospace;
+
+  --mx-font-size-display: 30px;
+  --mx-font-size-title-lg: 21px;
+  --mx-font-size-title: 17px;
+  --mx-font-size-body: 15px;
+  --mx-font-size-caption: 13px;
+  --mx-font-size-code: 13px;
+
+  --mx-line-display: 38px;
+  --mx-line-title-lg: 30px;
+  --mx-line-title: 24px;
+  --mx-line-body: 22px;
+  --mx-line-caption: 18px;
+  --mx-line-code: 20px;
+
+  --mx-weight-regular: 400;
+  --mx-weight-medium: 500;
+  --mx-weight-semibold: 600;
+
+  /* ---- Spacing (4px base) ---- */
+  --mx-space-xxs: 2px;
+  --mx-space-xs: 4px;
+  --mx-space-sm: 9px;
+  --mx-space-md: 14px;
+  --mx-space-lg: 18px;
+  --mx-space-xl: 26px;
+  --mx-space-2xl: 36px;
+  --mx-space-3xl: 52px;
+
+  /* ---- Radius ---- */
+  --mx-radius-xs: 3px;
+  --mx-radius-sm: 7px;
+  --mx-radius-md: 9px;
+  --mx-radius-lg: 12px;
+  --mx-radius-xl: 18px;
+  --mx-radius-pill: 999px;
+
+  /* ---- Control & layout sizing ---- */
+  --mx-control-sm: 32px;
+  --mx-control-md: 38px;
+  --mx-control-lg: 46px;
+  --mx-toolbar-height: 54px;
+  --mx-statusbar-height: 32px;
+  --mx-sidebar-width: 248px;
+  --mx-sidebar-width-collapsed: 64px;
+
+  /* ---- Motion ---- */
+  --mx-duration-fast: 100ms;
+  --mx-duration-normal: 160ms;
+  --mx-duration-slow: 240ms;
+  --mx-duration-slower: 360ms;
+  --mx-ease-standard: cubic-bezier(0.33, 0, 0.1, 1);
+  --mx-ease-decelerate: cubic-bezier(0.1, 0.9, 0.2, 1);
+  --mx-ease-accelerate: cubic-bezier(0.7, 0, 1, 0.5);
+  --mx-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ---- Z-index ---- */
+  --mx-z-sticky: 100;
+  --mx-z-overlay: 1000;
+  --mx-z-popover: 1100;
+  --mx-z-toast: 1200;
+
+  /* ---- Brand accent: iris ---- */
+  --mx-accent: #5640c9;
+  --mx-accent-hover: #4b36b3;
+  --mx-accent-pressed: #3f2d99;
+  --mx-accent-soft: #eceafb;
+  --mx-accent-text: #4733a8;
+  --mx-text-on-accent: #ffffff;
+
+  /* ---- Neutral surfaces ---- */
+  --mx-bg-base: #f6f7f9;
+  --mx-bg-layer: #fbfbfd;
+  --mx-bg-card: #ffffff;
+  --mx-bg-overlay: #ffffff;
+  --mx-bg-subtle: #eff1f4;
+  --mx-bg-hover: rgba(16, 18, 23, 0.04);
+  --mx-bg-active: rgba(16, 18, 23, 0.07);
+  --mx-bg-selected: #eceafb;
+
+  /* ---- Text ---- */
+  --mx-text-primary: #1a1c22;
+  --mx-text-secondary: #4b515c;
+  --mx-text-tertiary: #6b7280;
+  --mx-text-disabled: #a7aebb;
+
+  /* ---- Strokes ---- */
+  --mx-stroke-subtle: #e7eaef;
+  --mx-stroke-default: #dce0e7;
+  --mx-stroke-strong: #c4cad4;
+  --mx-focus-ring: rgba(86, 64, 201, 0.45);
+
+  /* ---- Semantic ---- */
+  --mx-success: #18935a;
+  --mx-success-soft: #e3f5ec;
+  --mx-success-text: #0f7a49;
+  --mx-warning: #c2790b;
+  --mx-warning-soft: #faf0dd;
+  --mx-warning-text: #97600a;
+  --mx-error: #d23b2e;
+  --mx-error-soft: #fbe7e5;
+  --mx-error-text: #b02a20;
+  --mx-info: #2d6fd6;
+  --mx-info-soft: #e6eefb;
+  --mx-info-text: #245cb5;
+
+  /* ---- Elevation (light) ---- */
+  --mx-shadow-2: 0 1px 2px rgba(16, 18, 23, 0.08), 0 0 1px rgba(16, 18, 23, 0.1);
+  --mx-shadow-4: 0 2px 4px rgba(16, 18, 23, 0.1), 0 0 1px rgba(16, 18, 23, 0.1);
+  --mx-shadow-8: 0 4px 8px rgba(16, 18, 23, 0.1), 0 0 1px rgba(16, 18, 23, 0.12);
+  --mx-shadow-16: 0 8px 16px rgba(16, 18, 23, 0.12), 0 0 1px rgba(16, 18, 23, 0.14);
+  --mx-shadow-64: 0 16px 48px rgba(16, 18, 23, 0.2), 0 0 1px rgba(16, 18, 23, 0.16);
+
+  /* ---- Material ---- */
+  --mx-acrylic-fill: rgba(251, 251, 253, 0.72);
+  --mx-acrylic-blur: 20px;
+  --mx-scrollbar-thumb: rgba(16, 18, 23, 0.22);
+
+  /* ---- Brand mark facets (lit from above; see components/BrandMark.tsx) ---- */
+  --mx-mark-top: #9a8cdf;
+  --mx-mark-right: #5640c9;
+  --mx-mark-left: #3c2d8d;
+  --mx-mark-signal: #5640c9;
+
+  /* ---- Video stage: always dark, both themes ---- */
+  --mx-stage-bg: #0c0d10;
+  --mx-stage-stroke: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --mx-accent: #7e6ddd;
+  --mx-accent-hover: #8e7fe6;
+  --mx-accent-pressed: #6e5bd2;
+  --mx-accent-soft: rgba(126, 109, 221, 0.18);
+  --mx-accent-text: #b3a6f0;
+  --mx-text-on-accent: #ffffff;
+
+  --mx-bg-base: #181818;
+  --mx-bg-layer: #202020;
+  --mx-bg-card: #252525;
+  --mx-bg-overlay: #2d2d2d;
+  --mx-bg-subtle: #2a2a2a;
+  --mx-bg-hover: rgba(255, 255, 255, 0.065);
+  --mx-bg-active: rgba(255, 255, 255, 0.12);
+  --mx-bg-selected: #343434;
+
+  --mx-text-primary: #f4f4f4;
+  --mx-text-secondary: #c8c8c8;
+  --mx-text-tertiary: #9a9a9a;
+  --mx-text-disabled: #626262;
+
+  --mx-stroke-subtle: rgba(255, 255, 255, 0.08);
+  --mx-stroke-default: rgba(255, 255, 255, 0.13);
+  --mx-stroke-strong: rgba(255, 255, 255, 0.24);
+  --mx-focus-ring: rgba(126, 109, 221, 0.55);
+
+  --mx-success: #34b978;
+  --mx-success-soft: rgba(52, 185, 120, 0.18);
+  --mx-success-text: #5ccb95;
+  --mx-warning: #e0a106;
+  --mx-warning-soft: rgba(224, 161, 6, 0.18);
+  --mx-warning-text: #f0be4a;
+  --mx-error: #e2675a;
+  --mx-error-soft: rgba(226, 103, 90, 0.18);
+  --mx-error-text: #f0938a;
+  --mx-info: #5c95ee;
+  --mx-info-soft: rgba(92, 149, 238, 0.18);
+  --mx-info-text: #8db6f4;
+
+  --mx-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  --mx-shadow-4: 0 2px 4px rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  --mx-shadow-8: 0 4px 10px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(0, 0, 0, 0.32);
+  --mx-shadow-16: 0 10px 24px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(0, 0, 0, 0.34);
+  --mx-shadow-64: 0 20px 56px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.36);
+
+  --mx-acrylic-fill: rgba(32, 32, 32, 0.72);
+  --mx-scrollbar-thumb: rgba(255, 255, 255, 0.22);
+
+  --mx-mark-top: #b2a7eb;
+  --mx-mark-right: #7e6ddd;
+  --mx-mark-left: #584c9b;
+  --mx-mark-signal: #7e6ddd;
+
+  --mx-stage-bg: #0e0e0e;
+  --mx-stage-stroke: rgba(255, 255, 255, 0.08);
+}

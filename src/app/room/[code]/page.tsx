@@ -10,5 +10,10 @@ export default async function RoomPage({ params }: { params: Promise<{ code: str
   const { code } = await params;
   if (!user) redirect(`/login?next=/room/${code}`);
 
-  return <RoomClient code={code} />;
+  return (
+    <RoomClient
+      code={code}
+      user={{ email: user.email, displayName: user.displayName, role: user.role }}
+    />
+  );
 }

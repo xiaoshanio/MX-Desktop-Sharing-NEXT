@@ -10,5 +10,10 @@ export default async function AdminPage() {
   if (!user) redirect("/login?next=/admin");
   if (user.role !== "admin") redirect("/dashboard");
 
-  return <AdminClient selfId={user.id} />;
+  return (
+    <AdminClient
+      selfId={user.id}
+      user={{ email: user.email, displayName: user.displayName, role: user.role }}
+    />
+  );
 }

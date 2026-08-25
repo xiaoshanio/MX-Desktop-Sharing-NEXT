@@ -1,0 +1,14 @@
+<!-- App-icon lockup: the mark on its brand tile. Use for favicons, app icons, avatars. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="t" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6149D6"/>
+      <stop offset="1" stop-color="#4A32B8"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#t)"/>
+  <path d="M6 17.8L6 22.3L16 27.3L16 22.8Z" fill="#9081DB"/>
+  <path d="M26 17.8L26 22.3L16 27.3L16 22.8Z" fill="#BFB6EB"/>
+  <path d="M16 12.8L26 17.8L16 22.8L6 17.8Z" fill="#fff"/>
+  <path d="M7 11.2L16 6.7L25 11.2" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

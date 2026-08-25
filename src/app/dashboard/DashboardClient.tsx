@@ -1,163 +1,268 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { api } from "@/lib/api-client";
-import { CopyRow } from "@/components/CopyRow";
+import type { NodeSummary, RoomRow } from "@/lib/api-types";
+import { roleLabel, roleTone } from "@/lib/labels";
+import { AppShell, type ShellUser } from "@/components/AppShell";
 import {
   NodeCredentialFields,
   emptyNodeDraft,
   type NodeDraft,
 } from "@/components/NodeCredentialFields";
+import {
+  Badge,
+  Banner,
+  Button,
+  EmptyState,
+  Icon,
+  IconButton,
+  LinkButton,
+  Loading,
+  Modal,
+  Select,
+  TextField,
+} from "@/ui";
 
-type NodeSummary = {
-  id: string;
-  name: string;
-  kind: "builtin" | "user";
-  wsUrl: string;
-  isMine: boolean;
-  isEnabled: boolean;
-  lastCheckOk: boolean | null;
-  capabilities: { listRooms: boolean; ingress: boolean } | null;
-  webhookUrl: string;
-};
-
-type RoomRow = {
-  code: string;
-  name: string;
-  isActive: boolean;
-  role: string;
-  nodeName: string;
-  nodeKind: string;
-};
-
-export function DashboardClient({
-  user,
-}: {
-  user: { email: string; displayName: string; role: string };
-}) {
+export function DashboardClient({ user }: { user: ShellUser }) {
   const router = useRouter();
   const [nodes, setNodes] = useState<NodeSummary[]>([]);
   const [rooms, setRooms] = useState<RoomRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [n, r] = await Promise.all([
-      api<{ nodes: NodeSummary[] }>("/api/nodes"),
-      api<{ rooms: RoomRow[] }>("/api/rooms"),
-    ]);
-    setNodes(n.nodes);
-    setRooms(r.rooms);
-    setLoading(false);
+    try {
+      const [nodeRes, roomRes] = await Promise.all([
+        api<{ nodes: NodeSummary[] }>("/api/nodes"),
+        api<{ rooms: RoomRow[] }>("/api/rooms"),
+      ]);
+      setNodes(nodeRes.nodes);
+      setRooms(roomRes.rooms);
+      setErr(null);
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  async function logout() {
-    await api("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
+  const usableNodes = useMemo(() => nodes.filter((node) => node.isEnabled), [nodes]);
+  const activeRooms = rooms.filter((room) => room.isActive).length;
+
+  return (
+    <AppShell
+      user={user}
+      heading={<span>房间</span>}
+      status={
+        <>
+          <span className="mx-statusbar__item">房间 {rooms.length}</span>
+          <span className="mx-statusbar__divider" />
+          <span className="mx-statusbar__item">活跃 {activeRooms}</span>
+          <span className="mx-statusbar__divider" />
+          <span className="mx-statusbar__item">可用节点 {usableNodes.length}</span>
+        </>
+      }
+    >
+      <section className="mx-section">
+        <header className="mx-section__header">
+          <div className="mx-section__heading">
+            <h1 className="mx-section__title">房间</h1>
+            <p className="mx-section__subtitle">
+              每个房间绑定一个 LiveKit 节点，媒体流量只走那个节点、只烧那个节点的额度。
+            </p>
+          </div>
+          <span className="mx-section__spacer" />
+          <div className="mx-section__actions">
+            <Button variant="secondary" size="sm" onClick={() => void refresh()}>
+              <Icon name="refresh" size={14} />
+              刷新
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
+              <Icon name="plus" size={14} />
+              创建房间
+            </Button>
+          </div>
+        </header>
+
+        {err && <Banner tone="error">{err}</Banner>}
+
+        <div className="mx-stats">
+          <Stat icon="rooms" tone="accent" value={rooms.length} label="我的房间" />
+          <Stat icon="broadcast" tone="success" value={activeRooms} label="活跃房间" />
+          <Stat icon="node" tone="info" value={usableNodes.length} label="可用节点" />
+        </div>
+
+        {loading ? (
+          <Loading />
+        ) : rooms.length === 0 ? (
+          <EmptyState
+            icon="rooms"
+            title="还没有房间"
+            actions={
+              <Button variant="primary" onClick={() => setCreating(true)}>
+                <Icon name="plus" size={16} />
+                创建第一个房间
+              </Button>
+            }
+          >
+            建一个房间，就能拿到属于你自己的 OBS 推流地址，或者直接从浏览器共享屏幕。
+          </EmptyState>
+        ) : (
+          <div className="mx-list">
+            {rooms.map((room) => (
+              <RoomListRow key={room.code} room={room} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <CreateRoomDialog
+        open={creating}
+        nodes={usableNodes}
+        onClose={() => setCreating(false)}
+        onCreated={async (code) => {
+          setCreating(false);
+          await refresh();
+          router.push(`/room/${code}`);
+        }}
+      />
+    </AppShell>
+  );
+}
+
+function Stat({
+  icon,
+  tone,
+  value,
+  label,
+}: {
+  icon: "rooms" | "broadcast" | "node";
+  tone: "accent" | "success" | "info";
+  value: number;
+  label: string;
+}) {
+  return (
+    <div className="mx-stat">
+      <span className="mx-stat__icon" data-tone={tone}>
+        <Icon name={icon} size={19} />
+      </span>
+      <span className="mx-stat__body">
+        <span className="mx-stat__value">{value}</span>
+        <span className="mx-stat__label">{label}</span>
+      </span>
+    </div>
+  );
+}
+
+function RoomListRow({ room }: { room: RoomRow }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(room.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
   }
 
   return (
-    <div className="wrap">
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 20 }}>
-        <div>
-          <h1>控制台</h1>
-          <span className="muted">
-            {user.displayName}（{user.email}）· {user.role === "admin" ? "管理员" : "用户"}
-          </span>
-        </div>
-        <div className="row">
-          {user.role === "admin" && (
-            <a href="/admin" className="badge builtin" style={{ padding: "8px 14px" }}>
-              管理后台
-            </a>
+    <div className="mx-row">
+      <span className="mx-row__lead" data-tone={room.isActive ? "accent" : undefined}>
+        <Icon name="rooms" size={19} />
+      </span>
+
+      <div className="mx-row__main">
+        <div className="mx-row__title">
+          <span className="mx-row__name">{room.name}</span>
+          {room.isActive ? (
+            <Badge tone="success" dot>
+              活跃
+            </Badge>
+          ) : (
+            <Badge tone="neutral">已关闭</Badge>
           )}
-          <button className="ghost" onClick={logout}>
-            退出登录
-          </button>
+          <Badge tone={roleTone(room.role)}>{roleLabel(room.role)}</Badge>
+        </div>
+        <div className="mx-row__meta">
+          <code>{room.code}</code>
+          <span>·</span>
+          <span>节点 {room.nodeName}</span>
+          {room.nodeKind === "builtin" && <Badge tone="info">内置</Badge>}
         </div>
       </div>
 
-      <CreateRoom nodes={nodes} onCreated={refresh} />
-      <MyNodes nodes={nodes} onChanged={refresh} />
-
-      <div className="panel">
-        <h2>我的房间</h2>
-        {loading ? (
-          <p className="muted">加载中…</p>
-        ) : rooms.length === 0 ? (
-          <p className="muted">还没有房间。用上面的表单建一个。</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>房间</th>
-                <th>节点</th>
-                <th>身份</th>
-                <th>状态</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rooms.map((r) => (
-                <tr key={r.code}>
-                  <td>
-                    {r.name}
-                    <br />
-                    <code className="muted">{r.code}</code>
-                  </td>
-                  <td>
-                    {r.nodeName}{" "}
-                    {r.nodeKind === "builtin" && <span className="badge builtin">内置</span>}
-                  </td>
-                  <td>{r.role}</td>
-                  <td>{r.isActive ? "活跃" : "已关闭"}</td>
-                  <td>
-                    <button className="ghost" onClick={() => router.push(`/room/${r.code}`)}>
-                      进入
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+      <div className="mx-row__actions">
+        <IconButton
+          size="sm"
+          label={copied ? "房间码已复制" : "复制房间码"}
+          onClick={() => void copyCode()}
+        >
+          <Icon name={copied ? "check" : "copy"} size={15} />
+        </IconButton>
+        <LinkButton href={`/room/${room.code}`} variant="primary" size="sm">
+          进入
+          <Icon name="chevronRight" size={14} />
+        </LinkButton>
       </div>
     </div>
   );
 }
 
-function CreateRoom({
+const NEW_NODE = "__new__";
+
+function CreateRoomDialog({
+  open,
   nodes,
+  onClose,
   onCreated,
 }: {
+  open: boolean;
   nodes: NodeSummary[];
-  onCreated: () => Promise<void>;
+  onClose: () => void;
+  onCreated: (code: string) => Promise<void>;
 }) {
-  const usable = nodes.filter((n) => n.isEnabled);
   const [name, setName] = useState("");
-  // "new" = 建房时现场接一套新凭据
-  const [nodeId, setNodeId] = useState<string>("");
+  const [nodeId, setNodeId] = useState("");
   const [draft, setDraft] = useState<NodeDraft>(emptyNodeDraft());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // Default to the first usable node, or straight to "bring your own" when there is none.
   useEffect(() => {
-    if (nodeId === "" && usable.length > 0) setNodeId(usable[0]!.id);
-  }, [usable, nodeId]);
+    if (!open) return;
+    setNodeId(nodes[0]?.id ?? NEW_NODE);
+  }, [open, nodes]);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  const bringingOwnNode = nodeId === NEW_NODE;
+  const selected = nodes.find((node) => node.id === nodeId);
+
+  const options = [
+    ...nodes.map((node) => ({
+      value: node.id,
+      label: `${node.name}${node.kind === "builtin" ? "（内置 · 共享额度）" : "（我的）"}${
+        node.capabilities?.ingress === false ? " · 无 OBS 推流" : ""
+      }`,
+    })),
+    { value: NEW_NODE, label: "+ 接入一套新的 LiveKit 凭据…" },
+  ];
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
     setBusy(true);
     setErr(null);
     try {
       const body: Record<string, unknown> = { name };
-      if (nodeId === "new") body.newNode = draft;
+      if (bringingOwnNode) body.newNode = draft;
       else body.nodeId = nodeId;
 
       const { room } = await api<{ room: { code: string } }>("/api/rooms", {
@@ -165,216 +270,64 @@ function CreateRoom({
         json: body,
       });
       setName("");
-      await onCreated();
-      window.location.href = `/room/${room.code}`;
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <form className="panel" onSubmit={submit}>
-      <h2>创建房间</h2>
-      <p className="muted">
-        每个房间绑定一个 LiveKit 节点 —— 这个房间的媒体流量就走那个节点、烧那个节点的额度。
-      </p>
-
-      <label>房间名</label>
-      <input type="text" required value={name} onChange={(e) => setName(e.target.value)} />
-
-      <label>使用哪个节点</label>
-      <select value={nodeId} onChange={(e) => setNodeId(e.target.value)}>
-        {usable.map((n) => (
-          <option key={n.id} value={n.id}>
-            {n.name}
-            {n.kind === "builtin" ? "（内置·共享额度）" : "（我的）"}
-            {n.capabilities?.ingress === false ? " · 无 OBS 推流" : ""}
-          </option>
-        ))}
-        <option value="new">+ 接入一套新的 LiveKit 凭据…</option>
-      </select>
-
-      {nodeId === "new" && (
-        <div style={{ marginTop: 12 }}>
-          <NodeCredentialFields value={draft} onChange={setDraft} />
-        </div>
-      )}
-
-      {usable.length === 0 && nodeId !== "new" && (
-        <p className="muted" style={{ marginTop: 8 }}>
-          你还没有可用节点。选上面的「接入一套新的 LiveKit 凭据」，或到下方节点区添加。
-        </p>
-      )}
-
-      {err && <div className="err">{err}</div>}
-      <div className="row" style={{ marginTop: 16 }}>
-        <button type="submit" disabled={busy || (usable.length === 0 && nodeId !== "new")}>
-          {busy ? "创建中…" : "创建房间"}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function MyNodes({
-  nodes,
-  onChanged,
-}: {
-  nodes: NodeSummary[];
-  onChanged: () => Promise<void>;
-}) {
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<NodeDraft>(emptyNodeDraft());
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [checkingId, setCheckingId] = useState<string | null>(null);
-  const [rotatingId, setRotatingId] = useState<string | null>(null);
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setErr(null);
-    try {
-      await api("/api/nodes", { method: "POST", json: draft });
       setDraft(emptyNodeDraft());
-      setAdding(false);
-      await onChanged();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      await onCreated(room.code);
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
   }
 
-  async function recheck(id: string) {
-    setCheckingId(id);
-    try {
-      await api(`/api/nodes/${id}`, { method: "POST" });
-      await onChanged();
-    } finally {
-      setCheckingId(null);
-    }
-  }
-
-  async function remove(id: string) {
-    if (!confirm("确定删除这个节点？其下的活跃房间必须先关闭。")) return;
-    try {
-      await api(`/api/nodes/${id}`, { method: "DELETE" });
-      await onChanged();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  /** 换密钥：LiveKit 那边重建 key 之后用这个更新。会先体检新凭据再写入。 */
-  async function rotate(id: string, name: string) {
-    const apiKey = prompt(`「${name}」的新 API Key`)?.trim();
-    if (!apiKey) return;
-    const apiSecret = prompt(`「${name}」的新 API Secret`)?.trim();
-    if (!apiSecret) return;
-
-    setRotatingId(id);
-    try {
-      await api(`/api/nodes/${id}`, { method: "PATCH", json: { apiKey, apiSecret } });
-      await onChanged();
-      alert("已更新，新凭据体检通过。");
-    } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
-    } finally {
-      setRotatingId(null);
-    }
-  }
-
   return (
-    <div className="panel">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>LiveKit 节点</h2>
-        <button className="ghost" onClick={() => setAdding((s) => !s)}>
-          {adding ? "取消" : "+ 接入我的节点"}
-        </button>
-      </div>
+    <Modal
+      open={open}
+      title="创建房间"
+      onClose={onClose}
+      size={bringingOwnNode ? "lg" : "md"}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={busy}>
+            取消
+          </Button>
+          <Button variant="primary" form="mx-create-room" type="submit" disabled={busy}>
+            {busy ? "创建中…" : "创建房间"}
+          </Button>
+        </>
+      }
+    >
+      <form id="mx-create-room" className="mx-form" onSubmit={submit}>
+        <TextField
+          label="房间名"
+          required
+          autoFocus
+          placeholder="周会演示"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
 
-      {adding && (
-        <form onSubmit={add} style={{ marginTop: 12 }}>
-          <NodeCredentialFields value={draft} onChange={setDraft} />
-          {err && <div className="err">{err}</div>}
-          <div className="row" style={{ marginTop: 12 }}>
-            <button type="submit" disabled={busy}>
-              {busy ? "校验并保存…" : "保存节点"}
-            </button>
-          </div>
-        </form>
-      )}
+        <Select
+          label="使用哪个节点"
+          options={options}
+          value={nodeId}
+          onChange={(event) => setNodeId(event.target.value)}
+          hint={
+            selected?.capabilities?.ingress === false
+              ? "这个节点的 Ingress 不可用，房间里拿不到 OBS 推流地址，但浏览器共享仍然可用。"
+              : "房间建好后不能换节点。"
+          }
+        />
 
-      <table style={{ marginTop: 12 }}>
-        <thead>
-          <tr>
-            <th>名称</th>
-            <th>地址 / webhook</th>
-            <th>类型</th>
-            <th>Ingress</th>
-            <th>体检</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {nodes.map((n) => (
-            <tr key={n.id}>
-              <td>{n.name}</td>
-              <td>
-                <code className="muted">{n.wsUrl}</code>
-                {n.isMine && (
-                  <>
-                    <br />
-                    <span className="muted" style={{ fontSize: 12 }}>
-                      去 LiveKit 控制台把这个填进 Webhooks：
-                    </span>
-                    <CopyRow value={n.webhookUrl} />
-                  </>
-                )}
-              </td>
-              <td>
-                {n.kind === "builtin" ? (
-                  <span className="badge builtin">内置</span>
-                ) : (
-                  <span className="badge">我的</span>
-                )}
-              </td>
-              <td>{n.capabilities?.ingress ? "可用" : "—"}</td>
-              <td>
-                {n.lastCheckOk === null ? "—" : n.lastCheckOk ? "正常" : "异常"}
-              </td>
-              <td>
-                <div className="row">
-                  <button
-                    className="ghost"
-                    disabled={checkingId === n.id}
-                    onClick={() => recheck(n.id)}
-                  >
-                    {checkingId === n.id ? "检测中…" : "检测"}
-                  </button>
-                  {n.isMine && n.kind === "user" && (
-                    <>
-                      <button
-                        className="ghost"
-                        disabled={rotatingId === n.id}
-                        onClick={() => rotate(n.id, n.name)}
-                      >
-                        {rotatingId === n.id ? "更新中…" : "换密钥"}
-                      </button>
-                      <button className="danger" onClick={() => remove(n.id)}>
-                        删除
-                      </button>
-                    </>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        {bringingOwnNode && <NodeCredentialFields value={draft} onChange={setDraft} />}
+
+        {nodes.length === 0 && !bringingOwnNode && (
+          <Banner tone="warning" title="没有可用节点">
+            选上面的「接入一套新的 LiveKit 凭据」，或者先到「LiveKit 节点」页添加一个。
+          </Banner>
+        )}
+
+        {err && <Banner tone="error">{err}</Banner>}
+      </form>
+    </Modal>
   );
 }

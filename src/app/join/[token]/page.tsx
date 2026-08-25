@@ -4,6 +4,8 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { api } from "@/lib/api-client";
+import { BrandMark } from "@/components/BrandMark";
+import { Banner, Icon, LinkButton, Spinner } from "@/ui";
 
 /**
  * 邀请落地页。未登录时先把人送去登录/注册，带上 next 参数再回来兑换。
@@ -33,9 +35,9 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
           { method: "POST" },
         );
         if (!cancelled) router.replace(`/room/${room.code}`);
-      } catch (e) {
+      } catch (error) {
         if (cancelled) return;
-        setErr(e instanceof Error ? e.message : String(e));
+        setErr(error instanceof Error ? error.message : String(error));
         setState("error");
       }
     })();
@@ -46,23 +48,40 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
   }, [token, router]);
 
   return (
-    <div className="wrap" style={{ maxWidth: 480 }}>
-      <div className="panel">
-        {state === "working" ? (
-          <>
-            <h1>正在加入房间…</h1>
-            <p className="muted">校验邀请链接。</p>
-          </>
-        ) : (
-          <>
-            <h1>无法加入</h1>
-            <div className="err">{err}</div>
-            <p className="muted" style={{ marginTop: 12 }}>
-              链接可能已过期、被撤销，或使用次数已满。找房主重新发一个。
-            </p>
-            <a href="/dashboard">← 回控制台</a>
-          </>
-        )}
+    <div className="mx-auth">
+      <div className="mx-auth__inner">
+        <div className="mx-auth__brand">
+          <BrandMark size={64} className="mx-auth__mark" />
+          <h1 className="mx-auth__title">{state === "working" ? "正在加入房间" : "无法加入"}</h1>
+          <p className="mx-auth__subtitle">
+            {state === "working"
+              ? "正在校验邀请链接，马上就好。"
+              : "这个邀请链接没能兑换成一次入房。"}
+          </p>
+        </div>
+
+        <div className="mx-auth__panel">
+          {state === "working" ? (
+            <div
+              className="mx-inline"
+              style={{ justifyContent: "center", padding: "var(--mx-space-lg) 0" }}
+            >
+              <Spinner size={18} />
+              <span className="mx-text-caption">校验邀请链接…</span>
+            </div>
+          ) : (
+            <>
+              {err && <Banner tone="error">{err}</Banner>}
+              <p className="mx-text-caption">
+                链接可能已过期、被撤销，或使用次数已满。找房主重新发一个。
+              </p>
+              <LinkButton href="/dashboard" variant="primary" full>
+                <Icon name="rooms" size={16} />
+                回到控制台
+              </LinkButton>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
