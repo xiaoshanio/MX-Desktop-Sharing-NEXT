@@ -3,13 +3,14 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { ensureBootstrapped } from "@/lib/bootstrap";
 import { encryptionKeySource } from "@/lib/key-store";
-import { json, route } from "@/lib/http";
+import { json, redactSecrets, route } from "@/lib/http";
 
 export const runtime = "nodejs";
 
 /**
  * 健康检查。配错了环境变量时，这里给出可读的诊断，
- * 而不是让人对着一个 500 页面猜。故意不需要登录 —— 它不泄露任何敏感信息。
+ * 而不是让人对着一个 500 页面猜。故意不需要登录 —— 所以回显的驱动错误
+ * 一律先过 redactSecrets()，避免把连接串里的口令抖出去。
  */
 export const GET = route(async () => {
   const checks: Record<string, { ok: boolean; detail: string }> = {};
@@ -27,20 +28,32 @@ export const GET = route(async () => {
     } catch (err) {
       checks.database = {
         ok: false,
-        detail: `连不上：${err instanceof Error ? err.message : String(err)}`,
+        detail: `连不上：${redactSecrets(err instanceof Error ? err.message : String(err))}`,
       };
     }
   }
 
-  const hasAdminPassword = Boolean(process.env.ADMIN_PASSWORD);
+  // 空字符串也算没设 —— 照抄 .env.example 忘了填是最常见的踩坑
+  const hasAdminPassword = (process.env.ADMIN_PASSWORD ?? "").trim() !== "";
   checks.adminPassword = {
     ok: hasAdminPassword,
-    detail: hasAdminPassword ? "已设置" : "缺少 ADMIN_PASSWORD —— 管理员账户不会被创建",
+    detail: hasAdminPassword
+      ? "已设置"
+      : "缺少 ADMIN_PASSWORD（空字符串也算）—— 管理员账户不会被创建",
   };
 
   if (checks.database?.ok !== false) {
     const boot = await ensureBootstrapped();
-    if (!boot.ok) checks.bootstrap = { ok: false, detail: boot.error ?? "启动引导失败" };
+    if (!boot.ok) {
+      checks.bootstrap = { ok: false, detail: redactSecrets(boot.error ?? "启动引导失败") };
+    } else {
+      checks.bootstrap = {
+        ok: true,
+        detail: boot.adminConfigured
+          ? `就绪，管理员邮箱 ${boot.adminEmail}`
+          : "已就绪，但管理员账户没创建（ADMIN_PASSWORD 为空）",
+      };
+    }
   }
 
   const src = encryptionKeySource();

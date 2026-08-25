@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { httpUrl } from "../src/lib/livekit.ts";
-import { parseOr400 } from "../src/lib/http.ts";
+import { parseOr400, redactSecrets } from "../src/lib/http.ts";
 import { generateRoomCode } from "../src/lib/room-code.ts";
 import {
   createInviteSchema,
   createRoomSchema,
+  emailSchema,
   wsUrlSchema,
 } from "../src/lib/validation.ts";
 
@@ -31,6 +32,54 @@ describe("wsUrlSchema", () => {
 
   it("空值被拒", () => {
     assert.throws(() => parse("   "));
+  });
+});
+
+describe("emailSchema", () => {
+  const parse = (v: string) => parseOr400(emailSchema, v);
+
+  it("接受默认管理员邮箱 admin@localhost", () => {
+    // 回归测试：zod 的 .email() 会拒掉无点域名，导致默认管理员永远登不进去
+    assert.equal(parse("admin@localhost"), "admin@localhost");
+  });
+
+  it("接受普通邮箱并归一化大小写和空白", () => {
+    assert.equal(parse("  Admin@Example.COM  "), "admin@example.com");
+  });
+
+  it("接受内网单标签域名和 IP 字面量", () => {
+    assert.equal(parse("user@intranet"), "user@intranet");
+    assert.equal(parse("user@192.168.1.10"), "user@192.168.1.10");
+  });
+
+  it("拒绝明显不是邮箱的输入", () => {
+    for (const bad of ["no-at-sign", "@nolocal.com", "a@", "a b@c.com", "a@b..c", ""]) {
+      assert.throws(() => parse(bad), `本该拒绝：${JSON.stringify(bad)}`);
+    }
+  });
+
+  it("拒绝域名标签以连字符收尾", () => {
+    assert.throws(() => parse("a@-bad.com"));
+    assert.throws(() => parse("a@bad-.com"));
+  });
+});
+
+describe("redactSecrets", () => {
+  it("抹掉连接串里的账号口令", () => {
+    assert.equal(
+      redactSecrets("connect failed: postgresql://neon:hunter2@ep-x.aws.neon.tech/db"),
+      "connect failed: postgresql://***:***@ep-x.aws.neon.tech/db",
+    );
+  });
+
+  it("一条消息里多个连接串都要抹", () => {
+    const out = redactSecrets("a://u1:p1@h1 and b://u2:p2@h2");
+    assert.ok(!out.includes("p1") && !out.includes("p2"), out);
+  });
+
+  it("不含口令的 URL 原样保留", () => {
+    const msg = "timeout talking to https://ep-x.aws.neon.tech/db";
+    assert.equal(redactSecrets(msg), msg);
   });
 });
 

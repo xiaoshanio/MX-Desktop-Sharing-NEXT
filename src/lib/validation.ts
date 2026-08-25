@@ -27,6 +27,27 @@ export const wsUrlSchema = z
     return `${parsed.protocol}//${parsed.host}`;
   });
 
+/**
+ * 邮箱。**故意比 zod 的 .email() 宽一点：允许无点的单标签域名**，
+ * 这样 `admin@localhost`（ADMIN_EMAIL 的默认值）能正常登录。
+ *
+ * zod 的 .email() 要求域名带点，会把默认管理员邮箱判成非法 —— 结果是账户建得出来
+ * 却永远登不进去。既然本站要支持内网/自建部署，localhost 这类地址就是合法输入。
+ */
+const EMAIL_LABEL = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
+const EMAIL_RE = new RegExp(
+  `^[a-z0-9!#$%&'*+/=?^_\`{|}~.-]+@${EMAIL_LABEL}(?:\\.${EMAIL_LABEL})*$`,
+  "i",
+);
+
+export const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "邮箱格式不对")
+  .max(254, "邮箱太长")
+  .regex(EMAIL_RE, "邮箱格式不对");
+
 export const nodeCredentialsSchema = z.object({
   wsUrl: wsUrlSchema,
   apiKey: z.string().trim().min(3, "API Key 太短"),
@@ -38,12 +59,12 @@ export const createNodeSchema = nodeCredentialsSchema.extend({
 });
 
 export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email("邮箱格式不对"),
+  email: emailSchema,
   password: z.string().min(1, "请输入密码"),
 });
 
 export const registerSchema = z.object({
-  email: z.string().trim().toLowerCase().email("邮箱格式不对"),
+  email: emailSchema,
   displayName: z.string().trim().min(1).max(60),
   password: z.string().min(8, "密码至少 8 位"),
 });
@@ -59,7 +80,7 @@ export const createRoomSchema = z.object({
 });
 
 export const addMemberSchema = z.object({
-  email: z.string().trim().toLowerCase().email("邮箱格式不对"),
+  email: emailSchema,
   role: z.enum(["publisher", "viewer"]).default("viewer"),
 });
 

@@ -24,6 +24,16 @@ export function json(data: unknown, init?: ResponseInit) {
   return Response.json(data as Record<string, unknown>, init);
 }
 
+/**
+ * 抹掉 URL 里的 `user:password@`，供公开端点回显底层错误用。
+ *
+ * /api/health 不需要登录，而数据库驱动抛的异常里可能带着完整连接串。
+ * 放在这里是因为「什么能回给客户端」属于传输层的判断，而且这个模块零依赖，好测。
+ */
+export function redactSecrets(message: string): string {
+  return message.replace(/([a-z][a-z0-9+.-]*:\/\/)[^:@/\s]+:[^@/\s]+@/gi, "$1***:***@");
+}
+
 /** 包住 handler，把 ApiError 翻成响应，其余异常记日志后统一 500。 */
 export function route<Args extends unknown[]>(
   handler: (req: Request, ...args: Args) => Promise<Response>,

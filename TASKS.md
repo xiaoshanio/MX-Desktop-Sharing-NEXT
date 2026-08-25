@@ -30,6 +30,17 @@
 - [x] **加密密钥自动供给**：`CREDENTIAL_ENCRYPTION_KEY` 没设就生成一把存进
       `app_config`，抢占式插入 + 回读，避免并发冷启动各生成一把
 - [x] 引导失败不抛出，站点仍能起来并给出可读错误
+- [x] **登录/注册按原因分状态码**，不再让配置问题掉进笼统的 500：
+      `503 not_configured`（库连不上/变量缺失）、`503 admin_not_configured`
+      （`ADMIN_PASSWORD` 为空，账户压根没建）、`401 invalid_credentials`（密码不对）。
+      入参校验排在配置闸门之前，所以坏参数照样回 400
+- [x] `ADMIN_PASSWORD` 纯空白按未配置处理（`.env.example` 照抄下来忘填是最常见踩坑），
+      过短只警告不阻断 —— 拦死会把人锁在门外
+- [x] `emailSchema` 放宽到接受无点单标签域名，否则默认的 `admin@localhost`
+      被 zod 的 `.email()` 判非法，账户建得出来却永远登不进去
+- [x] 公开端点回显的底层错误一律过 `redactSecrets()`，避免抖出连接串里的口令
+- [x] 「表不存在」类报错自动补一句「跑 npm run db:migrate」—— `login_attempts` 在第二个
+      迁移里，只迁一半的症状恰好是「库连得上但登录挂掉」
 - [x] 刻意**不用** `instrumentation.ts`：它会让 webpack 把 `node:crypto` 拖进不支持
       `node:` scheme 的编译目标，dev 下每个请求都 500（已实测确认并移除）
 - [x] 引导与密钥加载都缓存 promise，失败不缓存以便重试

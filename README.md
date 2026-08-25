@@ -13,12 +13,17 @@
 
 ## 快速开始
 
-只需要两个环境变量。复制 `.env.example` 为 `.env.local`，填这两项：
+只需要两个环境变量。复制 `.env.example` 为 `.env.local`（Next **不读** `.env.example`
+本身，改那个文件不生效），填这两项：
 
 ```bash
-DATABASE_URL="postgresql://...@ep-xxx-pooler.../neondb?sslmode=require"
-ADMIN_PASSWORD="你的管理员密码"
+DATABASE_URL=postgresql://...@ep-xxx-pooler.../neondb?sslmode=require
+ADMIN_PASSWORD=换成你自己的密码
 ```
+
+**引号可以不加** —— 加与不加解析结果完全一样。唯一例外是值里含 `#`：不加引号会被当成
+注释截断且不报错，那种情况要加。`ADMIN_PASSWORD` 必须非空，留成 `""` 等于没设，
+管理员账户不会被创建。
 
 然后建表、启动：
 
@@ -31,22 +36,43 @@ npm run dev
 打开 `http://localhost:3000`，用 `admin@localhost` + 上面的密码登录 ——
 **管理员账户在首次启动时自动创建，没有安装向导**。
 
-登录后到控制台「+ 接入我的节点」配一个 LiveKit 节点（怎么拿凭据见下一节）。
+登录后到侧栏「LiveKit 节点」→「接入节点」配一个 LiveKit 节点（怎么拿凭据见下一节）。
 LiveKit 不占用任何环境变量。
 
-其他命令：`npm test`（32 项）、`npm run typecheck`、`npm run build`。
-配置有问题时看 `/api/health`，它会逐项告诉你缺什么。
+其他命令：`npm test`（62 项）、`npm run typecheck`、`npm run build`。
+
+### 登录报错了？
+
+**先打开 `/api/health`** —— 它逐项报告每个环节的状态，不需要登录，比对着报错猜快得多。
+
+```bash
+curl -s http://localhost:3000/api/health | python -m json.tool
+```
+
+登录接口按原因分开了状态码：
+
+| 返回 | 含义 |
+| --- | --- |
+| `503 not_configured` | 数据库连不上，或 `DATABASE_URL` 没配 |
+| `503 admin_not_configured` | 库是通的，但 `ADMIN_PASSWORD` 为空，管理员账户没建出来 |
+| `401 invalid_credentials` | 账户存在，密码不对 |
+| `429 rate_limited` | 同一邮箱 15 分钟内失败 8 次（同 IP 30 次） |
+
+一个容易误判的坑：**忘了 `npm run db:migrate` 的症状是「数据库连得上但登录挂掉」**。
+因为限流表 `login_attempts` 在第二个迁移里，而登录是第一个碰它的接口。
+`/api/health` 会明确提示「表还没建齐」。
 
 ### 环境变量清单
 
 | 变量 | 必填 | 默认 / 说明 |
 | --- | --- | --- |
 | `DATABASE_URL` | ✅ | Neon 连接串 |
-| `ADMIN_PASSWORD` | ✅ | 改这个值并重启即可改密码 |
+| `ADMIN_PASSWORD` | ✅ | 必须非空。改这个值并重启即可改密码 |
 | `ADMIN_EMAIL` | | `admin@localhost` |
 | `CREDENTIAL_ENCRYPTION_KEY` | | 不填则首次启动自动生成并存库（见 [DEPLOY.md](DEPLOY.md#关于自动生成的加密密钥) 的取舍说明） |
 | `NEXT_PUBLIC_APP_URL` | | 不填则从请求头推导 |
 | `CRON_SECRET` | | 保护定时清理端点 |
+
 
 ---
 
@@ -86,7 +112,7 @@ Ingress 服务时才值得。
 
 ### 3. 接入本站
 
-登录本站 → 控制台 → **「+ 接入我的节点」**，填三个值：
+登录本站 → 侧栏 **「LiveKit 节点」→「接入节点」**，填三个值：
 
 | 字段 | 填什么 |
 | --- | --- |
@@ -102,14 +128,15 @@ Ingress 服务时才值得。
 - `listIngress` —— 探测能不能生成 OBS 推流地址。**失败只降级不阻断**（房间仍可用浏览器共享，
   只是拿不到 WHIP 地址）。
 
-结果会记在节点的 `capabilities` 上，控制台的「Ingress」列能看到。任何时候都可以点「检测」重测。
+结果会记在节点的 `capabilities` 上，「LiveKit 节点」页面每行都会标出 Ingress 是否可用。
+任何时候都可以点「检测」重测。
 
 ### 4. 配 webhook（推荐）
 
 不配也能用，只是服务端不会记录上线/下线（前端仍然实时看得到画面和人数，因为那走的是
 LiveKit SDK 事件，不依赖 webhook）。
 
-控制台里每个你自己的节点下面都会显示**它专属的** webhook 地址，形如：
+「LiveKit 节点」页面里每个你自己的节点下面都会显示**它专属的** webhook 地址，形如：
 
 ```
 https://你的站点/api/webhooks/livekit/<nodeId>
@@ -123,7 +150,7 @@ https://你的站点/api/webhooks/livekit/<nodeId>
 
 ### 5. 建房验证
 
-回控制台建一个房间，节点选你刚接入的那个。进房后：
+回「房间」页面建一个房间，节点选你刚接入的那个。进房后：
 
 - 「从浏览器共享」按钮 → 不装 OBS 也能推
 - 「OBS 推流地址」面板 → 点「生成推流地址」，拿到 Server + Bearer Token
@@ -268,8 +295,46 @@ WHIP 直通没有服务端 simulcast。要多档清晰度，得在 **OBS 32.1.0+
 | `src/lib/rooms.ts` | 成员判定（`requireMember` / `requireRoomOwner`） |
 | `src/lib/invites.ts` | 邀请链接的签发与原子兑换 |
 | `src/lib/crypto.ts` | 凭据 AES-256-GCM 加解密 |
+| `src/lib/bootstrap.ts` | 启动引导：建管理员、供给密钥。惰性触发，幂等 |
 | `src/app/api/rooms/[code]/token/route.ts` | 鉴权收口 |
 | `src/app/api/webhooks/livekit/[nodeId]/route.ts` | 上线检测，按节点验签 |
+| `src/app/api/health/route.ts` | 配置诊断，排查入口 |
+
+## 界面
+
+自成一套设计系统，没有 UI 框架依赖，也没有 Tailwind ——
+只有 CSS 自定义属性 + 一层薄薄的 React 原语。
+
+| 路径 | 作用 |
+| --- | --- |
+| `src/styles/tokens.css` | 全部设计变量（`--mx-*`）。浅色是 `:root`，深色是 `[data-theme="dark"]` |
+| `src/styles/base.css` | 重置 + 排版工具类 |
+| `src/styles/components.css` | 原语样式（按钮、表单、卡片、表格、弹窗…） |
+| `src/styles/shell.css` | 应用外壳：顶栏、侧栏、状态栏 |
+| `src/styles/pages.css` | 页面级组合：登录页、统计块、视频舞台 |
+| `src/ui/` | React 原语，只消费 token，从不写死颜色尺寸 |
+| `src/components/AppShell.tsx` | 顶栏 + 可折叠侧栏 + 主区 + 状态栏；<1024px 侧栏变抽屉 |
+| `src/components/BrandMark.tsx` | 品牌标记（等距立方体 + 上行信号），见下 |
+| `src/lib/theme.ts` | 主题持久化 + 首屏防闪脚本 |
+
+两个刻意的取舍：
+
+- **主题在首屏之前定好**。`themeBootstrapScript` 内联进 `<head>`，在第一次绘制前就把
+  `data-theme` 打到 `<html>` 上，所以不会有一闪的白底。
+- **视频舞台恒定深色**。`--mx-stage-bg` 在两个主题下都是近黑 —— 画面周围的亮色边框会
+  影响对画面本身的判读。
+
+### 品牌标记
+
+一个等距立方体（房间绑定的那个 LiveKit 节点）加上方掀起的折角（推出去的流）。
+两个形状共用同一条 2:1 等距斜率，所以折角的两臂与立方体顶面棱严格平行。
+
+`src/components/BrandMark.tsx` 是唯一事实来源；三个面的颜色走
+`--mx-mark-{top,right,left,signal}`，按主题分别定义 —— 用透明度做明暗会在深色底下
+把光照关系倒过来。`public/` 下另有独立文件：`logo-mark.svg`（浅色底）、
+`logo-mark-dark.svg`、`logo-tile.svg`（带底板，给 favicon / 应用图标）、
+`logo-glyph.svg`（单色）、`logo-lockup.svg`（横向组合）。
+
 
 ## 鉴权模型
 
