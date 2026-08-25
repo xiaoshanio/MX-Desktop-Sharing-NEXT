@@ -50,6 +50,9 @@ export const POST = route(async (req, ctx: { params: Promise<{ code: string }> }
   const roomCtx = await requireMember(code, user);
 
   if (!roomCtx.room.isActive) throw badRequest("房间已关闭");
+  if (!roomCtx.room.obsEnabled) {
+    throw badRequest("这个房间的「OBS 直播」开关是关闭的，请房主先打开再生成推流地址");
+  }
   if (!canPublish(roomCtx, user)) throw badRequest("你在这个房间没有推流权限");
 
   const caps = roomCtx.node.capabilities as { ingress?: boolean } | null;

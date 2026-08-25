@@ -10,6 +10,7 @@ export * from "./IconButton";
 export * from "./Modal";
 export * from "./Select";
 export * from "./Spinner";
+export * from "./Switch";
 export * from "./Tabs";
 export * from "./TextField";
 export * from "./cx";

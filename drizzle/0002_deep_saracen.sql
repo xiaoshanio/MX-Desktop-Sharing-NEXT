@@ -1,0 +1,1 @@
+ALTER TABLE "rooms" ADD COLUMN "obs_enabled" boolean DEFAULT true NOT NULL;

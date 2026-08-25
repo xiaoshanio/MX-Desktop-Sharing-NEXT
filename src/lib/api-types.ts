@@ -27,6 +27,8 @@ export type RoomDetail = {
   isActive: boolean;
   isOwner: boolean;
   canPublish: boolean;
+  /** OBS 直播闸门。false = 不接受 WHIP 推流（浏览器共享不受影响）。 */
+  obsEnabled: boolean;
   node: { name: string; kind: string; ingressAvailable: boolean | null };
 };
 

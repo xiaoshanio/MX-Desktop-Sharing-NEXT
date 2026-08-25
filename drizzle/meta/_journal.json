@@ -15,6 +15,13 @@
       "when": 1787591302000,
       "tag": "0001_smart_blue_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787671857266,
+      "tag": "0002_deep_saracen",
+      "breakpoints": true
     }
   ]
 }

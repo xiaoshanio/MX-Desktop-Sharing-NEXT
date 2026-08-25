@@ -106,6 +106,12 @@ export const rooms = pgTable(
       .references(() => livekitNodes.id, { onDelete: "restrict" }),
     /** 观众默认只订阅不发布 */
     viewerCanPublish: boolean("viewer_can_publish").notNull().default(false),
+    /**
+     * OBS 直播闸门（房主开关）。false = 这个房间不接受 WHIP 推流：
+     * 生成/轮换推流地址的接口直接 400，已生成的地址在关闭那一刻就被 deleteIngress 作废。
+     * 只管 OBS 那条路，浏览器直接共享屏幕走的是另一条（WebRTC 直连），不受它影响。
+     */
+    obsEnabled: boolean("obs_enabled").notNull().default(true),
     /** 签发的 join token 有效期，默认 6h */
     tokenTtlSeconds: integer("token_ttl_seconds").notNull().default(21600),
     isActive: boolean("is_active").notNull().default(true),

@@ -79,6 +79,14 @@ export const createRoomSchema = z.object({
   tokenTtlSeconds: z.number().int().min(300).max(86400).default(21600),
 });
 
+/**
+ * 房主改房间设置。目前只有 OBS 直播闸门一项，所以是必填 —— 后面加字段时改成
+ * 全 optional + 「至少给一项」的校验。
+ */
+export const updateRoomSchema = z.object({
+  obsEnabled: z.boolean(),
+});
+
 export const addMemberSchema = z.object({
   email: emailSchema,
   role: z.enum(["publisher", "viewer"]).default("viewer"),

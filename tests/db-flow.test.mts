@@ -304,6 +304,71 @@ describe("OBS 推流地址（room_ingress）", () => {
     );
     assert.equal(r.rows[0]!.n, 1, "轮换后应只有一条生效");
   });
+
+  it("obs_enabled 默认开着（迁移前建的老房间照旧能用 OBS）", async () => {
+    const { roomId } = await seed();
+    const r = await pg.query<{ obs_enabled: boolean }>(
+      `select obs_enabled from rooms where id=$1`,
+      [roomId],
+    );
+    assert.equal(r.rows[0]!.obs_enabled, true);
+  });
+
+  it("关掉 OBS 闸门：批量作废只碰生效的行，早就撤销的时间戳不被改写", async () => {
+    const { roomId, adminId } = await seed();
+
+    // partial unique index 按 (房间,用户) 算，所以两条同时生效的行需要两个人
+    const otherId = randomUUID();
+    await pg.query(
+      `insert into users (id, email, password_hash, display_name) values ($1,$2,'h','推流人')`,
+      [otherId, `pub-${otherId}@localhost`],
+    );
+    await pg.query(`insert into room_members (room_id, user_id, role) values ($1,$2,'publisher')`, [
+      roomId,
+      otherId,
+    ]);
+
+    const stale = randomUUID();
+    await pg.query(
+      `insert into room_ingress (id, room_id, user_id, ingress_id, participant_identity, whip_url, stream_key_enc, revoked_at)
+       values ($1,$2,$3,'ig-stale',$4,'https://whip','enc', now() - interval '1 day')`,
+      [stale, roomId, adminId, `obs:${adminId}`],
+    );
+    for (const [userId, ingressId] of [
+      [adminId, "ig-live-1"],
+      [otherId, "ig-live-2"],
+    ] as const) {
+      await pg.query(
+        `insert into room_ingress (id, room_id, user_id, ingress_id, participant_identity, whip_url, stream_key_enc)
+         values ($1,$2,$3,$4,$5,'https://whip','enc')`,
+        [randomUUID(), roomId, userId, ingressId, `obs:${userId}`],
+      );
+    }
+
+    const readStale = async () =>
+      (
+        await pg.query<{ revoked_at: Date }>(`select revoked_at from room_ingress where id=$1`, [
+          stale,
+        ])
+      ).rows[0]!.revoked_at;
+    const before = await readStale();
+
+    // PATCH { obsEnabled: false } 落库的那两条语句
+    const cut = await pg.query(
+      `update room_ingress set revoked_at = now() where room_id=$1 and revoked_at is null returning id`,
+      [roomId],
+    );
+    await pg.query(`update rooms set obs_enabled = false where id=$1`, [roomId]);
+
+    assert.equal(cut.rows.length, 2, "两条生效的推流地址都该被作废");
+    assert.deepEqual(await readStale(), before, "早就撤销的行不该被改写");
+
+    const flag = await pg.query<{ obs_enabled: boolean }>(
+      `select obs_enabled from rooms where id=$1`,
+      [roomId],
+    );
+    assert.equal(flag.rows[0]!.obs_enabled, false);
+  });
 });
 
 describe("在线状态（webhook 落库）", () => {

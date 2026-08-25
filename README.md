@@ -7,6 +7,7 @@
 - **内置节点兜底**。管理员可把任一节点「设为内置」供全站共享，能开关是否对普通用户开放、限制房间数。
 - **鉴权在协议层**。不在成员表里 → 签不出 token → 连不上 room → 订阅不到任何 track。不是前端过滤。
 - **OBS 走 WHIP 直通**。`enableTranscoding: false`，不消耗每月 60 分钟的 transcode 额度。
+- **OBS 直播有开关**。房主可以一键关掉本房间的 WHIP 入口：正在推的立刻断，已发出去的推流地址全部作废。浏览器共享是另一条路，不受它影响。
 - **两个环境变量就能跑**。管理员账户自动创建，加密密钥自动供给，LiveKit 在网页里配。
 
 部署本站到 Vercel 见 [DEPLOY.md](DEPLOY.md)。
@@ -169,6 +170,7 @@ https://你的站点/api/webhooks/livekit/<nodeId>
 
 - 「从浏览器共享」按钮 → 不装 OBS 也能推
 - 「OBS 推流地址」面板 → 点「生成推流地址」，拿到 Server + Bearer Token
+- 同一面板顶上的「OBS 直播」开关 → 房主关掉它，这个房间就不再接受 WHIP 推流
 
 ## 方式二 · 自建 LiveKit
 
@@ -273,6 +275,8 @@ openssl rand -base64 32
 2. **Server** = 面板里的 Server
 3. **Bearer Token** = 面板里的 Bearer Token（就是 Stream Key 的 WHIP 叫法）
 
+生成不出地址、或者推着推着被断开，先看面板顶上的「OBS 直播」开关是不是被房主关了。
+
 WHIP 直通没有服务端 simulcast。要多档清晰度，得在 **OBS 32.1.0+** 自己开（支持 1–4 层）。
 
 ## 节点接入常见问题
@@ -292,15 +296,20 @@ WHIP 直通没有服务端 simulcast。要多档清晰度，得在 **OBS 32.1.0+
 
 ```
 浏览器 ──── Next.js on Vercel ──── Neon Postgres
-             (登录/房间/成员/签 token)
-                    │
-                    │ server SDK（用该房间所属节点的凭据）
-                    ▼
-          LiveKit 节点 A / B / C …        ← 媒体面，每个房间只落在一个节点上
+  │          (登录/房间/成员/签 token)
+  │                 │
+  │ WebRTC          │ server SDK（用该房间所属节点的凭据）
+  │ 共享/看画面      ▼
+  └────────► LiveKit 节点 A / B / C …        ← 媒体面，每个房间只落在一个节点上
                     ▲
                     │ WHIP（直通，不转码）
                   OBS
 ```
+
+**两条推流路线是分开的。** 浏览器的「共享我的屏幕」只经过 Next.js 拿一次 token，
+之后画面从浏览器**直连 LiveKit**（`getDisplayMedia` → WebRTC），既不过 Vercel 也不过 Ingress；
+OBS 那条要先在服务端建 ingress，再由 OBS 把 WHIP 推给 LiveKit。所以「OBS 直播」开关
+只关得住后者 —— 关掉它，浏览器共享照旧能用。
 
 | 路径 | 作用 |
 | --- | --- |
@@ -312,6 +321,7 @@ WHIP 直通没有服务端 simulcast。要多档清晰度，得在 **OBS 32.1.0+
 | `src/lib/crypto.ts` | 凭据 AES-256-GCM 加解密 |
 | `src/lib/bootstrap.ts` | 启动引导：建管理员、供给密钥。惰性触发，幂等 |
 | `src/app/api/rooms/[code]/token/route.ts` | 鉴权收口 |
+| `src/app/api/rooms/[code]/route.ts` | 房间详情、OBS 闸门（PATCH）、关闭房间 |
 | `src/app/api/webhooks/livekit/[nodeId]/route.ts` | 上线检测，按节点验签 |
 | `src/app/api/health/route.ts` | 配置诊断，排查入口 |
 
@@ -365,6 +375,15 @@ WHIP 直通没有服务端 simulcast。要多档清晰度，得在 **OBS 32.1.0+
 踢人必须三件事一起做，否则踢不干净（已实现）：删成员行（之后签不出新 token）、
 `RemoveParticipant`（断掉当前连接，因为已签发的 token 在过期前仍然有效）、
 删他的 ingress（否则他的 OBS 还能继续往房里推）。
+
+「OBS 直播」开关同理 —— 只改库里的标志位是关不住的，那个 stream key 在 LiveKit 侧仍然有效。
+所以关闭时对本房间每条生效的 ingress 做两件事：`DeleteIngress`（删掉资源，之后拿旧密钥也连不上来）
+和 `RemoveParticipant`（把 `obs:` 那个参与者踢出房间，房里的人立刻不再收到它的画面 ——
+文档没明说 DeleteIngress 会不会顺带终止正在进行的会话，不赌）；再把行标成 revoked，
+最后写标志位挡住新的生成请求。代价是重新打开后每个人要再生成一次地址：
+LiveKit 有 `UpdateIngress(enabled=false)` 这种保留密钥的软关法，但 JS server SDK 的
+`updateIngress` 没把 `enabled` 透出来（它按固定字段表重建请求，多传的会被丢掉），
+要用就得自己拼 Twirp 请求。宁可让人换一次密钥，也不要一个「看起来关了其实没关」的开关。
 
 ## 免费额度能用多久
 

@@ -8,6 +8,7 @@ import {
   createInviteSchema,
   createRoomSchema,
   emailSchema,
+  updateRoomSchema,
   wsUrlSchema,
 } from "../src/lib/validation.ts";
 
@@ -188,6 +189,18 @@ describe("createRoomSchema", () => {
   it("拒绝超出范围的 ttl", () => {
     assert.throws(() => parseOr400(createRoomSchema, { name: "x", tokenTtlSeconds: 10 }));
     assert.throws(() => parseOr400(createRoomSchema, { name: "x", tokenTtlSeconds: 999999 }));
+  });
+});
+
+describe("updateRoomSchema", () => {
+  it("接受布尔开关", () => {
+    assert.equal(parseOr400(updateRoomSchema, { obsEnabled: false }).obsEnabled, false);
+    assert.equal(parseOr400(updateRoomSchema, { obsEnabled: true }).obsEnabled, true);
+  });
+
+  it("拒绝缺字段和字符串「false」（前端忘了转类型时不能静默当成 true）", () => {
+    assert.throws(() => parseOr400(updateRoomSchema, {}));
+    assert.throws(() => parseOr400(updateRoomSchema, { obsEnabled: "false" }));
   });
 });
 

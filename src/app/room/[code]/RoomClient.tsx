@@ -29,6 +29,7 @@ import {
   LinkButton,
   Loading,
   Select,
+  Switch,
   Tabs,
   TextField,
 } from "@/ui";
@@ -206,7 +207,15 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
 
         <Tabs label="房间面板" value={panel} onChange={setPanel} items={tabs} />
 
-        {panel === "publish" && detail.canPublish && <ObsPanel code={code} detail={detail} />}
+        {panel === "publish" && detail.canPublish && (
+          <ObsPanel
+            code={code}
+            detail={detail}
+            onObsEnabledChange={(next) =>
+              setDetail((prev) => (prev ? { ...prev, obsEnabled: next } : prev))
+            }
+          />
+        )}
         {panel === "members" && (
           <MembersPanel code={code} isOwner={detail.isOwner} onCount={setMemberCount} />
         )}
@@ -227,6 +236,9 @@ function Stage({ canPublish }: { canPublish: boolean }) {
     [
       { source: Track.Source.ScreenShare, withPlaceholder: false },
       { source: Track.Source.Camera, withPlaceholder: false },
+      // WHIP 直通（enableTranscoding: false）没给 IngressVideoOptions.source，
+      // 进来的轨可能带不上 source。不收这一档的话 OBS 推上来了这里却是「无信号」。
+      { source: Track.Source.Unknown, withPlaceholder: false },
     ],
     { onlySubscribed: true },
   );
@@ -258,7 +270,11 @@ function Stage({ canPublish }: { canPublish: boolean }) {
               <span className="mx-stage__tag">
                 {ref.participant.name || ref.participant.identity}
                 {" · "}
-                {ref.source === Track.Source.ScreenShare ? "屏幕共享" : "摄像头"}
+                {ref.participant.identity.startsWith("obs:")
+                  ? "OBS 推流"
+                  : ref.source === Track.Source.ScreenShare
+                    ? "屏幕共享"
+                    : "摄像头"}
               </span>
             </div>
           ))}
@@ -358,18 +374,51 @@ function ShareControls() {
    Panels
    ============================================================ */
 
-/** OBS 推流面板：一人一房一个独立 WHIP 地址。 */
-function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
+/** OBS 推流面板：房间级闸门 + 一人一房一个独立 WHIP 地址。 */
+function ObsPanel({
+  code,
+  detail,
+  onObsEnabledChange,
+}: {
+  code: string;
+  detail: RoomDetail;
+  onObsEnabledChange: (next: boolean) => void;
+}) {
   const [ingress, setIngress] = useState<{ server: string; bearerToken: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [revoking, setRevoking] = useState(false);
+  const [closingGate, setClosingGate] = useState(false);
+  const [gateBusy, setGateBusy] = useState(false);
+  const obsEnabled = detail.obsEnabled;
 
   useEffect(() => {
+    if (!obsEnabled) {
+      setIngress(null);
+      return;
+    }
     api<{ ingress: { server: string; bearerToken: string } }>(`/api/rooms/${code}/ingress`)
       .then((res) => setIngress(res.ingress))
       .catch(() => setIngress(null)); // 404 = 还没生成，正常
-  }, [code]);
+  }, [code, obsEnabled]);
+
+  /** 开合闸门。关的那一下服务端会把本房间所有推流地址一起作废。 */
+  async function setGate(next: boolean) {
+    setGateBusy(true);
+    setErr(null);
+    try {
+      const res = await api<{ obsEnabled: boolean; revoked: number }>(`/api/rooms/${code}`, {
+        method: "PATCH",
+        json: { obsEnabled: next },
+      });
+      onObsEnabledChange(res.obsEnabled);
+      setClosingGate(false);
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error));
+    } finally {
+      setGateBusy(false);
+    }
+  }
 
   async function generate(rotate = false) {
     setBusy(true);
@@ -412,67 +461,118 @@ function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
   }
 
   return (
-    <Card
-      title="OBS 推流地址"
-      description="绑定到「你 + 这个房间」，别人拿不到也用不了。走 WHIP 直通，不消耗 transcode 额度。"
-      actions={ingress ? <Badge tone="success" dot>已生成</Badge> : <Badge tone="neutral">未生成</Badge>}
-    >
+    <>
       {err && <Banner tone="error">{err}</Banner>}
 
-      {!ingress ? (
-        <div className="mx-card__actions">
-          <Button variant="primary" disabled={busy} onClick={() => void generate(false)}>
-            <Icon name="broadcast" size={15} />
-            {busy ? "生成中…" : "生成推流地址"}
-          </Button>
-        </div>
-      ) : (
-        <>
-          <ol className="mx-steps">
-            <li>
-              OBS → 设置 → 直播 → 服务选 <b>WHIP</b>
-            </li>
-            <li>把下面两个值分别填进 Server 和 Bearer Token</li>
-            <li>
-              WHIP 直通没有服务端 simulcast。要多档清晰度得在 OBS 32.1.0+ 自己开（1–4 层）。
-            </li>
-          </ol>
+      <Card
+        title="OBS 直播"
+        description="房间级闸门，只管 OBS/WHIP 这条路。浏览器的「共享我的屏幕」是另一条路（WebRTC 直连），不受它影响。"
+        actions={
+          obsEnabled ? (
+            <Badge tone="success" dot>
+              已开启
+            </Badge>
+          ) : (
+            <Badge tone="neutral">已关闭</Badge>
+          )
+        }
+      >
+        {detail.isOwner ? (
+          <Switch
+            checked={obsEnabled}
+            disabled={gateBusy || !detail.isActive}
+            label="允许 OBS 往这个房间推流"
+            hint="关闭会立刻掐断正在推的 OBS，并作废本房间已生成的全部推流地址。"
+            onChange={(event) => {
+              // 关是破坏性的（地址会作废），先确认；开则直接生效
+              if (event.target.checked) void setGate(true);
+              else setClosingGate(true);
+            }}
+          />
+        ) : obsEnabled ? (
+          <p className="mx-text-caption">房主已开启 OBS 直播，你可以在下面生成自己的推流地址。</p>
+        ) : (
+          <Banner tone="warning" title="房主关闭了 OBS 直播">
+            这个房间现在不接受 OBS 推流，也生成不出推流地址。用上面的「共享我的屏幕」可以直接从浏览器推。
+          </Banner>
+        )}
+      </Card>
 
-          <div className="mx-field">
-            <span className="mx-field__label">Server</span>
-            <CopyRow value={ingress.server} label="Server 地址" />
-          </div>
+      {obsEnabled && (
+        <Card
+          title="OBS 推流地址"
+          description="绑定到「你 + 这个房间」，别人拿不到也用不了。走 WHIP 直通，不消耗 transcode 额度。"
+          actions={
+            ingress ? <Badge tone="success" dot>已生成</Badge> : <Badge tone="neutral">未生成</Badge>
+          }
+        >
+          {!ingress ? (
+            <div className="mx-card__actions">
+              <Button variant="primary" disabled={busy} onClick={() => void generate(false)}>
+                <Icon name="broadcast" size={15} />
+                {busy ? "生成中…" : "生成推流地址"}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <ol className="mx-steps">
+                <li>
+                  OBS → 设置 → 直播 → 服务选 <b>WHIP</b>
+                </li>
+                <li>把下面两个值分别填进 Server 和 Bearer Token</li>
+                <li>
+                  WHIP 直通没有服务端 simulcast。要多档清晰度得在 OBS 32.1.0+ 自己开（1–4 层）。
+                </li>
+              </ol>
 
-          <div className="mx-field">
-            <span className="mx-field__label">Bearer Token（就是 Stream Key）</span>
-            <CopyRow value={ingress.bearerToken} secret label="Bearer Token" />
-          </div>
+              <div className="mx-field">
+                <span className="mx-field__label">Server</span>
+                <CopyRow value={ingress.server} label="Server 地址" />
+              </div>
 
-          <div className="mx-card__actions">
-            <Button variant="secondary" disabled={busy} onClick={() => void generate(true)}>
-              <Icon name="refresh" size={15} />
-              {busy ? "处理中…" : "重新生成"}
-            </Button>
-            <Button variant="danger" disabled={busy} onClick={() => setRevoking(true)}>
-              <Icon name="trash" size={15} />
-              撤销
-            </Button>
-          </div>
-          <p className="mx-text-caption">重新生成会让旧地址立即失效。</p>
-        </>
+              <div className="mx-field">
+                <span className="mx-field__label">Bearer Token（就是 Stream Key）</span>
+                <CopyRow value={ingress.bearerToken} secret label="Bearer Token" />
+              </div>
+
+              <div className="mx-card__actions">
+                <Button variant="secondary" disabled={busy} onClick={() => void generate(true)}>
+                  <Icon name="refresh" size={15} />
+                  {busy ? "处理中…" : "重新生成"}
+                </Button>
+                <Button variant="danger" disabled={busy} onClick={() => setRevoking(true)}>
+                  <Icon name="trash" size={15} />
+                  撤销
+                </Button>
+              </div>
+              <p className="mx-text-caption">重新生成会让旧地址立即失效。</p>
+            </>
+          )}
+
+          <ConfirmDialog
+            open={revoking}
+            danger
+            busy={busy}
+            title="撤销推流地址"
+            confirmLabel="撤销"
+            body="撤销后 OBS 会立刻推不上来，需要重新生成并在 OBS 里改一遍。确定？"
+            onConfirm={() => void revoke()}
+            onClose={() => setRevoking(false)}
+          />
+        </Card>
       )}
 
       <ConfirmDialog
-        open={revoking}
+        open={closingGate}
         danger
-        busy={busy}
-        title="撤销推流地址"
-        confirmLabel="撤销"
-        body="撤销后 OBS 会立刻推不上来，需要重新生成并在 OBS 里改一遍。确定？"
-        onConfirm={() => void revoke()}
-        onClose={() => setRevoking(false)}
+        busy={gateBusy}
+        title="关闭 OBS 直播"
+        confirmLabel="关闭"
+        body="正在推的 OBS 会立刻断开，本房间所有人已生成的推流地址一并作废。重新打开后要各自再生成一次，并把 OBS 里的 Bearer Token 换成新的。确定关闭？"
+        onConfirm={() => void setGate(false)}
+        onClose={() => setClosingGate(false)}
       />
-    </Card>
+    </>
   );
 }
 

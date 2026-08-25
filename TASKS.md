@@ -1,6 +1,6 @@
 # 任务组
 
-**状态：功能开发完成，可部署。** `npm run typecheck`、`npm test`（54 项，含 22 项跑在真 Postgres 上）、
+**状态：功能开发完成，可部署。** `npm run typecheck`、`npm test`（77 项，含 24 项跑在真 Postgres 上）、
 `npm run build`（25 条路由，零环境变量裸构建）全部通过。
 
 **只需两个环境变量**：`DATABASE_URL` + `ADMIN_PASSWORD`。
@@ -13,7 +13,7 @@
 
 - [x] Next.js 15 App Router + TypeScript strict + 路径别名 `@/*`
 - [x] Neon HTTP driver + Drizzle ORM，**惰性初始化**（模块加载不碰 env，否则裸构建会挂）
-- [x] 12 张表 + 迁移 `drizzle/0000_*.sql`、`drizzle/0001_*.sql`
+- [x] 12 张表 + 迁移 `drizzle/0000_*.sql`、`drizzle/0001_*.sql`、`drizzle/0002_*.sql`
 - [x] 统一 route handler 包装与错误约定（`src/lib/http.ts`）
 - [x] 凭据加密 AES-256-GCM（`src/lib/crypto.ts`）
 - [x] 密码 scrypt + 定长比较（`src/lib/password.ts`）
@@ -109,6 +109,19 @@
 - [x] 节点 ingress 不可用时前端明确降级提示
 - [x] `createRtmpIngress` 备用实现（protobuf oneof 写法正确）
 - [x] OBS 配置指引 + 一键复制 + simulcast 说明（直通需 OBS 32.1.0+ 自行开启）
+- [x] **房间级「OBS 直播」开关**（`rooms.obs_enabled`，房主可改，`PATCH /api/rooms/[code]`）：
+      关闭时对本房间每条生效的 ingress 做 `DeleteIngress` + `RemoveParticipant`
+      （删资源让旧密钥连不上来 + 踢掉 `obs:` 参与者让房里的人立刻断流；文档没明说
+      DeleteIngress 会不会终止**正在进行**的会话，所以不赌），再把行标成 revoked，
+      最后写标志位让 `POST .../ingress` 直接 400。
+      **只改标志位是关不住的** —— stream key 在 LiveKit 侧仍然有效，会得到一个
+      「显示已关闭、实际还在推」的开关。代价是重新打开后每人要再生成一次地址：
+      `UpdateIngress(enabled=false)` 那种保留密钥的软关法，JS server SDK 的
+      `updateIngress` 没把 `enabled` 透出来（按固定字段表重建请求，多传的被丢掉），
+      要用得自己拼 Twirp 请求 —— 宁可换一次密钥，也不要一个假开关
+- [x] 关闭房间（`DELETE`）与闸门共用这段逻辑，顺手补上了它原先漏掉的 `RemoveParticipant`
+- [x] 闸门只管 OBS/WHIP。浏览器的「共享我的屏幕」是 `getDisplayMedia` + WebRTC 直连节点，
+      不经过 ingress，所以刻意**不**被这个开关影响（要连它一起关，那是收 `canPublish` 的事）
 
 ## G5 · 上线检测 ✅
 
@@ -127,6 +140,11 @@
 - [x] `/admin` 管理后台
 - [x] `/join/[token]` 邀请落地页
 - [x] **浏览器直接共享屏幕**（1920×1080@15fps，桌面共享优先分辨率而非帧率）
+- [x] 舞台除 ScreenShare / Camera 外**也收 `Track.Source.Unknown`**：WHIP 直通没给
+      `IngressVideoOptions.source`，进来的轨可能带不上 source，漏掉这一档会出现
+      「OBS 推上来了、页面显示无信号」。OBS 那路的画面按 `obs:` 前缀单独打标签
+- [x] `Switch` 原语（`src/ui/Switch.tsx` + `.mx-switch`）：给「改完立刻生效」的设置用，
+      表单里待提交的仍然用 `Checkbox`。房主用它开合 OBS 闸门，关的那一下走确认弹窗
 - [x] 复制组件（密钥默认打码）
 - [x] **审计日志查看**（房间内可展开）
 
