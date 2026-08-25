@@ -41,6 +41,21 @@
 - [x] 公开端点回显的底层错误一律过 `redactSecrets()`，避免抖出连接串里的口令
 - [x] `/api/health` 加 `tables` 一项：拿 `information_schema` 对着 schema 推导出的表名
       做差集，直接列出缺哪几张，不靠猜报错字符串。表名从 schema 模块推导，不另维护清单
+- [x] **`drizzle/meta/` 必须提交** —— 早期被 .gitignore 挡掉了，导致 clone 出来的仓库
+      没有 `_journal.json`。drizzle-kit 遇到缺失的 journal 不报错，而是默默建一个
+      entries 为空的（源码里的 `dryJournal`），于是 `npm run db:migrate` 一声不响地
+      什么都不干、库里一张表都没有 —— 而文档让所有人跑这条命令。
+      已重建 journal 并补上当前 schema 的 snapshot，`tests/migrations.test.mts`
+      用真实 migrator + PGlite 守着（journal 缺失时会红）
+- [x] **构建期自动跑迁移**（`scripts/migrate-on-build.mjs` 挂在 `build` 前面）：配好
+      `DATABASE_URL` 推代码就建好表，不用本地操作。没配 `DATABASE_URL` 就跳过（沙箱/CI
+      只想编译不该被数据库卡住），迁移报错则让构建失败 —— 宁可部署不出去，也别上线
+      一个半残的库。**刻意不做「首次登录时初始化」**：serverless 可能多实例同时冷启动，
+      而 neon-http 不支持交互式事务，并发 `CREATE TABLE` 会有一个炸在 already exists
+      上、把库留在半残状态；构建期只有一个进程、每次部署一次，天然没有并发
+- [x] `drizzle.config.ts` 借 `@next/env` 加载环境变量：drizzle-kit 自己只认 `.env`，
+      不认 `.env.local`，而文档让大家把连接串写进 `.env.local` —— 照着做的人会撞上
+      一句没头没尾的 `url: undefined`。顺手在缺 `DATABASE_URL` 时给出可操作的报错
 - [x] `describeDbError()` 顺着 `cause` 链挖真实原因：drizzle 把驱动异常包进
       `DrizzleQueryError`，最外层的 message 只有 `Failed query: <SQL>\nparams: <参数>`，
       既没用又会把 SQL 和参数抖给公开端点。按 SQLSTATE（`42P01` 等）补可操作的指引

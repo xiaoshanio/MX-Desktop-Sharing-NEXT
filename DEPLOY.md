@@ -36,15 +36,49 @@ postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=require
 
 ## 2. 建表
 
-迁移**不在** Vercel 构建时跑（每次部署都跑迁移会在并发构建下打架）。本地对着生产库执行一次：
+**构建时会自动跑迁移** —— `npm run build` 前面挂了
+[scripts/migrate-on-build.mjs](scripts/migrate-on-build.mjs)。在 Vercel 配好
+`DATABASE_URL` 后直接推代码就行,表会在部署过程中建好,不需要你本地做任何事。
+
+两条边界刻意是这样的:
+
+- **没配 `DATABASE_URL`** → 跳过迁移,构建照常成功。只想 `next build` 的沙箱和 CI
+  不该被数据库卡住(想完全跳过这一步用 `npm run build:only`)。
+- **迁移报错** → **构建失败**。宁可部署不出去,也别把一个建了一半的库带上线。
+
+要手动跑(比如本地开发,或者想在部署前先把表建好):把连接串写进项目根目录的
+`.env.local`,然后 `npm run db:migrate`。
 
 ```bash
-DATABASE_URL="<你的 Neon 连接串>" npm run db:migrate
+DATABASE_URL=postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=require
 ```
 
-**这一步漏掉是最常见的翻车点，而且症状很有迷惑性**：连接是好的，但凡是碰到表的接口
-全挂。因为「连得上」和「建过表」是两件独立的事。`/api/health` 的 `tables` 那一项
-专门查这个，会直接列出缺哪几张表。
+跑完刷 `/api/health`,`tables` 那一项应该是「12 张表齐了」。
+
+> `drizzle.config.ts` 借 `@next/env` 加载环境变量,所以迁移命令和应用读的是同一套文件
+> (`.env.local` 覆盖 `.env`),而真实环境变量优先级最高 —— Vercel 上后台配的值不会被
+> 仓库里的文件盖掉。drizzle-kit 自己**只认 `.env`**,不认 `.env.local`,不接这一层的话,
+> 照着文档把连接串写进 `.env.local` 的人会撞上一句没头没尾的 `url: undefined`。
+
+### 为什么是构建期,而不是「首次登录时自动初始化」
+
+运行时建表在 serverless 上是个陷阱:多个实例可能同时冷启动,而 neon-http **不支持
+交互式事务**(每条语句一次 HTTP),两个实例同时 `CREATE TABLE` 就会有一个炸在
+「already exists」上,把库留在半残状态 —— 而且是线上带着半残的库在跑。构建期只有
+**一个**进程、每次部署只跑一次,天然没有并发;失败的最坏结果只是这次部署上不去。
+
+### 两个需要留意的点
+
+- **Preview 部署会迁移它自己 `DATABASE_URL` 指向的那个库。** 如果 preview 和
+  production 共用同一个连接串,preview 构建就会提前把迁移应用到生产库上。要隔开的话,
+  在 Vercel 里按环境分别配 `DATABASE_URL`(Neon 的分支功能正好适合)。
+- **并发构建**在 Hobby 计划上是一次一个,所以不会打架。升到 Pro 后如果开了并发构建,
+  两个部署同时跑迁移仍有极小概率相撞 —— 那时改回手动跑更稳。
+
+> 还有个坑:`drizzle/meta/` 必须提交进仓库。drizzle-kit 找不到
+> `meta/_journal.json` 时**不会报错**,而是默默建一个空的,于是迁移一声不响地
+> 什么都不干。这个仓库早期就踩过 —— 现在有测试守着了。
+> 真撞上了,`npm run db:push` 可以绕过迁移文件,直接按 `schema.ts` 建表。
 
 ## 3. 部署
 

@@ -33,13 +33,19 @@ npm run db:migrate
 npm run dev
 ```
 
+`db:migrate` 会读 `drizzle/` 下的迁移文件建出 12 张表。它和应用读同一套 env 文件
+（`.env.local` 优先于 `.env`）。**部署到 Vercel 时不用手动跑这条** —— 构建流程里已经
+挂了迁移步骤，配好 `DATABASE_URL` 推代码即可，详见 [DEPLOY.md](DEPLOY.md)。
+
 打开 `http://localhost:3000`，用 `admin@localhost` + 上面的密码登录 ——
 **管理员账户在首次启动时自动创建，没有安装向导**。
 
 登录后到侧栏「LiveKit 节点」→「接入节点」配一个 LiveKit 节点（怎么拿凭据见下一节）。
 LiveKit 不占用任何环境变量。
 
-其他命令：`npm test`（62 项）、`npm run typecheck`、`npm run build`。
+其他命令：`npm test`（73 项）、`npm run typecheck`、`npm run build`。
+`build` 会先跑一遍数据库迁移（没配 `DATABASE_URL` 就跳过）；只想编译不碰数据库用
+`npm run build:only`。
 
 ### 登录报错了？
 
@@ -62,9 +68,14 @@ curl -s http://localhost:3000/api/health | python -m json.tool
 | `401 invalid_credentials` | 账户存在，密码不对 |
 | `429 rate_limited` | 同一邮箱 15 分钟内失败 8 次（同 IP 30 次） |
 
-最容易误判的一种：**忘了 `npm run db:migrate`**。症状是 `database` 显示「连接正常」
-但凡是碰到表的接口全挂 —— 因为连接和建表是两件事。`/api/health` 的 `tables`
-那一项会直接列出缺哪几张表。
+最容易误判的一种：**表还没建**。症状是 `database` 显示「连接正常」但凡是碰到表的接口
+全挂 —— 因为连接和建表是两件事。`/api/health` 的 `tables` 那一项会直接列出缺哪几张。
+部署时构建流程会自动建表；本地补跑一次就是 `npm run db:migrate`。
+
+跑了 `db:migrate` 但表还是没建出来？检查 `drizzle/meta/_journal.json` 在不在。
+drizzle-kit 找不到它时**不报错**，而是默默建一个空的然后什么都不干。
+`tests/migrations.test.mts` 就是守这条的。真遇上了，`npm run db:push` 可以绕过迁移
+文件直接按 `schema.ts` 建表。
 
 ### 环境变量清单
 
