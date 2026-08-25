@@ -1,6 +1,6 @@
 # 任务组
 
-**状态：功能开发完成，可部署。** `npm run typecheck`、`npm test`（32 项）、
+**状态：功能开发完成，可部署。** `npm run typecheck`、`npm test`（54 项，含 22 项跑在真 Postgres 上）、
 `npm run build`（25 条路由，零环境变量裸构建）全部通过。
 
 **只需两个环境变量**：`DATABASE_URL` + `ADMIN_PASSWORD`。
@@ -22,7 +22,7 @@
 
 ## G1 · 零配置启动 ✅
 
-- [x] **管理员账户自动创建**（`src/instrumentation.ts` → `src/lib/bootstrap.ts`），
+- [x] **管理员账户自动创建**（`src/lib/bootstrap.ts`，在 login/health/me 惰性触发），
       邮箱取 `ADMIN_EMAIL`（默认 `admin@localhost`），密码取 `ADMIN_PASSWORD`
 - [x] env 是密码的唯一事实来源：改了 `ADMIN_PASSWORD` 重启即生效
 - [x] 用指纹比对避免每次冷启动都跑 scrypt（只在 env 变化时重新哈希写库）
@@ -30,7 +30,9 @@
 - [x] **加密密钥自动供给**：`CREDENTIAL_ENCRYPTION_KEY` 没设就生成一把存进
       `app_config`，抢占式插入 + 回读，避免并发冷启动各生成一把
 - [x] 引导失败不抛出，站点仍能起来并给出可读错误
-- [x] `ensureBootstrapped()` 兜底：万一 instrumentation 没跑，首个请求补上
+- [x] 刻意**不用** `instrumentation.ts`：它会让 webpack 把 `node:crypto` 拖进不支持
+      `node:` scheme 的编译目标，dev 下每个请求都 500（已实测确认并移除）
+- [x] 引导与密钥加载都缓存 promise，失败不缓存以便重试
 - [x] **`/api/health`** 逐项诊断缺哪个变量、数据库通不通、密钥来自哪里
 - [x] 删掉了 `/setup` 向导和 `SETUP_TOKEN` —— 没有向导就没有「被人抢先初始化」的风险
 - [x] 管理后台：改节点 `allowPublic`/`maxRooms`/启停，**把任一节点「设为内置」**
@@ -106,7 +108,7 @@
 - [x] 审计不记录任何密钥
 - [x] **定时清理**（`/api/cron/cleanup` + `vercel.json`）：过期会话、旧限流记录、旧去重记录
 - [x] cron 端点用 `CRON_SECRET` 定长比较保护
-- [x] **32 项测试**：AES-GCM 往返/篡改检测、scrypt 往返/Unicode 归一化/畸形输入、零配置密钥供给路径、
+- [x] **54 项测试**（`npm test`）：AES-GCM 往返/篡改检测、scrypt 往返/Unicode 归一化/畸形输入、零配置密钥供给路径、
       URL 归一化、房间码字符集与碰撞、schema 默认值与边界
 - [x] 停用用户时连带作废会话
 

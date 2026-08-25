@@ -21,7 +21,7 @@ export const POST = route(async (_req, ctx: { params: Promise<{ code: string }> 
   if (!roomCtx.room.isActive) throw badRequest("房间已关闭");
   if (!roomCtx.node.isEnabled) throw badRequest("该房间所在节点已停用");
 
-  const node = resolve(roomCtx.node);
+  const node = await resolve(roomCtx.node);
   // 房间可能被 LiveKit 的 emptyTimeout 回收掉了，签 token 前补一次
   await ensureRoom(node, roomCtx.room.code);
 

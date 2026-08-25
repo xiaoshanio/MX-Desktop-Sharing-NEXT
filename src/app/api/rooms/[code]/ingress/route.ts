@@ -57,7 +57,7 @@ export const POST = route(async (req, ctx: { params: Promise<{ code: string }> }
     throw badRequest("该节点的 Ingress 不可用（未开启或额度已满），无法生成 OBS 推流地址");
   }
 
-  const node = resolve(roomCtx.node);
+  const node = await resolve(roomCtx.node);
   const rotate = new URL(req.url).searchParams.get("rotate") === "1";
 
   const [existing] = await db
@@ -146,7 +146,7 @@ export const DELETE = route(async (_req, ctx: { params: Promise<{ code: string }
     .limit(1);
   if (!row) throw notFound("没有可撤销的推流地址");
 
-  await deleteIngress(resolve(roomCtx.node), row.ingressId).catch(() => {});
+  await deleteIngress(await resolve(roomCtx.node), row.ingressId).catch(() => {});
   await db.update(roomIngress).set({ revokedAt: new Date() }).where(eq(roomIngress.id, row.id));
 
   audit({ actorId: user.id, roomId: roomCtx.room.id, action: "ingress.revoke" });

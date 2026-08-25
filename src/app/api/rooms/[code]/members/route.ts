@@ -113,7 +113,7 @@ export const DELETE = route(async (req, ctx: { params: Promise<{ code: string }>
     .returning();
   if (removed.length === 0) throw notFound("该用户不是房间成员");
 
-  const node = resolve(roomCtx.node);
+  const node = await resolve(roomCtx.node);
   await removeParticipant(node, roomCtx.room.code, targetId).catch(() => {});
   await removeParticipant(node, roomCtx.room.code, `obs:${targetId}`).catch(() => {});
 

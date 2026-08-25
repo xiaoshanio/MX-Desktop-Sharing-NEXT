@@ -75,7 +75,7 @@ export const POST = route(async (req) => {
   }
 
   // 3) 先在 LiveKit 侧把房建出来，这样客户端 token 不需要 roomCreate 权限
-  await ensureRoom(resolve(node), code);
+  await ensureRoom(await resolve(node), code);
 
   // 4) 落库 + 把房主写进成员表
   const [room] = await db

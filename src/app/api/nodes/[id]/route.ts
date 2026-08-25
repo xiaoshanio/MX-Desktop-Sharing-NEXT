@@ -5,6 +5,7 @@ import { livekitNodes, rooms } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
 import { encryptSecret } from "@/lib/crypto";
+import { ensureEncryptionKey } from "@/lib/key-store";
 import { badRequest, conflict, forbidden, json, notFound, readJson, route, parseOr400 } from "@/lib/http";
 import { probeCredentials } from "@/lib/livekit";
 import { getNodeById, recheckNode, toSummary } from "@/lib/nodes";
@@ -61,6 +62,7 @@ export const PATCH = route(async (req, ctx: { params: Promise<{ id: string }> })
     });
     if (!probe.ok) throw badRequest(`新凭据校验失败：${probe.error}`);
 
+    await ensureEncryptionKey();
     patch.apiKey = input.apiKey;
     patch.apiSecretEnc = encryptSecret(input.apiSecret);
     patch.lastCheckedAt = new Date();

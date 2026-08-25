@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { createSession } from "@/lib/auth";
+import { ensureBootstrapped } from "@/lib/bootstrap";
 import { ApiError, json, readJson, route, parseOr400 } from "@/lib/http";
 import { verifyPassword } from "@/lib/password";
 import {
@@ -17,6 +18,9 @@ import { loginSchema } from "@/lib/validation";
 export const runtime = "nodejs";
 
 export const POST = route(async (req) => {
+  // 管理员账户是引导时按 ADMIN_PASSWORD 建的，所以必须先于查库跑一遍
+  await ensureBootstrapped();
+
   const input = await readJson(req, (raw) => parseOr400(loginSchema, raw));
   const ip = clientIp(req);
 

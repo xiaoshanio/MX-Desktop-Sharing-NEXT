@@ -45,7 +45,7 @@ export const DELETE = route(async (_req, ctx: { params: Promise<{ code: string }
   const { code } = await ctx.params;
   const roomCtx = await requireRoomOwner(code, user);
 
-  const node = resolve(roomCtx.node);
+  const node = await resolve(roomCtx.node);
   const ingressRows = await db
     .select()
     .from(roomIngress)

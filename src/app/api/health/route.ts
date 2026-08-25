@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { ensureBootstrapped } from "@/lib/bootstrap";
+import { encryptionKeySource } from "@/lib/key-store";
 import { json, route } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -37,16 +38,21 @@ export const GET = route(async () => {
     detail: hasAdminPassword ? "已设置" : "缺少 ADMIN_PASSWORD —— 管理员账户不会被创建",
   };
 
+  if (checks.database?.ok !== false) {
+    const boot = await ensureBootstrapped();
+    if (!boot.ok) checks.bootstrap = { ok: false, detail: boot.error ?? "启动引导失败" };
+  }
+
+  const src = encryptionKeySource();
   checks.encryptionKey = {
     ok: true,
-    detail: process.env.CREDENTIAL_ENCRYPTION_KEY
-      ? "来自 CREDENTIAL_ENCRYPTION_KEY"
-      : "自动生成并存于数据库（要更强的隔离就显式设置该变量）",
+    detail:
+      src === "env"
+        ? "来自 CREDENTIAL_ENCRYPTION_KEY"
+        : src
+          ? "自动生成并存于数据库（要更强的隔离就显式设置该变量）"
+          : "尚未加载（数据库不可用时无法确认）",
   };
-
-  if (checks.database?.ok !== false) {
-    await ensureBootstrapped();
-  }
 
   const ok = Object.values(checks).every((c) => c.ok);
   return json({ ok, checks }, { status: ok ? 200 : 503 });

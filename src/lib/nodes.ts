@@ -3,6 +3,7 @@ import { and, count, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { livekitNodes, rooms, type LivekitNode, type User } from "@/db/schema";
 import { decryptSecret, encryptSecret } from "./crypto";
+import { ensureEncryptionKey } from "./key-store";
 import { badRequest, conflict, forbidden, notFound } from "./http";
 import { probeCredentials, type ResolvedNode } from "./livekit";
 
@@ -34,7 +35,12 @@ export function toSummary(node: LivekitNode, viewerId: string): NodeSummary {
   };
 }
 
-export function resolve(node: LivekitNode): ResolvedNode {
+/**
+ * 解出可直接用的节点凭据。
+ * 异步是因为凭据加密密钥可能要从数据库取（没设 CREDENTIAL_ENCRYPTION_KEY 时）。
+ */
+export async function resolve(node: LivekitNode): Promise<ResolvedNode> {
+  await ensureEncryptionKey();
   return {
     id: node.id,
     name: node.name,
@@ -149,6 +155,8 @@ export async function createNode(input: CreateNodeInput): Promise<LivekitNode> {
     .limit(1);
   if (dup.length > 0) throw conflict("这套凭据已经接入过了");
 
+  await ensureEncryptionKey();
+
   const [node] = await db
     .insert(livekitNodes)
     .values({
@@ -172,7 +180,7 @@ export async function createNode(input: CreateNodeInput): Promise<LivekitNode> {
 
 /** 重新体检并把结果写回，供 /nodes 页面上的「检测」按钮用。 */
 export async function recheckNode(node: LivekitNode): Promise<import("./livekit").ProbeResult> {
-  const probe = await probeCredentials(resolve(node));
+  const probe = await probeCredentials(await resolve(node));
   await db
     .update(livekitNodes)
     .set({

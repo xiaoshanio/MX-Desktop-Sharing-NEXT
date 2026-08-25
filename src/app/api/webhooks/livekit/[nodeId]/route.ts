@@ -29,7 +29,7 @@ export const POST = route(async (req, ctx: { params: Promise<{ nodeId: string }>
   let event;
   try {
     // receive() 会校验 JWT 签名和 body 的 sha256，验不过直接抛
-    event = await webhookReceiver(resolve(node)).receive(raw, auth);
+    event = await webhookReceiver(await resolve(node)).receive(raw, auth);
   } catch (err) {
     console.warn("[webhook] 验签失败", nodeId, err);
     return json({ error: "invalid_signature" }, { status: 401 });
