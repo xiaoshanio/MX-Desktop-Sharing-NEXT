@@ -4,20 +4,51 @@ const ALGO = "aes-256-gcm";
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
+/**
+ * 放在 globalThis 上而不是模块变量：Next 可能把 instrumentation 和 route handler
+ * 打进不同的 chunk，那样模块级变量就不是同一份了。globalThis 一定跨 chunk 共享。
+ */
+const HOLDER = "__mxds_credential_key__";
+
+type KeyHolder = { [HOLDER]?: Buffer };
+
 let cachedKey: Buffer | null = null;
+
+export function parseKey(raw: string): Buffer {
+  const buf = Buffer.from(raw, "base64");
+  if (buf.length !== 32) {
+    throw new Error(`凭据加密密钥必须是 32 字节的 base64，当前解出 ${buf.length} 字节。`);
+  }
+  return buf;
+}
+
+/** 由 bootstrap 调用：把（env 里读到的或库里取出的）密钥交给本模块。 */
+export function setEncryptionKey(buf: Buffer): void {
+  (globalThis as KeyHolder)[HOLDER] = buf;
+  cachedKey = buf;
+}
 
 function key(): Buffer {
   if (cachedKey) return cachedKey;
+
+  // 显式配置优先
   const raw = process.env.CREDENTIAL_ENCRYPTION_KEY;
-  if (!raw) {
-    throw new Error("CREDENTIAL_ENCRYPTION_KEY 未设置。运行 `npm run keygen` 生成一把。");
+  if (raw) {
+    cachedKey = parseKey(raw);
+    return cachedKey;
   }
-  const buf = Buffer.from(raw, "base64");
-  if (buf.length !== 32) {
-    throw new Error(`CREDENTIAL_ENCRYPTION_KEY 必须是 32 字节的 base64，当前解出 ${buf.length} 字节。`);
+
+  // 否则用 bootstrap 供给的那把（首次启动时自动生成并存进 app_config）
+  const supplied = (globalThis as KeyHolder)[HOLDER];
+  if (supplied) {
+    cachedKey = supplied;
+    return supplied;
   }
-  cachedKey = buf;
-  return buf;
+
+  throw new Error(
+    "凭据加密密钥未就绪：既没有设置 CREDENTIAL_ENCRYPTION_KEY，启动引导也没跑成功。" +
+      "请检查 DATABASE_URL 是否可连接。",
+  );
 }
 
 /** 加密后的格式：base64( iv | ciphertext | authTag ) */

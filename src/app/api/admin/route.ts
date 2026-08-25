@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { livekitNodes, rooms, users } from "@/db/schema";
@@ -53,7 +53,7 @@ export const GET = route(async () => {
   });
 });
 
-/** 改内置节点的开放策略 / 房间上限 / 启停。 */
+/** 改内置节点的开放策略 / 房间上限 / 启停，或把某个节点提升为内置节点。 */
 export const PATCH = route(async (req) => {
   const admin = await requireAdmin();
   const nodeId = new URL(req.url).searchParams.get("nodeId");
@@ -64,6 +64,18 @@ export const PATCH = route(async (req) => {
   if (input.isEnabled !== undefined) patch.isEnabled = input.isEnabled;
   if (input.allowPublic !== undefined) patch.allowPublic = input.allowPublic;
   if (input.maxRooms !== undefined) patch.maxRooms = input.maxRooms;
+
+  if (input.makeBuiltin === true) {
+    // 全站只允许一个内置节点：先把现有的降回普通节点
+    await db
+      .update(livekitNodes)
+      .set({ kind: "user", allowPublic: false })
+      .where(and(eq(livekitNodes.kind, "builtin"), ne(livekitNodes.id, nodeId)));
+    patch.kind = "builtin";
+    // 提升为内置的目的就是共享，默认顺手开放
+    if (input.allowPublic === undefined) patch.allowPublic = true;
+  }
+
   if (Object.keys(patch).length === 0) throw badRequest("没有要修改的字段");
 
   const updated = await db

@@ -79,8 +79,15 @@ export function AdminClient({ selfId }: { selfId: string }) {
       <div className="panel">
         <h2>节点</h2>
         <p className="muted">
-          内置节点的额度是全站共享的。把「开放」关掉，普通用户就必须接自己的 LiveKit 项目。
+          内置节点是全站共享的那一个，普通用户不接自己的凭据也能建房 —— 额度烧的是它。
+          任何节点都可以被提升为内置节点，同时只能有一个。
         </p>
+        {nodes.length === 0 && (
+          <p className="muted">
+            还没有任何节点。先到 <a href="/dashboard">控制台</a> 用「+ 接入我的节点」加一个，
+            再回来把它设为内置。
+          </p>
+        )}
         <table>
           <thead>
             <tr>
@@ -90,6 +97,7 @@ export function AdminClient({ selfId }: { selfId: string }) {
               <th>启用</th>
               <th>开放</th>
               <th>房间上限</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -151,6 +159,19 @@ export function AdminClient({ selfId }: { selfId: string }) {
                     />
                   ) : (
                     <span className="muted">—</span>
+                  )}
+                </td>
+                <td>
+                  {n.kind !== "builtin" && (
+                    <button
+                      className="ghost"
+                      onClick={() => {
+                        if (!confirm(`把「${n.name}」设为全站内置节点？现有的内置节点会降为普通节点。`)) return;
+                        void patchNode(n.id, { makeBuiltin: true });
+                      }}
+                    >
+                      设为内置
+                    </button>
                   )}
                 </td>
               </tr>

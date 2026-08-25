@@ -4,16 +4,13 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { createSession } from "@/lib/auth";
-import { badRequest, conflict, json, readJson, route, parseOr400 } from "@/lib/http";
+import { conflict, json, readJson, route, parseOr400 } from "@/lib/http";
 import { hashPassword } from "@/lib/password";
-import { isInitialized } from "@/lib/setup";
 import { registerSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
 export const POST = route(async (req) => {
-  if (!(await isInitialized())) throw badRequest("本站尚未初始化，请先完成 /setup");
-
   const input = await readJson(req, (raw) => parseOr400(registerSchema, raw));
 
   const existing = await db

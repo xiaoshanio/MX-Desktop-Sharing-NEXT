@@ -1,7 +1,9 @@
 # 任务组
 
-**状态：功能开发完成，可部署。** `npm run typecheck`、`npm test`（26 项）、
-`npm run build`（26 条路由，零环境变量裸构建）全部通过。
+**状态：功能开发完成，可部署。** `npm run typecheck`、`npm test`（32 项）、
+`npm run build`（25 条路由，零环境变量裸构建）全部通过。
+
+**只需两个环境变量**：`DATABASE_URL` + `ADMIN_PASSWORD`。
 
 ✅ = 已实现并验证，⬜ = 未做（末尾「有意不做」一节说明取舍）。
 
@@ -18,16 +20,21 @@
 - [x] Cookie 会话，库里只存 token 的 sha256
 - [x] 分层：`validation.ts` 是零依赖纯 schema 模块，`parseOr400` 归 `http.ts`
 
-## G1 · 管理员初始化 ✅
+## G1 · 零配置启动 ✅
 
-- [x] `GET/POST /api/setup`，只能成功一次
-- [x] 用 `app_config.initialized` 的 insert 当互斥量（neon-http 无交互式事务）
-- [x] 落库前实地打 LiveKit API 验证凭据，失败不占用初始化名额
-- [x] 中途失败自动回滚并释放锁
-- [x] `SETUP_TOKEN` 守卫（定长比较）
-- [x] `/setup` 页面 + 完成后回显 webhook 地址
-- [x] **管理后台 `/admin`**：改内置节点 `allowPublic`/`maxRooms`/启停
-- [x] **用户管理**：停用/启用、升降管理员；停用时连带作废其所有会话
+- [x] **管理员账户自动创建**（`src/instrumentation.ts` → `src/lib/bootstrap.ts`），
+      邮箱取 `ADMIN_EMAIL`（默认 `admin@localhost`），密码取 `ADMIN_PASSWORD`
+- [x] env 是密码的唯一事实来源：改了 `ADMIN_PASSWORD` 重启即生效
+- [x] 用指纹比对避免每次冷启动都跑 scrypt（只在 env 变化时重新哈希写库）
+- [x] 引导会确保管理员始终是「启用状态的 admin」，防止被误操作锁在门外
+- [x] **加密密钥自动供给**：`CREDENTIAL_ENCRYPTION_KEY` 没设就生成一把存进
+      `app_config`，抢占式插入 + 回读，避免并发冷启动各生成一把
+- [x] 引导失败不抛出，站点仍能起来并给出可读错误
+- [x] `ensureBootstrapped()` 兜底：万一 instrumentation 没跑，首个请求补上
+- [x] **`/api/health`** 逐项诊断缺哪个变量、数据库通不通、密钥来自哪里
+- [x] 删掉了 `/setup` 向导和 `SETUP_TOKEN` —— 没有向导就没有「被人抢先初始化」的风险
+- [x] 管理后台：改节点 `allowPublic`/`maxRooms`/启停，**把任一节点「设为内置」**
+- [x] 用户管理：停用/启用、升降管理员；停用时连带作废其所有会话
 - [x] 守卫：不能改自己的角色/状态；不能把最后一个管理员降级
 
 ## G2 · LiveKit 节点接入 ✅
@@ -82,7 +89,7 @@
 
 ## G6 · 前端 ✅
 
-- [x] `/` 分流、`/setup`、`/login`（登录/注册合一，支持 `next` 回跳）
+- [x] `/` 分流、`/login`（登录/注册合一，支持 `next` 回跳，防 open redirect）
 - [x] `/dashboard` 房间列表 + 建房（节点选择器）+ 节点管理 + webhook 地址
 - [x] `/room/[code]` 画面（优先屏幕共享）+ OBS 面板 + 邀请面板 + 成员面板 + 日志面板
 - [x] `/admin` 管理后台
@@ -99,14 +106,14 @@
 - [x] 审计不记录任何密钥
 - [x] **定时清理**（`/api/cron/cleanup` + `vercel.json`）：过期会话、旧限流记录、旧去重记录
 - [x] cron 端点用 `CRON_SECRET` 定长比较保护
-- [x] **26 项测试**：AES-GCM 往返/篡改检测、scrypt 往返/Unicode 归一化/畸形输入、
+- [x] **32 项测试**：AES-GCM 往返/篡改检测、scrypt 往返/Unicode 归一化/畸形输入、零配置密钥供给路径、
       URL 归一化、房间码字符集与碰撞、schema 默认值与边界
 - [x] 停用用户时连带作废会话
 
 ## 部署 ✅
 
 - [x] 零环境变量裸构建通过（db 惰性化的直接结果）
-- [x] 全部 26 条路由声明 `runtime = "nodejs"`
+- [x] 全部 25 条路由声明 `runtime = "nodejs"`
 - [x] `vercel.json` cron（Hobby 每天一次的限制已适配）
 - [x] webhook 地址在未设 `NEXT_PUBLIC_APP_URL` 时从请求头推导，preview 部署也正确
 - [x] [DEPLOY.md](DEPLOY.md) 完整步骤与约束
@@ -128,4 +135,5 @@
 
 1. **Vercel Hobby 禁止商业用途** —— 对外运营需上 Pro（$20/月）。
 2. **Neon 免费版 100 CU-hours/月** —— 别加数据库轮询，会烧穿。
-3. **备份 `CREDENTIAL_ENCRYPTION_KEY`** —— 丢了所有节点凭据作废。
+3. **`CREDENTIAL_ENCRYPTION_KEY` 的取舍** —— 默认自动生成存库（零配置），
+   生产建议显式设置让密钥待在库外。**只能在还没接入任何节点时切换**。

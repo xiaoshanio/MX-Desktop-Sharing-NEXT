@@ -1,14 +1,15 @@
 import { currentUser } from "@/lib/auth";
+import { ensureBootstrapped } from "@/lib/bootstrap";
 import { json, route } from "@/lib/http";
-import { isInitialized } from "@/lib/setup";
 
 export const runtime = "nodejs";
 
-/** 前端启动时打这一个接口拿全部引导状态。 */
+/** 前端启动时打这一个接口拿登录态。顺便兜底触发一次启动引导。 */
 export const GET = route(async () => {
-  const [user, initialized] = await Promise.all([currentUser(), isInitialized()]);
+  await ensureBootstrapped();
+  const user = await currentUser();
+
   return json({
-    initialized,
     user: user
       ? { id: user.id, email: user.email, displayName: user.displayName, role: user.role }
       : null,

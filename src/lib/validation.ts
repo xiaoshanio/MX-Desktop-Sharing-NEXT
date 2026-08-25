@@ -37,19 +37,6 @@ export const createNodeSchema = nodeCredentialsSchema.extend({
   name: z.string().trim().min(1, "给节点起个名字").max(60),
 });
 
-export const setupSchema = z.object({
-  setupToken: z.string().trim().optional(),
-  admin: z.object({
-    email: z.string().trim().toLowerCase().email("邮箱格式不对"),
-    displayName: z.string().trim().min(1).max(60),
-    password: z.string().min(10, "管理员密码至少 10 位"),
-  }),
-  builtinNode: createNodeSchema.extend({
-    allowPublic: z.boolean().default(true),
-    maxRooms: z.number().int().positive().max(10000).nullable().default(null),
-  }),
-});
-
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email("邮箱格式不对"),
   password: z.string().min(1, "请输入密码"),
@@ -95,6 +82,8 @@ export const adminUpdateNodeSchema = z.object({
   isEnabled: z.boolean().optional(),
   allowPublic: z.boolean().optional(),
   maxRooms: z.number().int().positive().max(10000).nullable().optional(),
+  /** 把这个节点提升为「内置节点」（全站共享）。同时只能有一个。 */
+  makeBuiltin: z.boolean().optional(),
 });
 
 export const adminUpdateUserSchema = z.object({

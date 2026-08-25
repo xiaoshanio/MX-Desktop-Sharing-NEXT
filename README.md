@@ -4,39 +4,49 @@
 
 - **房间绑定 LiveKit 节点**。建房时指定用哪套 LiveKit 凭据，这个房间的媒体流量和免费额度就烧在那个节点上。
 - **普通用户自带节点**。用户接入自己的 LiveKit Cloud 项目，各烧各的额度，互不抢占。
-- **内置节点兜底**。管理员初始化时填一套凭据作为内置节点，可开关是否对普通用户开放、限制房间数。
+- **内置节点兜底**。管理员可把任一节点「设为内置」供全站共享，能开关是否对普通用户开放、限制房间数。
 - **鉴权在协议层**。不在成员表里 → 签不出 token → 连不上 room → 订阅不到任何 track。不是前端过滤。
 - **OBS 走 WHIP 直通**。`enableTranscoding: false`，不消耗每月 60 分钟的 transcode 额度。
+- **两个环境变量就能跑**。管理员账户自动创建，加密密钥自动供给，LiveKit 在网页里配。
 
 部署本站到 Vercel 见 [DEPLOY.md](DEPLOY.md)。
 
 ## 快速开始
 
+只需要两个环境变量。复制 `.env.example` 为 `.env.local`，填这两项：
+
+```bash
+DATABASE_URL="postgresql://...@ep-xxx-pooler.../neondb?sslmode=require"
+ADMIN_PASSWORD="你的管理员密码"
+```
+
+然后建表、启动：
+
 ```bash
 npm install
-```
-
-生成一把凭据加密密钥（**生成后妥善备份，丢了所有已接入节点的凭据都解不开**）：
-
-```bash
-npm run keygen
-```
-
-复制 `.env.example` 为 `.env.local`，填入 Neon 连接串和上面生成的密钥。然后建表：
-
-```bash
 npm run db:migrate
-```
-
-启动，浏览器打开 `http://localhost:3000`，会自动跳到 `/setup` 做首次初始化：
-
-```bash
 npm run dev
 ```
 
-初始化时需要填一套 LiveKit 凭据作为内置节点 —— 怎么弄见下一节。
+打开 `http://localhost:3000`，用 `admin@localhost` + 上面的密码登录 ——
+**管理员账户在首次启动时自动创建，没有安装向导**。
 
-其他命令：`npm test`（26 项）、`npm run typecheck`、`npm run build`。
+登录后到控制台「+ 接入我的节点」配一个 LiveKit 节点（怎么拿凭据见下一节）。
+LiveKit 不占用任何环境变量。
+
+其他命令：`npm test`（32 项）、`npm run typecheck`、`npm run build`。
+配置有问题时看 `/api/health`，它会逐项告诉你缺什么。
+
+### 环境变量清单
+
+| 变量 | 必填 | 默认 / 说明 |
+| --- | --- | --- |
+| `DATABASE_URL` | ✅ | Neon 连接串 |
+| `ADMIN_PASSWORD` | ✅ | 改这个值并重启即可改密码 |
+| `ADMIN_EMAIL` | | `admin@localhost` |
+| `CREDENTIAL_ENCRYPTION_KEY` | | 不填则首次启动自动生成并存库（见 [DEPLOY.md](DEPLOY.md#关于自动生成的加密密钥) 的取舍说明） |
+| `NEXT_PUBLIC_APP_URL` | | 不填则从请求头推导 |
+| `CRON_SECRET` | | 保护定时清理端点 |
 
 ---
 
