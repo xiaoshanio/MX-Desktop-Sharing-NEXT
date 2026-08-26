@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { APP_NAME } from "@/lib/brand";
+
 /**
  * The MX mark — "node + uplink".
  *
@@ -35,7 +37,7 @@ export function BrandMark({ size = 32, className }: BrandMarkProps): ReactNode {
       height={size}
       viewBox="0 0 32 32"
       role="img"
-      aria-label="MX 桌面共享"
+      aria-label={APP_NAME}
     >
       <path d={FACE_LEFT} fill="var(--mx-mark-left)" />
       <path d={FACE_RIGHT} fill="var(--mx-mark-right)" />

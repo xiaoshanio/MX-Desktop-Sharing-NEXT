@@ -10,6 +10,8 @@
  * 那个 PNG 由 scripts/render-logo-png.mjs 从同一份几何生成，见 public/logo-mark-email.png。
  */
 
+import { APP_NAME, APP_TAGLINE } from "./brand";
+
 /* tokens.css 浅色档的对应值 */
 const ACCENT = "#5640c9";
 const ACCENT_SOFT = "#eceafb";
@@ -34,7 +36,7 @@ export type CodeMailInput = {
 
 /** 主题行。收件箱里一眼能认出是谁发的、干什么用的。 */
 export function codeMailSubject(code: string): string {
-  return `${code} 是你的 MX 桌面共享验证码`;
+  return `${code} 是你的 ${APP_NAME} 验证码`;
 }
 
 /**
@@ -43,7 +45,7 @@ export function codeMailSubject(code: string): string {
  */
 export function codeMailText({ code, minutes }: CodeMailInput): string {
   return [
-    "MX 桌面共享",
+    APP_NAME,
     "",
     `你的登录验证码是：${code}`,
     "",
@@ -61,7 +63,7 @@ export function codeMailHtml({ code, minutes, appUrl }: CodeMailInput): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MX 桌面共享验证码</title>
+<title>${APP_NAME} 验证码</title>
 </head>
 <body style="margin:0;padding:0;background:${BG_BASE};">
   <!-- 预览文字：收件箱列表里显示在标题后面的那一句 -->
@@ -79,17 +81,17 @@ export function codeMailHtml({ code, minutes, appUrl }: CodeMailInput): string {
           <!-- 品牌区 -->
           <tr>
             <td align="center" style="padding:32px 32px 8px 32px;">
-              <img src="${logo}" width="56" height="56" alt="MX 桌面共享"
+              <img src="${logo}" width="56" height="56" alt="${APP_NAME}"
                    style="display:block;border:0;outline:none;text-decoration:none;">
             </td>
           </tr>
           <tr>
             <td align="center" style="padding:0 32px;font-family:${FONT};">
               <div style="font-size:19px;line-height:28px;font-weight:600;color:${TEXT_PRIMARY};">
-                MX 桌面共享
+                ${APP_NAME}
               </div>
               <div style="font-size:13px;line-height:18px;color:${TEXT_TERTIARY};padding-top:2px;">
-                一房一节点，一人一推流地址
+                ${APP_TAGLINE}
               </div>
             </td>
           </tr>

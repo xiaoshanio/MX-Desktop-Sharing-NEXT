@@ -1,5 +1,5 @@
 /* ============================================================
-   MX Desktop Sharing — design tokens.
+   MX-Desktop-Sharing-NEXT — design tokens.
    Fluent-inspired layered surfaces, iris accent, light + dark.
    Light theme = :root defaults; dark theme = [data-theme="dark"].
    Components consume these variables only — never hard-coded values.

@@ -7,6 +7,7 @@ import { generateRoomCode } from "../src/lib/room-code.ts";
 import { CARD_ACCENTS } from "../src/lib/identity.ts";
 import {
   CARD_ACCENT_VALUES,
+  adminUpdateSettingsSchema,
   createInviteSchema,
   createRoomSchema,
   emailSchema,
@@ -205,6 +206,28 @@ describe("updateRoomSchema", () => {
   it("拒绝缺字段和字符串「false」（前端忘了转类型时不能静默当成 true）", () => {
     assert.throws(() => parseOr400(updateRoomSchema, {}));
     assert.throws(() => parseOr400(updateRoomSchema, { obsEnabled: "false" }));
+  });
+});
+
+describe("adminUpdateSettingsSchema", () => {
+  it("两个方向的布尔都收", () => {
+    assert.equal(
+      parseOr400(adminUpdateSettingsSchema, { registrationEnabled: false }).registrationEnabled,
+      false,
+    );
+    assert.equal(
+      parseOr400(adminUpdateSettingsSchema, { registrationEnabled: true }).registrationEnabled,
+      true,
+    );
+  });
+
+  /**
+   * 这两条是这个 schema 存在的理由：关注册的开关最怕「字符串 "false" 被当成真值」——
+   * 那会让管理员点了关闭、界面显示已关闭、注册接口却照样放人进来。
+   */
+  it("拒绝字符串「false」和空对象", () => {
+    assert.throws(() => parseOr400(adminUpdateSettingsSchema, { registrationEnabled: "false" }));
+    assert.throws(() => parseOr400(adminUpdateSettingsSchema, {}));
   });
 });
 

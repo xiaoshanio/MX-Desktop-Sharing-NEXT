@@ -1,10 +1,11 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   livekitNodes,
   roomBans,
   roomMembers,
+  roomPresence,
   rooms,
   type LivekitNode,
   type Room,
@@ -96,12 +97,35 @@ export function canPublish(ctx: RoomContext, user: User): boolean {
 }
 
 export async function listRoomsForUser(userId: string) {
+  /**
+   * 房间列表要带「在线 X / 共 Y 人」，用相关子查询而不是 join + group by。
+   *
+   * join 两张一对多的表再聚合会先产生笛卡尔积（成员数 × 在线记录数），
+   * 得靠 count(distinct) 收拾，SQL 更绕也更慢。两个标量子查询各自走自己的索引
+   * （room_members_pk、room_presence_pk），而且整个列表仍然只有一次往返 ——
+   * 这一点很重要，neon-http 每条语句都是一次 HTTP 请求。
+   */
+  const memberCount = sql<number>`(
+    select count(*)::int from ${roomMembers}
+    where ${roomMembers.roomId} = ${rooms.id}
+  )`;
+
+  // 只数真人：kind='ingress' 那些行是 OBS 推流的占位参与者，不该算进人数
+  const onlineCount = sql<number>`(
+    select count(*)::int from ${roomPresence}
+    where ${roomPresence.roomId} = ${rooms.id}
+      and ${roomPresence.isOnline}
+      and ${roomPresence.kind} = 'user'
+  )`;
+
   return db
     .select({
       room: rooms,
       nodeName: livekitNodes.name,
       nodeKind: livekitNodes.kind,
       role: roomMembers.role,
+      memberCount,
+      onlineCount,
     })
     .from(roomMembers)
     .innerJoin(rooms, eq(rooms.id, roomMembers.roomId))

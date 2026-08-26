@@ -94,12 +94,21 @@ export const createRoomSchema = z.object({
 });
 
 /**
- * 房主改房间设置。目前只有 OBS 直播闸门一项，所以是必填 —— 后面加字段时改成
- * 全 optional + 「至少给一项」的校验。
+ * 房主改房间设置。
+ *
+ * 全部字段可选 + 「至少给一项」：这样前端可以只发自己动过的那一个开关，
+ * 不必把整份设置回传（回传等于两个标签页同时打开设置时后保存的会把前一个覆盖掉）。
  */
-export const updateRoomSchema = z.object({
-  obsEnabled: z.boolean(),
-});
+export const updateRoomSchema = z
+  .object({
+    obsEnabled: z.boolean().optional(),
+    /** true = 连「仅观看」的成员也能从浏览器共享屏幕 */
+    viewerCanPublish: z.boolean().optional(),
+  })
+  .refine(
+    (value) => value.obsEnabled !== undefined || value.viewerCanPublish !== undefined,
+    { message: "至少要改一项设置" },
+  );
 
 export const addMemberSchema = z.object({
   email: emailSchema,
@@ -133,6 +142,20 @@ export const adminUpdateUserSchema = z.object({
   role: z.enum(["admin", "user"]).optional(),
   isDisabled: z.boolean().optional(),
 });
+
+/**
+ * 站点级开关。
+ *
+ * 字段可选 + 「至少给一项」，和 updateRoomSchema 同一个理由：前端只发自己动过的
+ * 那一个开关，以后再加开关也不会互相覆盖。
+ */
+export const adminUpdateSettingsSchema = z
+  .object({
+    registrationEnabled: z.boolean().optional(),
+  })
+  .refine((value) => value.registrationEnabled !== undefined, {
+    message: "至少要改一项设置",
+  });
 
 /* ============================================================
    成员权限 / 黑名单

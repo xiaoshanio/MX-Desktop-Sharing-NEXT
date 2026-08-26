@@ -558,6 +558,61 @@ describe("引导建号 → 登录 闭环", () => {
   });
 });
 
+describe("站点开关（app_config）", () => {
+  /**
+   * 「注册开着没有」存在 app_config 里，读法是 `readConfigValue<boolean>(key) ?? true`。
+   *
+   * 这一节守的是那个 `?? true` 的前提：**存进去的 false 必须能原样读回来**。
+   * 如果 jsonb 往返把它变成了字符串 "false"、或者取值时用了 `||`，那个默认值就会
+   * 把管理员刚关掉的注册重新打开 —— 而界面上看不出任何异常。
+   */
+  const KEY = "registration_enabled";
+
+  it("false 能原样读回来，不会被 jsonb 往返变成真值", async () => {
+    await pg.query(`insert into app_config (key, value) values ($1, $2::jsonb)`, [
+      KEY,
+      JSON.stringify({ v: false }),
+    ]);
+
+    const r = await pg.query<{ value: { v?: boolean } }>(
+      `select value from app_config where key = $1`,
+      [KEY],
+    );
+    const v = r.rows[0]!.value.v;
+    assert.equal(typeof v, "boolean", "读回来必须还是布尔，不能是字符串 \"false\"");
+    assert.equal(v ?? true, false, "存了 false 就不该落回默认值 true");
+  });
+
+  it("翻回 true 是覆盖而不是插一行（on conflict 走的是同一个键）", async () => {
+    await pg.query(
+      `insert into app_config (key, value) values ($1, $2::jsonb)
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [KEY, JSON.stringify({ v: true })],
+    );
+
+    const r = await pg.query<{ n: number }>(
+      `select count(*)::int as n from app_config where key = $1`,
+      [KEY],
+    );
+    assert.equal(r.rows[0]!.n, 1, "同一个键不该留下两行，否则读到哪一行是随机的");
+
+    const now = await pg.query<{ value: { v?: boolean } }>(
+      `select value from app_config where key = $1`,
+      [KEY],
+    );
+    assert.equal(now.rows[0]!.value.v, true);
+  });
+
+  it("键不存在时一行都读不到 —— 默认开放注册的依据", async () => {
+    const r = await pg.query<{ value: unknown }>(`select value from app_config where key = $1`, [
+      "never_written",
+    ]);
+    // 上层把「读不到」折成 (null ?? true)：老部署升级上来默认仍然开放注册，
+    // 而不是突然把所有人关在门外。
+    assert.equal(r.rows.length, 0);
+  });
+});
+
 describe("定时清理", () => {
   it("只删过期会话，不碰有效会话", async () => {
     const u = randomUUID();

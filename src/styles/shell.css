@@ -538,6 +538,11 @@
 .mx-statusbar__spacer {
   margin-left: auto;
 }
+/* Attribution line. Deliberately the quietest thing in the bar — it's a signature,
+   not status. Hidden on phones (see the 640px block) where the width is needed. */
+.mx-statusbar__powered {
+  color: var(--mx-text-disabled);
+}
 
 /* ============================================================
    Section — the page-level content container
@@ -764,6 +769,9 @@
     display: none;
   }
   .mx-brand__sub {
+    display: none;
+  }
+  .mx-statusbar__powered {
     display: none;
   }
   .mx-user__label {

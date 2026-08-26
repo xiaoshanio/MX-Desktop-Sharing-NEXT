@@ -21,6 +21,10 @@ export type RoomRow = {
   role: string;
   nodeName: string;
   nodeKind: string;
+  /** 成员总数 */
+  memberCount: number;
+  /** 其中此刻在线的人数（来自 webhook 落库的 presence，不含 OBS 占位参与者） */
+  onlineCount: number;
 };
 
 export type RoomDetail = {
@@ -31,6 +35,8 @@ export type RoomDetail = {
   canPublish: boolean;
   /** OBS 直播闸门。false = 不接受 WHIP 推流（浏览器共享不受影响）。 */
   obsEnabled: boolean;
+  /** true = 连「仅观看」的成员也能共享屏幕 */
+  viewerCanPublish: boolean;
   node: { name: string; kind: string; ingressAvailable: boolean | null };
 };
 
@@ -83,6 +89,13 @@ export type AuthProviders = {
   oauth: Array<{ provider: "github" | "google" }>;
   turnstileSiteKey: string | null;
   emailCodeEnabled: boolean;
+  /** false = 站点关闭了注册，登录页不显示「注册」页签。真正的拦截在服务端。 */
+  registrationEnabled: boolean;
+};
+
+/** 管理后台 →「站点」分区。 */
+export type SiteSettings = {
+  registrationEnabled: boolean;
 };
 
 export type ServiceRow = {

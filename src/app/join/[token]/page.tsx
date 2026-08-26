@@ -4,8 +4,11 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { api } from "@/lib/api-client";
+import { COPYRIGHT } from "@/lib/brand";
+import { humanizeError } from "@/lib/error-text";
+import { toast } from "@/lib/toast";
 import { BrandMark } from "@/components/BrandMark";
-import { Banner, Icon, LinkButton, Spinner } from "@/ui";
+import { Icon, LinkButton, Spinner } from "@/ui";
 
 /**
  * 邀请落地页。未登录时先把人送去登录/注册，带上 next 参数再回来兑换。
@@ -14,7 +17,6 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
   const { token } = use(params);
   const router = useRouter();
   const [state, setState] = useState<"working" | "error">("working");
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +39,7 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
         if (!cancelled) router.replace(`/room/${room.code}`);
       } catch (error) {
         if (cancelled) return;
-        setErr(error instanceof Error ? error.message : String(error));
+        toast.error(humanizeError(error));
         setState("error");
       }
     })();
@@ -71,7 +73,6 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
             </div>
           ) : (
             <>
-              {err && <Banner tone="error">{err}</Banner>}
               <p className="mx-text-caption">
                 链接可能已过期、被撤销，或使用次数已满。找房主重新发一个。
               </p>
@@ -82,6 +83,8 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
             </>
           )}
         </div>
+
+        <p className="mx-auth__copyright">{COPYRIGHT}</p>
       </div>
     </div>
   );

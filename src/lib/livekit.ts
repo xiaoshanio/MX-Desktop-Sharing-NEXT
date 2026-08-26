@@ -173,6 +173,20 @@ export async function setParticipantPublish(
   });
 }
 
+/** 房里此刻连着的参与者 identity 列表。房间不存在时返回空数组。 */
+export async function listParticipantIdentities(
+  node: ResolvedNode,
+  roomName: string,
+): Promise<string[]> {
+  try {
+    const list = await roomService(node).listParticipants(roomName);
+    return list.map((participant) => participant.identity);
+  } catch {
+    // 房间已被 emptyTimeout 回收 —— 没人在线，没什么要改的
+    return [];
+  }
+}
+
 export type ProbeResult = {
   ok: boolean;
   error?: string;

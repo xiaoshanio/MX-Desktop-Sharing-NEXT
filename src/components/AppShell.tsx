@@ -5,19 +5,18 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { api } from "@/lib/api-client";
+import { APP_NAME, POWERED_BY } from "@/lib/brand";
 import {
   applySidebar,
-  applyTheme,
   isImmersivePath,
   readStoredSidebar,
-  readStoredTheme,
   type SidebarState,
-  type Theme,
 } from "@/lib/theme";
 import type { ShellUser } from "@/lib/shell-user";
 import { BrandMark } from "@/components/BrandMark";
 import { Avatar } from "@/components/Avatar";
-import { Icon, IconButton, type IconName } from "@/ui";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Icon, IconButton, PageLoader, type IconName } from "@/ui";
 
 export type { ShellUser };
 
@@ -55,6 +54,16 @@ export interface AppShellProps {
   wide?: boolean;
   /** Drops the main scroller's padding — the room workspace manages its own gutters. */
   flush?: boolean;
+  /**
+   * Replaces `children` with a centred spinner until the page's first load resolves.
+   *
+   * Deliberately swaps the whole content area rather than rendering empty shells: the chrome
+   * (top bar + sidebar) stays usable and navigable while the data is in flight, but nothing
+   * half-populated is ever shown.
+   */
+  loading?: boolean;
+  /** Text under the spinner while `loading`. */
+  loadingLabel?: string;
   children: ReactNode;
 }
 
@@ -75,20 +84,20 @@ export function AppShell({
   status,
   wide = false,
   flush = false,
+  loading = false,
+  loadingLabel,
   children,
 }: AppShellProps): ReactNode {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [theme, setTheme] = useState<Theme>("dark");
   const [online, setOnline] = useState(true);
 
   const immersive = isImmersivePath(pathname);
 
-  // Hydrate persisted chrome state after mount — both attributes are already on <html>
-  // from the bootstrap script, so this only syncs the toggles' icons.
+  // Hydrate persisted chrome state after mount — the attribute is already on <html>
+  // from the bootstrap script, so this only syncs the toggle's icon.
   useEffect(() => {
-    setTheme(readStoredTheme());
     setCollapsed(document.documentElement.getAttribute("data-sidebar") === "collapsed");
   }, []);
 
@@ -131,14 +140,6 @@ export function AppShell({
     });
   }, [immersive]);
 
-  const toggleTheme = useCallback(() => {
-    setTheme((previous) => {
-      const next: Theme = previous === "dark" ? "light" : "dark";
-      applyTheme(next);
-      return next;
-    });
-  }, []);
-
   const items = NAV.filter((item) => !item.adminOnly || user.role === "admin");
 
   return (
@@ -155,7 +156,7 @@ export function AppShell({
         <Link href="/dashboard" className="mx-brand">
           <BrandMark size={32} className="mx-brand__mark" />
           <span className="mx-brand__text">
-            <span className="mx-brand__name">MX 桌面共享</span>
+            <span className="mx-brand__name">{APP_NAME}</span>
             <span className="mx-brand__sub">LiveKit 多节点</span>
           </span>
         </Link>
@@ -178,12 +179,7 @@ export function AppShell({
         ) : null}
 
         <div className="mx-topbar__actions">
-          <IconButton
-            label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
-            onClick={toggleTheme}
-          >
-            <Icon name={theme === "dark" ? "sun" : "moon"} size={18} />
-          </IconButton>
+          <ThemeToggle />
           <UserMenu user={user} />
         </div>
       </header>
@@ -230,14 +226,21 @@ export function AppShell({
           className="mx-main"
           data-wide={wide ? "true" : undefined}
           data-flush={flush ? "true" : undefined}
+          data-loading={loading ? "true" : undefined}
         >
-          <div className="mx-main__inner">{children}</div>
+          <div className="mx-main__inner">
+            {loading ? <PageLoader>{loadingLabel}</PageLoader> : children}
+          </div>
         </main>
       </div>
 
       <footer className="mx-statusbar" role="status">
         {status}
         <span className="mx-statusbar__spacer" />
+        {/* Sits left of the connection light. First thing dropped on a narrow viewport —
+            the status bar clips its overflow, and knowing you're online matters more. */}
+        <span className="mx-statusbar__item mx-statusbar__powered">{POWERED_BY}</span>
+        <span className="mx-statusbar__divider mx-statusbar__powered" />
         <span className="mx-statusbar__item" data-tone={online ? "success" : "error"}>
           <span className="mx-statusbar__dot" />
           {online ? "已连接" : "网络离线"}

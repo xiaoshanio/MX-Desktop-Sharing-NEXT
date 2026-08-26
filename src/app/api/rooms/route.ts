@@ -24,6 +24,8 @@ export const GET = route(async () => {
       role: r.role,
       nodeName: r.nodeName,
       nodeKind: r.nodeKind,
+      memberCount: r.memberCount,
+      onlineCount: r.onlineCount,
       createdAt: r.room.createdAt.toISOString(),
     })),
   });

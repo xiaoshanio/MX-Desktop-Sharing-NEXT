@@ -1,0 +1,1016 @@
+/* ============================================================
+   Landing page (`/`) — the only marketing surface in the app.
+   ============================================================
+
+   Everything here consumes `--mx-*` tokens, same contract as the rest of the UI. The one
+   addition is a set of page-local steps declared on `.mx-land` below: a landing hero needs a
+   type scale and a section rhythm well above what the app chrome uses (`--mx-font-size-display`
+   is 30px — right for a page title, far too small for a hero). Declaring them once at the root
+   keeps the single-source-of-truth rule intact; nothing downstream hard-codes a number.
+   ============================================================ */
+
+.mx-land {
+  /* Page-local steps. Fluid so the hero reads big on a desktop and still fits a phone. */
+  --land-measure: 1120px;
+  --land-h1: clamp(31px, 5.2vw, 56px);
+  --land-h2: clamp(23px, 3vw, 33px);
+  --land-lead: clamp(15px, 1.3vw, 18px);
+  --land-section-y: clamp(var(--mx-space-3xl), 7vw, 100px);
+  --land-bar-height: 60px;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--mx-bg-base);
+  color: var(--mx-text-primary);
+  /* Deliberately no `overflow-x: hidden` here: that computes `overflow-y` to `auto`, which
+     makes this element a scroll container — and then `.mx-land__bar`'s `position: sticky`
+     anchors to *it* instead of the viewport, so the bar scrolls away instead of sticking.
+     The only thing that could overflow sideways is the hero's washes, and the hero clips
+     those itself. */
+}
+
+/* Anchor nav scrolls smoothly; `scroll-behavior` only works on the scrolling box, which is
+   the root element here (the landing page has no inner scroller, unlike AppShell). */
+html:has(.mx-land) {
+  scroll-behavior: smooth;
+}
+
+.mx-land__measure {
+  width: 100%;
+  max-width: var(--land-measure);
+  margin: 0 auto;
+  padding-inline: var(--mx-space-xl);
+}
+
+/* ============================================================
+   Sticky bar
+   ============================================================ */
+.mx-land__bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--mx-z-sticky);
+  border-bottom: 1px solid var(--mx-stroke-subtle);
+}
+.mx-land__bar-inner {
+  height: var(--land-bar-height);
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-lg);
+}
+
+.mx-land__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  min-width: 0;
+  color: var(--mx-text-primary);
+  text-decoration: none;
+  border-radius: var(--mx-radius-sm);
+}
+.mx-land__brand-name {
+  font-size: var(--mx-font-size-body);
+  font-weight: var(--mx-weight-semibold);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  /* The product name is a long single token; truncating beats pushing the bar's CTA
+     off the right edge on a narrow phone. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mx-land__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  margin-inline-start: var(--mx-space-lg);
+}
+.mx-land__nav-link {
+  padding: var(--mx-space-xs) var(--mx-space-sm);
+  border-radius: var(--mx-radius-sm);
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+  text-decoration: none;
+  transition:
+    background var(--mx-duration-fast) var(--mx-ease-standard),
+    color var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-land__nav-link:hover {
+  background: var(--mx-bg-hover);
+  color: var(--mx-text-primary);
+}
+
+.mx-land__bar-actions {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+}
+
+/* ============================================================
+   Section scaffolding
+   ============================================================ */
+.mx-land__section {
+  padding-block: var(--land-section-y);
+  /* Keeps the sticky bar from covering a heading the anchor nav jumped to. */
+  scroll-margin-top: var(--land-bar-height);
+}
+.mx-land__section + .mx-land__section {
+  border-top: 1px solid var(--mx-stroke-subtle);
+}
+/* Two tinted bands on the page — the free-tier reality check and the desktop-app teaser.
+   They're separated by two untinted sections, which is what gives the page its rhythm. */
+.mx-land__section[data-tint="true"] {
+  background: var(--mx-bg-layer);
+}
+
+.mx-land__head {
+  max-width: 62ch;
+  margin-bottom: var(--mx-space-2xl);
+}
+.mx-land__eyebrow {
+  display: block;
+  margin-bottom: var(--mx-space-md);
+  font-family: var(--mx-font-mono);
+  font-size: var(--mx-font-size-caption);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mx-accent-text);
+}
+.mx-land__h2 {
+  margin: 0;
+  font-size: var(--land-h2);
+  line-height: 1.24;
+  font-weight: var(--mx-weight-semibold);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+/* Inline accent phrase — unlike the hero's `em`, which is its own line. Used for the
+   unreleased product name, which is one long hyphenated token. */
+.mx-land__h2 em {
+  font-style: normal;
+  color: var(--mx-accent-text);
+  overflow-wrap: anywhere;
+}
+.mx-land__lead {
+  margin: var(--mx-space-md) 0 0;
+  color: var(--mx-text-secondary);
+  font-size: var(--land-lead);
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+/* ============================================================
+   Hero
+   ============================================================ */
+.mx-land__hero {
+  position: relative;
+  padding-block: clamp(var(--mx-space-2xl), 6vw, 84px) var(--land-section-y);
+  overflow: hidden;
+}
+/* Two soft washes, same family as the auth screen's accent glow.
+   Drawn as radial gradients sized to the hero rather than as blurred circles: a fixed-size
+   circle lands its feathered edge somewhere inside the hero once the viewport is narrow enough
+   (on a phone it cut a visible arc straight across the CTA row). A gradient fades to
+   transparent by construction, so there's no edge to land anywhere — and no 90px blur to pay. */
+.mx-land__hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      62% 58% at 10% -10%,
+      color-mix(in oklab, var(--mx-accent) 22%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      52% 46% at 96% 108%,
+      color-mix(in oklab, var(--mx-info) 15%, transparent),
+      transparent 70%
+    );
+}
+
+.mx-land__hero-inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: clamp(var(--mx-space-2xl), 5vw, 64px);
+  align-items: center;
+}
+
+.mx-land__hero-copy {
+  animation: mx-land-rise var(--mx-duration-slow) var(--mx-ease-emphasized) both;
+}
+
+.mx-land__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  height: 28px;
+  padding-inline: var(--mx-space-md);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-pill);
+  background: var(--mx-bg-card);
+  box-shadow: var(--mx-shadow-2);
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+}
+.mx-land__tag strong {
+  color: var(--mx-text-primary);
+  font-weight: var(--mx-weight-semibold);
+}
+
+.mx-land__h1 {
+  margin: var(--mx-space-lg) 0 0;
+  font-size: var(--land-h1);
+  line-height: 1.1;
+  font-weight: var(--mx-weight-semibold);
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+/* One accent phrase, not a gradient. */
+.mx-land__h1 em {
+  display: block;
+  font-style: normal;
+  color: var(--mx-accent-text);
+}
+
+.mx-land__hero-lead {
+  margin: var(--mx-space-lg) 0 0;
+  max-width: 46ch;
+  color: var(--mx-text-secondary);
+  font-size: var(--land-lead);
+  line-height: 1.72;
+  text-wrap: pretty;
+}
+
+.mx-land__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mx-space-md);
+  margin-top: var(--mx-space-xl);
+}
+
+.mx-land__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mx-space-sm) var(--mx-space-lg);
+  margin: var(--mx-space-xl) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.mx-land__facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+}
+.mx-land__facts svg {
+  color: var(--mx-success-text);
+  flex: none;
+}
+
+/* ============================================================
+   Hero art — node topology. Each node holds its own rooms; that's the whole thesis.
+   ============================================================ */
+.mx-land__topo {
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-xl);
+  background: var(--mx-bg-card);
+  box-shadow: var(--mx-shadow-16);
+  overflow: hidden;
+  animation: mx-land-rise var(--mx-duration-slower) var(--mx-ease-emphasized) both;
+  animation-delay: 80ms;
+}
+.mx-land__topo-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-sm) var(--mx-space-lg);
+  border-bottom: 1px solid var(--mx-stroke-subtle);
+  background: var(--mx-bg-layer);
+}
+.mx-land__topo-title {
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
+  color: var(--mx-text-secondary);
+}
+.mx-land__topo-hint {
+  margin-inline-start: auto;
+  font-size: var(--mx-font-size-caption);
+  color: var(--mx-text-tertiary);
+}
+
+.mx-land__node {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-md) var(--mx-space-lg);
+}
+.mx-land__node + .mx-land__node {
+  border-top: 1px solid var(--mx-stroke-subtle);
+}
+.mx-land__node-top {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  min-width: 0;
+}
+.mx-land__node-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: var(--mx-radius-sm);
+  background: var(--mx-accent-soft);
+  color: var(--mx-accent-text);
+}
+.mx-land__node-name {
+  font-size: var(--mx-font-size-body);
+  font-weight: var(--mx-weight-semibold);
+}
+.mx-land__node-tag {
+  margin-inline-start: auto;
+  flex: none;
+  font-size: var(--mx-font-size-caption);
+  color: var(--mx-text-tertiary);
+}
+.mx-land__node-url {
+  font-family: var(--mx-font-mono);
+  font-size: var(--mx-font-size-code);
+  color: var(--mx-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mx-land__rooms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mx-space-sm);
+}
+.mx-land__room {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-xxs) var(--mx-space-sm);
+  border: 1px solid var(--mx-stroke-subtle);
+  border-radius: var(--mx-radius-sm);
+  background: var(--mx-bg-base);
+  font-size: var(--mx-font-size-caption);
+  color: var(--mx-text-tertiary);
+}
+.mx-land__room code {
+  color: var(--mx-text-secondary);
+  letter-spacing: 0.04em;
+}
+.mx-land__room-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--mx-text-disabled);
+}
+.mx-land__room[data-live="true"] .mx-land__room-dot {
+  background: var(--mx-success);
+  animation: mx-land-pulse 2.4s var(--mx-ease-standard) infinite;
+}
+
+.mx-land__topo-foot {
+  padding: var(--mx-space-md) var(--mx-space-lg);
+  border-top: 1px solid var(--mx-stroke-subtle);
+  background: var(--mx-bg-layer);
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-caption);
+}
+
+/* ============================================================
+   Two publish paths
+   ============================================================ */
+.mx-land__paths {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--mx-space-lg);
+}
+.mx-land__path {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-md);
+  padding: var(--mx-space-xl);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-lg);
+  background: var(--mx-bg-card);
+  box-shadow: var(--mx-shadow-2);
+}
+.mx-land__path-top {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+}
+.mx-land__path-title {
+  margin: 0;
+  font-size: var(--mx-font-size-title);
+  line-height: var(--mx-line-title);
+  font-weight: var(--mx-weight-semibold);
+}
+.mx-land__path-body {
+  margin: 0;
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-body);
+  line-height: var(--mx-line-body);
+}
+
+/* The hop chain: 浏览器 → WebRTC → 节点. */
+.mx-land__hops {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  padding: var(--mx-space-md);
+  border: 1px solid var(--mx-stroke-subtle);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-base);
+}
+.mx-land__hop {
+  padding: var(--mx-space-xxs) var(--mx-space-sm);
+  border: 1px solid var(--mx-stroke-subtle);
+  border-radius: var(--mx-radius-xs);
+  background: var(--mx-bg-card);
+  font-family: var(--mx-font-mono);
+  font-size: var(--mx-font-size-code);
+  color: var(--mx-text-secondary);
+  white-space: nowrap;
+}
+.mx-land__hop[data-strong="true"] {
+  border-color: transparent;
+  background: var(--mx-accent-soft);
+  color: var(--mx-accent-text);
+}
+.mx-land__hop-sep {
+  display: inline-flex;
+  color: var(--mx-text-disabled);
+  flex: none;
+}
+
+/* ============================================================
+   Free-tier reality check
+   ============================================================ */
+.mx-land__quota {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: clamp(var(--mx-space-xl), 4vw, 52px);
+  align-items: start;
+}
+.mx-land__tiles {
+  display: grid;
+  gap: var(--mx-space-md);
+  margin-top: var(--mx-space-xl);
+}
+.mx-land__tile {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mx-space-md);
+  padding: var(--mx-space-md) var(--mx-space-lg);
+  border: 1px solid var(--mx-stroke-subtle);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-card);
+}
+.mx-land__tile-value {
+  font-size: var(--mx-font-size-title);
+  font-weight: var(--mx-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mx-land__tile-label {
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-caption);
+}
+
+.mx-land__table-note {
+  margin: var(--mx-space-md) 0 0;
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-caption);
+}
+.mx-land__punch {
+  display: flex;
+  gap: var(--mx-space-md);
+  margin-top: var(--mx-space-xl);
+  padding: var(--mx-space-lg);
+  border: 1px solid var(--mx-stroke-default);
+  border-inline-start: 3px solid var(--mx-accent);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-card);
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-body);
+  line-height: var(--mx-line-body);
+}
+.mx-land__punch strong {
+  color: var(--mx-text-primary);
+}
+
+/* ============================================================
+   Feature grid
+   ============================================================ */
+.mx-land__features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: var(--mx-space-lg);
+}
+.mx-land__feature {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-xl);
+  border: 1px solid var(--mx-stroke-subtle);
+  border-radius: var(--mx-radius-lg);
+  background: var(--mx-bg-card);
+  transition:
+    border-color var(--mx-duration-normal) var(--mx-ease-standard),
+    box-shadow var(--mx-duration-normal) var(--mx-ease-standard),
+    transform var(--mx-duration-normal) var(--mx-ease-standard);
+}
+.mx-land__feature:hover {
+  border-color: var(--mx-stroke-strong);
+  box-shadow: var(--mx-shadow-8);
+  transform: translateY(-2px);
+}
+.mx-land__feature-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: var(--mx-space-xs);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-subtle);
+  color: var(--mx-text-secondary);
+  transition:
+    background var(--mx-duration-normal) var(--mx-ease-standard),
+    color var(--mx-duration-normal) var(--mx-ease-standard);
+}
+.mx-land__feature:hover .mx-land__feature-icon {
+  background: var(--mx-accent-soft);
+  color: var(--mx-accent-text);
+}
+.mx-land__feature-title {
+  margin: 0;
+  font-size: var(--mx-font-size-body);
+  font-weight: var(--mx-weight-semibold);
+}
+.mx-land__feature-body {
+  margin: 0;
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+  line-height: 1.65;
+}
+.mx-land__feature-body code {
+  color: var(--mx-text-primary);
+}
+
+/* ============================================================
+   Quick start
+   ============================================================ */
+.mx-land__steps {
+  display: grid;
+  gap: var(--mx-space-lg);
+  counter-reset: mx-land-step;
+}
+.mx-land__step {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: var(--mx-space-lg);
+  padding: var(--mx-space-xl);
+  border: 1px solid var(--mx-stroke-subtle);
+  border-radius: var(--mx-radius-lg);
+  background: var(--mx-bg-card);
+}
+.mx-land__step-num {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--mx-accent);
+  color: var(--mx-text-on-accent);
+  font-family: var(--mx-font-mono);
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
+}
+.mx-land__step-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+}
+.mx-land__step-title {
+  margin: 0;
+  font-size: var(--mx-font-size-title);
+  line-height: var(--mx-line-title);
+  font-weight: var(--mx-weight-semibold);
+}
+.mx-land__step-body p {
+  margin: 0;
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-body);
+  line-height: var(--mx-line-body);
+}
+
+.mx-land__pre {
+  margin: var(--mx-space-xs) 0 0;
+  padding: var(--mx-space-md) var(--mx-space-lg);
+  border: 1px solid var(--mx-stroke-subtle);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-base);
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-code);
+  line-height: var(--mx-line-code);
+  overflow-x: auto;
+}
+.mx-land__pre b {
+  color: var(--mx-text-primary);
+  font-weight: var(--mx-weight-regular);
+}
+.mx-land__pre i {
+  color: var(--mx-text-disabled);
+  font-style: normal;
+}
+
+/* ============================================================
+   Desktop-app teaser — an announcement, not a feature list. The whole block is one
+   bordered slab so it reads as "this is a different kind of statement from the sections
+   above it": everything else on this page describes something that exists.
+   ============================================================ */
+.mx-land__teaser {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-xl);
+  padding: clamp(var(--mx-space-lg), 3vw, var(--mx-space-2xl));
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-xl);
+  background: var(--mx-bg-card);
+  box-shadow: var(--mx-shadow-8);
+}
+
+.mx-land__teaser-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--mx-space-md);
+}
+.mx-land__teaser-note p {
+  flex: 1 1 340px;
+  margin: 0;
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-body);
+  line-height: var(--mx-line-body);
+}
+.mx-land__teaser-note strong {
+  color: var(--mx-text-primary);
+}
+/* Says "not shipped yet" before anyone reads the four cards. */
+.mx-land__teaser-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  flex: none;
+  height: 24px;
+  padding-inline: var(--mx-space-md);
+  border-radius: var(--mx-radius-pill);
+  background: var(--mx-accent-soft);
+  color: var(--mx-accent-text);
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
+  white-space: nowrap;
+}
+
+.mx-land__teaser-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--mx-space-lg);
+}
+.mx-land__teaser-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-lg);
+  border: 1px solid var(--mx-stroke-subtle);
+  border-radius: var(--mx-radius-lg);
+  background: var(--mx-bg-base);
+}
+.mx-land__teaser-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: var(--mx-space-xxs);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-subtle);
+  color: var(--mx-text-secondary);
+}
+.mx-land__teaser-title {
+  margin: 0;
+  font-size: var(--mx-font-size-body);
+  font-weight: var(--mx-weight-semibold);
+}
+.mx-land__teaser-body {
+  margin: 0;
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+  line-height: 1.65;
+}
+
+.mx-land__teaser-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mx-space-lg);
+  padding-top: var(--mx-space-lg);
+  border-top: 1px solid var(--mx-stroke-subtle);
+}
+.mx-land__teaser-foot p {
+  flex: 1 1 320px;
+  margin: 0;
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-body);
+  line-height: var(--mx-line-body);
+}
+.mx-land__teaser-foot strong {
+  color: var(--mx-text-primary);
+}
+/* The CTA row already carries its own top margin for the hero; not wanted inline here. */
+.mx-land__teaser-foot .mx-land__cta {
+  margin-top: 0;
+  flex: none;
+}
+
+/* ============================================================
+   Q&A — native <details>, so it opens with JS off and the keyboard/screen-reader
+   behaviour is the browser's rather than ours.
+   ============================================================ */
+.mx-land__qa {
+  display: grid;
+  gap: var(--mx-space-md);
+}
+.mx-land__qa-item {
+  border: 1px solid var(--mx-stroke-subtle);
+  border-radius: var(--mx-radius-lg);
+  background: var(--mx-bg-card);
+  transition:
+    border-color var(--mx-duration-normal) var(--mx-ease-standard),
+    box-shadow var(--mx-duration-normal) var(--mx-ease-standard);
+}
+.mx-land__qa-item:hover {
+  border-color: var(--mx-stroke-strong);
+}
+.mx-land__qa-item[open] {
+  border-color: var(--mx-stroke-default);
+  box-shadow: var(--mx-shadow-2);
+}
+
+.mx-land__qa-q {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mx-space-md);
+  padding: var(--mx-space-lg);
+  color: var(--mx-text-primary);
+  font-size: var(--mx-font-size-body);
+  font-weight: var(--mx-weight-semibold);
+  line-height: var(--mx-line-body);
+  cursor: pointer;
+  /* Kills the default disclosure triangle in both engines — the chevron replaces it. */
+  list-style: none;
+}
+.mx-land__qa-q::-webkit-details-marker {
+  display: none;
+}
+.mx-land__qa-q:focus-visible {
+  outline: 2px solid var(--mx-accent);
+  outline-offset: -2px;
+  border-radius: var(--mx-radius-lg);
+}
+.mx-land__qa-chevron {
+  display: inline-flex;
+  flex: none;
+  /* Optical alignment with the first line of a semibold body-size question. */
+  margin-top: 1px;
+  color: var(--mx-text-tertiary);
+  transition: transform var(--mx-duration-normal) var(--mx-ease-standard);
+}
+.mx-land__qa-item[open] .mx-land__qa-chevron {
+  transform: rotate(90deg);
+  color: var(--mx-accent-text);
+}
+
+.mx-land__qa-a {
+  /* Indent to the question's text column, not the chevron's. */
+  padding: 0 var(--mx-space-lg) var(--mx-space-lg)
+    calc(var(--mx-space-lg) + 15px + var(--mx-space-md));
+  /* The cards run the full measure so the section matches the grids above it, but a
+     1120px-wide paragraph is an unreadable line length — cap the prose, not the card. */
+  max-width: 84ch;
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-body);
+  line-height: 1.72;
+  text-wrap: pretty;
+}
+.mx-land__qa-a code {
+  color: var(--mx-text-primary);
+}
+
+/* ============================================================
+   Closing call to action + footer
+   ============================================================ */
+.mx-land__closing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mx-space-lg);
+  padding: clamp(var(--mx-space-2xl), 5vw, 68px) var(--mx-space-xl);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-xl);
+  background: var(--mx-bg-card);
+  box-shadow: var(--mx-shadow-8);
+  text-align: center;
+}
+.mx-land__closing h2 {
+  margin: 0;
+  font-size: var(--land-h2);
+  line-height: 1.24;
+  font-weight: var(--mx-weight-semibold);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.mx-land__closing p {
+  margin: 0;
+  max-width: 52ch;
+  color: var(--mx-text-secondary);
+  font-size: var(--land-lead);
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.mx-land__footer {
+  border-top: 1px solid var(--mx-stroke-subtle);
+  padding-block: var(--mx-space-2xl);
+  background: var(--mx-bg-layer);
+}
+.mx-land__footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mx-space-md) var(--mx-space-xl);
+}
+.mx-land__footer-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+}
+.mx-land__footer-links {
+  margin-inline-start: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mx-space-lg);
+}
+.mx-land__footer-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+  text-decoration: none;
+}
+.mx-land__footer-links a:hover {
+  color: var(--mx-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* Bottom line of the footer: what it's built on, and who it belongs to. */
+.mx-land__footer-note {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--mx-space-sm) var(--mx-space-xl);
+}
+.mx-land__stack {
+  flex: 1 1 420px;
+  margin: 0;
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-caption);
+}
+.mx-land__copyright {
+  flex: none;
+  margin: 0;
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-caption);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Motion
+   ============================================================ */
+@keyframes mx-land-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes mx-land-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+/* Hero art drops below the copy before the columns get too narrow to read. */
+@media (max-width: 1000px) {
+  .mx-land__hero-inner,
+  .mx-land__quota {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mx-land__hero-lead {
+    max-width: 56ch;
+  }
+  .mx-land__tiles {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
+/* Anchor nav is the first thing to go — the CTA and theme toggle matter more. */
+@media (max-width: 860px) {
+  .mx-land__nav {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .mx-land {
+    --land-bar-height: 54px;
+  }
+  .mx-land__measure {
+    padding-inline: var(--mx-space-lg);
+  }
+  /* Drops the wordmark to caption size so the bar's CTA keeps its full label. */
+  .mx-land__brand-name {
+    font-size: var(--mx-font-size-caption);
+  }
+  .mx-land__path,
+  .mx-land__feature,
+  .mx-land__step,
+  .mx-land__teaser-card {
+    padding: var(--mx-space-lg);
+  }
+  .mx-land__qa-q,
+  .mx-land__qa-a {
+    padding-inline: var(--mx-space-md);
+  }
+  .mx-land__qa-a {
+    padding-inline-start: calc(var(--mx-space-md) + 15px + var(--mx-space-md));
+  }
+  .mx-land__step {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--mx-space-md);
+  }
+  .mx-land__cta > * {
+    flex: 1 1 100%;
+  }
+  .mx-land__footer-links {
+    margin-inline-start: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mx-land__hero-copy,
+  .mx-land__topo {
+    animation: none !important;
+  }
+  .mx-land__room[data-live="true"] .mx-land__room-dot {
+    animation: none !important;
+  }
+  .mx-land__feature:hover {
+    transform: none;
+  }
+}

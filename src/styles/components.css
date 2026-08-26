@@ -455,6 +455,180 @@ textarea.mx-input {
   font-size: var(--mx-font-size-caption);
 }
 
+/* Full-area loader: fills the content region and centres, so first paint of any page
+   is a single spinner rather than empty scaffolding that shifts as data lands. */
+.mx-pageloader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mx-space-md);
+  /* Fill the main scroller minus its padding, so the spinner sits in the optical centre. */
+  min-height: min(60vh, 420px);
+  height: 100%;
+  color: var(--mx-text-tertiary);
+}
+.mx-pageloader__label {
+  font-size: var(--mx-font-size-caption);
+}
+/* The room runs flush (no padding), so the loader has to claim the height itself. */
+.mx-main[data-loading="true"] {
+  display: grid;
+  place-items: stretch;
+}
+
+/* ============================================================
+   Toasts — top-right stack, slides in from the right edge
+   ============================================================ */
+.mx-toasts {
+  position: fixed;
+  top: calc(var(--mx-toolbar-height) + var(--mx-space-sm));
+  right: var(--mx-space-lg);
+  z-index: var(--mx-z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+  width: min(360px, calc(100vw - 2 * var(--mx-space-md)));
+  /* The stack must not block the page it floats over — only the cards take clicks. */
+  pointer-events: none;
+}
+
+.mx-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-md);
+  border: 1px solid var(--mx-stroke-default);
+  border-left-width: 3px;
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-overlay);
+  box-shadow: var(--mx-shadow-16);
+  color: var(--mx-text-primary);
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-caption);
+}
+.mx-toast[data-state="entering"] {
+  animation: mx-toast-in var(--mx-duration-slow) var(--mx-ease-emphasized) both;
+}
+.mx-toast[data-state="leaving"] {
+  animation: mx-toast-out var(--mx-duration-normal) var(--mx-ease-accelerate) both;
+}
+
+.mx-toast[data-tone="error"] {
+  border-left-color: var(--mx-error);
+}
+.mx-toast[data-tone="warning"] {
+  border-left-color: var(--mx-warning);
+}
+.mx-toast[data-tone="success"] {
+  border-left-color: var(--mx-success);
+}
+.mx-toast[data-tone="info"] {
+  border-left-color: var(--mx-info);
+}
+
+.mx-toast__icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+.mx-toast[data-tone="error"] .mx-toast__icon {
+  color: var(--mx-error-text);
+}
+.mx-toast[data-tone="warning"] .mx-toast__icon {
+  color: var(--mx-warning-text);
+}
+.mx-toast[data-tone="success"] .mx-toast__icon {
+  color: var(--mx-success-text);
+}
+.mx-toast[data-tone="info"] .mx-toast__icon {
+  color: var(--mx-info-text);
+}
+
+.mx-toast__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mx-toast__title {
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
+}
+.mx-toast__message {
+  color: var(--mx-text-secondary);
+  /* Long URLs and error strings must wrap rather than widen the card. */
+  overflow-wrap: anywhere;
+}
+.mx-toast__count {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 1px var(--mx-space-xs);
+  border-radius: var(--mx-radius-pill);
+  background: var(--mx-bg-subtle);
+  color: var(--mx-text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.mx-toast__close {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--mx-radius-sm);
+  background: transparent;
+  color: var(--mx-text-tertiary);
+  cursor: pointer;
+  transition: background var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-toast__close:hover {
+  background: var(--mx-bg-hover);
+  color: var(--mx-text-primary);
+}
+
+@keyframes mx-toast-in {
+  from {
+    opacity: 0;
+    /* Comes in from the right edge — that's the direction the stack lives on. */
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes mx-toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@media (max-width: 640px) {
+  .mx-toasts {
+    right: var(--mx-space-sm);
+    left: var(--mx-space-sm);
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mx-toast[data-state="entering"],
+  .mx-toast[data-state="leaving"] {
+    animation: none;
+  }
+}
+
 /* ============================================================
    Banner
    ============================================================ */

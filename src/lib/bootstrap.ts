@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { appConfig, users } from "@/db/schema";
+import { users } from "@/db/schema";
+import { readConfigValue, writeConfigValue } from "./app-config";
 import { ApiError, describeDbError } from "./http";
 import { ensureEncryptionKey } from "./key-store";
 import { hashPassword } from "./password";
@@ -33,24 +34,6 @@ function adminPassword(): string | null {
 }
 
 
-async function readConfig(key: string): Promise<string | null> {
-  const [row] = await db
-    .select({ value: appConfig.value })
-    .from(appConfig)
-    .where(eq(appConfig.key, key))
-    .limit(1);
-  return (row?.value as { v?: string } | undefined)?.v ?? null;
-}
-
-async function writeConfig(key: string, v: string): Promise<void> {
-  await db
-    .insert(appConfig)
-    .values({ key, value: { v } as never })
-    .onConflictDoUpdate({
-      target: appConfig.key,
-      set: { value: { v } as never, updatedAt: new Date() },
-    });
-}
 
 /**
  * 保证管理员账户存在，并让 env 成为其密码的唯一事实来源。
@@ -85,7 +68,8 @@ async function ensureAdmin(): Promise<boolean> {
     .limit(1);
 
   if (existing) {
-    const needsPasswordSync = (await readConfig(ADMIN_FINGERPRINT_ROW)) !== fingerprint;
+    const needsPasswordSync =
+      (await readConfigValue<string>(ADMIN_FINGERPRINT_ROW)) !== fingerprint;
 
     // 顺手确保它始终是启用状态的管理员，别被误操作锁在门外
     if (needsPasswordSync || existing.role !== "admin" || existing.isDisabled) {
@@ -98,7 +82,7 @@ async function ensureAdmin(): Promise<boolean> {
         })
         .where(eq(users.id, existing.id));
       if (needsPasswordSync) {
-        await writeConfig(ADMIN_FINGERPRINT_ROW, fingerprint);
+        await writeConfigValue(ADMIN_FINGERPRINT_ROW, fingerprint);
         console.log("[bootstrap] 管理员密码已按 ADMIN_PASSWORD 同步。");
       }
     }
@@ -114,7 +98,7 @@ async function ensureAdmin(): Promise<boolean> {
       role: "admin",
     })
     .onConflictDoNothing();
-  await writeConfig(ADMIN_FINGERPRINT_ROW, fingerprint);
+  await writeConfigValue(ADMIN_FINGERPRINT_ROW, fingerprint);
   console.log(`[bootstrap] 已创建管理员账户 ${email}`);
   return true;
 }

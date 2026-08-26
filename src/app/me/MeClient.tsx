@@ -5,17 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
 import type { MyProfile } from "@/lib/api-types";
 import { prepareImage, type ImageKind } from "@/lib/client-image";
+import { humanizeError } from "@/lib/error-text";
+import { toast } from "@/lib/toast";
 import { CARD_ACCENTS, initialOf, userImageUrl, type CardAccent } from "@/lib/identity";
 import { AppShell, type ShellUser } from "@/components/AppShell";
-import {
-  Badge,
-  Banner,
-  Button,
-  Card,
-  Icon,
-  Loading,
-  TextField,
-} from "@/ui";
+import { Badge, Button, Card, Icon, TextField } from "@/ui";
 
 const ACCENT_LABELS: Record<CardAccent, string> = {
   iris: "鸢尾",
@@ -31,8 +25,6 @@ const ACCENT_LABELS: Record<CardAccent, string> = {
 export function MeClient({ user }: { user: ShellUser }) {
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [displayName, setDisplayName] = useState("");
-  const [err, setErr] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<"name" | "avatar" | "banner" | "accent" | null>(null);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -44,7 +36,7 @@ export function MeClient({ user }: { user: ShellUser }) {
       setProfile(res.profile);
       setDisplayName(res.profile.displayName);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     }
   }, []);
 
@@ -61,17 +53,15 @@ export function MeClient({ user }: { user: ShellUser }) {
   const save = useCallback(
     async (patch: Record<string, unknown>, kind: NonNullable<typeof busy>, message: string) => {
       setBusy(kind);
-      setErr(null);
-      setNotice(null);
       try {
         const res = await api<{ profile: Omit<MyProfile, "id" | "email" | "role" | "hasPassword" | "emailVerified"> }>(
           "/api/me/profile",
           { method: "PATCH", json: patch },
         );
         setProfile((previous) => (previous ? { ...previous, ...res.profile } : previous));
-        setNotice(message);
+        toast.success(message);
       } catch (error) {
-        setErr(error instanceof Error ? error.message : String(error));
+        toast.error(humanizeError(error));
       } finally {
         setBusy(null);
       }
@@ -81,26 +71,23 @@ export function MeClient({ user }: { user: ShellUser }) {
 
   async function pickImage(kind: ImageKind, file: File | undefined) {
     if (!file) return;
-    setErr(null);
     try {
       // 先在浏览器里缩到目标尺寸，服务端那道上限就基本不会被撞到
       const dataUrl = await prepareImage(file, kind);
       await save(
         { [kind]: dataUrl },
         kind,
-        kind === "avatar" ? "头像已更新。" : "卡片背景已更新。",
+        kind === "avatar" ? "头像已更新" : "卡片背景已更新",
       );
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     }
   }
 
   if (!profile) {
     return (
-      <AppShell user={user} heading={<span>个人中心</span>}>
-        <section className="mx-section">
-          <Loading>正在加载资料…</Loading>
-        </section>
+      <AppShell user={user} loading loadingLabel="正在加载资料…" heading={<span>个人中心</span>}>
+        <span />
       </AppShell>
     );
   }
@@ -119,9 +106,6 @@ export function MeClient({ user }: { user: ShellUser }) {
             </p>
           </div>
         </header>
-
-        {err && <Banner tone="error">{err}</Banner>}
-        {notice && <Banner tone="success">{notice}</Banner>}
 
         <Card
           title="卡片预览"
@@ -318,12 +302,11 @@ export function MeClient({ user }: { user: ShellUser }) {
           <Button
             variant="secondary"
             onClick={async () => {
-              setErr(null);
               try {
                 await api("/api/me/ingress-tip", { method: "DELETE" });
-                setNotice("已重置，下次进房会再弹一次引导。");
+                toast.success("已重置，下次进房会再弹一次引导");
               } catch (error) {
-                setErr(error instanceof Error ? error.message : String(error));
+                toast.error(humanizeError(error));
               }
             }}
           >

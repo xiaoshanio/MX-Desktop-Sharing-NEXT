@@ -6,6 +6,13 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["next", "dev", "-p", "3210"],
       "port": 3210
+    },
+    {
+      "name": "mx-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev"],
+      "port": 3211,
+      "autoPort": true
     }
   ]
 }

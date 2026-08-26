@@ -14,7 +14,9 @@ import { RoomEvent, Track } from "livekit-client";
 
 import { api } from "@/lib/api-client";
 import type { Ban, Invite, LogRow, Member, RoomDetail, SyncPlayerRow } from "@/lib/api-types";
+import { humanizeError, isBenignError } from "@/lib/error-text";
 import { formatTime, roleLabel, roleTone } from "@/lib/labels";
+import { toast } from "@/lib/toast";
 import { AppShell, type ShellUser } from "@/components/AppShell";
 import { CoachMark } from "@/components/CoachMark";
 import { CopyRow } from "@/components/CopyRow";
@@ -45,7 +47,9 @@ type SettingsTab = "publish" | "room" | "logs" | "bans";
 export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
   const [detail, setDetail] = useState<RoomDetail | null>(null);
   const [grant, setGrant] = useState<Grant | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  /** 只保留「整个房间打不开」这一种致命错误，其余都走右上角提示。 */
+  const [fatal, setFatal] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [syncPlayers, setSyncPlayers] = useState<SyncPlayerRow[]>([]);
@@ -61,16 +65,27 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
   const [coachOpen, setCoachOpen] = useState(false);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
 
+  /**
+   * 房间详情和 token 一起要。
+   *
+   * 刻意并发而不是「先拿详情再拿 token」：两个请求各自都要过一次 Neon（neon-http
+   * 每条语句一次 HTTP），串起来等于把进房的等待时间翻倍。token 那个接口自己会
+   * 校验成员资格，不依赖详情的结果，所以没有先后依赖。
+   */
   const load = useCallback(async () => {
     try {
-      const res = await api<{ room: RoomDetail }>(`/api/rooms/${code}`);
-      setDetail(res.room);
-      if (res.room.isActive) {
-        // token 只在这里向服务端要；服务端会先确认我是房间成员
-        setGrant(await api<Grant>(`/api/rooms/${code}/token`, { method: "POST" }));
-      }
+      const detailPromise = api<{ room: RoomDetail }>(`/api/rooms/${code}`);
+      const tokenPromise = api<Grant>(`/api/rooms/${code}/token`, { method: "POST" }).catch(
+        () => null, // 房间已关闭时签不出 token，这不是致命错误
+      );
+
+      const [detailRes, tokenRes] = await Promise.all([detailPromise, tokenPromise]);
+      setDetail(detailRes.room);
+      if (detailRes.room.isActive && tokenRes) setGrant(tokenRes);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      setFatal(humanizeError(error));
+    } finally {
+      setLoading(false);
     }
   }, [code]);
 
@@ -143,15 +158,17 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
   /* ---- 成员管理（右键菜单的落点）---- */
   const changeRole = useCallback(
     async (entry: RailEntry, role: "publisher" | "viewer") => {
-      setErr(null);
       try {
         await api(`/api/rooms/${code}/members`, {
           method: "PATCH",
           json: { userId: entry.userId, role },
         });
+        toast.success(
+          `已把「${entry.displayName}」改成${role === "publisher" ? "可推流" : "仅观看"}`,
+        );
         await loadMembers();
       } catch (error) {
-        setErr(error instanceof Error ? error.message : String(error));
+        toast.error(humanizeError(error));
       }
     },
     [code, loadMembers],
@@ -163,15 +180,19 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
   const confirmKick = useCallback(async () => {
     if (!kicking) return;
     setKickBusy(true);
-    setErr(null);
     try {
       const query = new URLSearchParams({ userId: kicking.entry.userId });
       if (kicking.ban) query.set("ban", "1");
       await api(`/api/rooms/${code}/members?${query}`, { method: "DELETE" });
+      toast.success(
+        kicking.ban
+          ? `已移出「${kicking.entry.displayName}」并加入黑名单`
+          : `已移出「${kicking.entry.displayName}」`,
+      );
       setKicking(null);
       await loadMembers();
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
       setKicking(null);
     } finally {
       setKickBusy(false);
@@ -184,8 +205,9 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
       setSyncPlayers((previous) => previous.filter((player) => player.id !== id));
       try {
         await api(`/api/rooms/${code}/sync-players/${id}`, { method: "DELETE" });
+        toast.success("同步播放器已关闭");
       } catch (error) {
-        setErr(error instanceof Error ? error.message : String(error));
+        toast.error(humanizeError(error));
         await loadSyncPlayers();
       }
     },
@@ -199,7 +221,7 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
   }, []);
 
   /* ---- 打不开 / 还没加载 ---- */
-  if (err && !detail) {
+  if (fatal) {
     return (
       <AppShell user={user} heading={<span>房间 {code}</span>}>
         <section className="mx-section">
@@ -208,7 +230,7 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
               <h1 className="mx-section__title">打不开这个房间</h1>
             </div>
           </header>
-          <Banner tone="error">{err}</Banner>
+          <Banner tone="error">{fatal}</Banner>
           <EmptyState
             icon="rooms"
             title="没有访问权限"
@@ -226,17 +248,13 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
     );
   }
 
-  if (!detail) {
+  if (loading || !detail) {
     return (
-      <AppShell user={user} heading={<span>房间 {code}</span>}>
-        <section className="mx-section">
-          <Loading>正在打开房间…</Loading>
-        </section>
+      <AppShell user={user} loading loadingLabel="正在进入房间…" heading={<span>房间 {code}</span>}>
+        <span />
       </AppShell>
     );
   }
-
-  const openPlayers = syncPlayers;
 
   return (
     <AppShell
@@ -309,7 +327,6 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
             无法再签发 token，画面和推流都不可用。
           </Banner>
         )}
-        {err && <Banner tone="error">{err}</Banner>}
 
         {grant ? (
           <LiveKitRoom
@@ -320,36 +337,31 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
             // 观众默认不开麦不开摄像头，只订阅
             audio={false}
             video={false}
-            onError={(error) => setErr(error.message)}
+            onError={(error) => {
+              /**
+               * 严格模式在开发环境会把 effect 跑两遍（挂载→卸载→再挂载），
+               * 第一次的信号连接因此在建立中途被 abort，抛出
+               * "could not establish signal connection: Abort handler called"。
+               * 紧接着第二次挂载就连上了 —— 这条报错出现时功能是好的，不该弹给用户。
+               */
+              if (isBenignError(error)) return;
+              toast.error(humanizeError(error));
+            }}
           >
-            <div className="mx-room__grid" data-has-sync={openPlayers.length > 0}>
-              <ParticipantRail
-                selected={selected}
-                onSelect={setSelected}
-                members={members}
-                canManage={canManage}
-                ownerId={ownerId}
-                onChangeRole={(entry, role) => void changeRole(entry, role)}
-                onKick={(entry, ban) => setKicking({ entry, ban })}
-              />
-
-              <Stage canPublish={detail.canPublish} selected={selected} />
-
-              {openPlayers.length > 0 && (
-                <div className="mx-room__sync">
-                  {openPlayers.map((player) => (
-                    <SyncPlayerPanel
-                      key={player.id}
-                      code={code}
-                      player={player}
-                      canControl={player.isMine || canManage}
-                      onClose={() => void closeSyncPlayer(player.id)}
-                      onSourceChange={(sourceUrl) => patchSyncSource(player.id, sourceUrl)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <RoomWorkspace
+              code={code}
+              detail={detail}
+              members={members}
+              ownerId={ownerId}
+              canManage={canManage}
+              selected={selected}
+              onSelect={setSelected}
+              onChangeRole={(entry, role) => void changeRole(entry, role)}
+              onKick={(entry, ban) => setKicking({ entry, ban })}
+              syncPlayers={syncPlayers}
+              onCloseSyncPlayer={(id) => void closeSyncPlayer(id)}
+              onSyncSourceChange={patchSyncSource}
+            />
             <RoomAudioRenderer />
           </LiveKitRoom>
         ) : (
@@ -414,8 +426,8 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
           <RoomSettingsPanel
             code={code}
             detail={detail}
-            onObsEnabledChange={(next) =>
-              setDetail((previous) => (previous ? { ...previous, obsEnabled: next } : previous))
+            onPatched={(patch) =>
+              setDetail((previous) => (previous ? { ...previous, ...patch } : previous))
             }
           />
         )}
@@ -477,7 +489,95 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
 }
 
 /* ============================================================
-   Stage — 画面区。在 LiveKitRoom 内部，所以能读房间状态。
+   Workspace — 在 LiveKitRoom 内部，所以能读实时的参与者列表
+   ============================================================ */
+
+/**
+ * 房间的两栏工作区。
+ *
+ * 左栏是「在线成员卡片 + 同步播放器」，右栏是屏幕画面。同步播放器排在成员卡片
+ * 下面、贴着左栏底部往上堆（CSS 里的 margin-top:auto）。
+ *
+ * 之所以要单独一个组件而不是写在 RoomClient 里：`useParticipants()` 必须在
+ * LiveKitRoom 的 context 内部调用，而「房里有几个人」这件事同时决定
+ *   - 成员卡片列表
+ *   - 同步播放器要不要开始对时（一个人的时候没有同步对象）
+ */
+function RoomWorkspace({
+  code,
+  detail,
+  members,
+  ownerId,
+  canManage,
+  selected,
+  onSelect,
+  onChangeRole,
+  onKick,
+  syncPlayers,
+  onCloseSyncPlayer,
+  onSyncSourceChange,
+}: {
+  code: string;
+  detail: RoomDetail;
+  members: Member[];
+  ownerId: string | null;
+  canManage: boolean;
+  selected: string | null;
+  onSelect: (identity: string | null) => void;
+  onChangeRole: (entry: RailEntry, role: "publisher" | "viewer") => void;
+  onKick: (entry: RailEntry, ban: boolean) => void;
+  syncPlayers: SyncPlayerRow[];
+  onCloseSyncPlayer: (id: string) => void;
+  onSyncSourceChange: (id: string, sourceUrl: string | null) => void;
+}) {
+  const participants = useParticipants();
+
+  /**
+   * 只有房里不止一个人时才开始对时。
+   *
+   * 一个人看的时候没有对齐目标：观众端拿不到任何 state 广播，而放映端每两秒
+   * 往空房间发一次心跳纯属浪费。等第二个人进来再启动，双方的 hello/ping 会
+   * 立刻把进度对上，所以并不会因为「晚启动」而错过什么。
+   */
+  const syncActive = participants.length >= 2;
+
+  return (
+    <div className="mx-room__grid">
+      <div className="mx-room__side">
+        <ParticipantRail
+          selected={selected}
+          onSelect={onSelect}
+          members={members}
+          canManage={canManage}
+          ownerId={ownerId}
+          onChangeRole={onChangeRole}
+          onKick={onKick}
+        />
+
+        {syncPlayers.length > 0 && (
+          <div className="mx-room__sync">
+            {syncPlayers.map((player) => (
+              <SyncPlayerPanel
+                key={player.id}
+                code={code}
+                player={player}
+                canControl={player.isMine || canManage}
+                syncActive={syncActive}
+                onClose={() => onCloseSyncPlayer(player.id)}
+                onSourceChange={(sourceUrl) => onSyncSourceChange(player.id, sourceUrl)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Stage selected={selected} viewerCanPublish={detail.viewerCanPublish} />
+    </div>
+  );
+}
+
+/* ============================================================
+   Stage — the video area. Lives inside LiveKitRoom so it can read room state.
    ============================================================ */
 
 /**
@@ -485,7 +585,14 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
  *
  * `selected` 来自左侧成员栏：选中某个人就只放他的画面，没选就平铺全部。
  */
-function Stage({ canPublish, selected }: { canPublish: boolean; selected: string | null }) {
+function Stage({
+  selected,
+  viewerCanPublish,
+}: {
+  selected: string | null;
+  viewerCanPublish: boolean;
+}) {
+  const room = useRoomContext();
   const allTracks = useTracks(
     [
       { source: Track.Source.ScreenShare, withPlaceholder: false },
@@ -499,6 +606,29 @@ function Stage({ canPublish, selected }: { canPublish: boolean; selected: string
   // withPlaceholder: false 时不会有占位项，但类型上仍是联合，收窄一下
   const everyTrack = allTracks.filter(isTrackReference);
   const participants = useParticipants();
+
+  /**
+   * 「我现在能不能推流」直接读 LiveKit 下发的实时权限，而不是进房时那份接口快照。
+   *
+   * 房主在设置里打开「允许所有人共享」时，服务端会对在线的观众调一次
+   * UpdateParticipant，LiveKit 随即把新权限推给客户端。读实时权限的话按钮当场
+   * 出现；读快照就得等用户刷新页面（或者等 6 小时后的 token 续签），
+   * 表现就是「房主开了开关，我这边啥也没变」。
+   */
+  const [canPublish, setCanPublish] = useState(
+    () => room.localParticipant.permissions?.canPublish ?? false,
+  );
+
+  useEffect(() => {
+    const sync = () => setCanPublish(room.localParticipant.permissions?.canPublish ?? false);
+    sync();
+    room.on(RoomEvent.ParticipantPermissionsChanged, sync);
+    room.on(RoomEvent.Connected, sync);
+    return () => {
+      room.off(RoomEvent.ParticipantPermissionsChanged, sync);
+      room.off(RoomEvent.Connected, sync);
+    };
+  }, [room]);
 
   const tracks = selected
     ? everyTrack.filter((ref) => ref.participant.identity === selected)
@@ -515,7 +645,19 @@ function Stage({ canPublish, selected }: { canPublish: boolean; selected: string
         <span>房内 {participants.length} 人</span>
         {selected && <Badge tone="info">只看选中的人</Badge>}
         <span className="mx-stage__spacer" />
-        {canPublish && <ShareControls />}
+        {canPublish ? (
+          <ShareControls />
+        ) : (
+          /**
+           * 没有推流权限时给一句解释，而不是干脆什么都不显示。
+           * 「为什么我这里没有共享按钮」是最容易让人以为坏了的情况。
+           */
+          <span className="mx-stage__note">
+            {viewerCanPublish
+              ? "正在获取推流权限…"
+              : "你是「仅观看」—— 让房主在设置里改你的权限，或打开「允许所有人共享」"}
+          </span>
+        )}
       </div>
 
       {live ? (
@@ -585,7 +727,6 @@ function OfflineStage({ active }: { active: boolean }) {
 function ShareControls() {
   const room = useRoomContext();
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
@@ -601,7 +742,6 @@ function ShareControls() {
 
   async function toggle() {
     setBusy(true);
-    setErr(null);
     try {
       await room.localParticipant.setScreenShareEnabled(!sharing, {
         audio: true,
@@ -609,27 +749,24 @@ function ShareControls() {
         resolution: { width: 1920, height: 1080, frameRate: 15 },
       });
     } catch (error) {
-      // 用户点了「取消」选择窗口也会走到这里，不当成错误刷屏
-      const message = error instanceof Error ? error.message : String(error);
-      if (!/permission|denied|cancel/i.test(message)) setErr(message);
+      // 用户在系统的「选择要共享的窗口」里点了取消也会走到这里 —— 那是正常操作，
+      // isBenignError 会把它认出来，不弹提示
+      if (!isBenignError(error)) toast.error(humanizeError(error));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <>
-      {err && <span className="mx-text-caption mx-text-error">{err}</span>}
-      <Button
-        size="sm"
-        variant={sharing ? "danger" : "primary"}
-        disabled={busy}
-        onClick={() => void toggle()}
-      >
-        <Icon name={sharing ? "stop" : "play"} size={13} />
-        {busy ? "处理中…" : sharing ? "停止共享" : "共享我的屏幕"}
-      </Button>
-    </>
+    <Button
+      size="sm"
+      variant={sharing ? "danger" : "primary"}
+      disabled={busy}
+      onClick={() => void toggle()}
+    >
+      <Icon name={sharing ? "stop" : "play"} size={13} />
+      {busy ? "处理中…" : sharing ? "停止共享" : "共享我的屏幕"}
+    </Button>
   );
 }
 
@@ -641,7 +778,6 @@ function ShareControls() {
 function useIngress(code: string, enabled: boolean) {
   const [ingress, setIngress] = useState<{ server: string; bearerToken: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!enabled) {
@@ -656,7 +792,6 @@ function useIngress(code: string, enabled: boolean) {
   const generate = useCallback(
     async (rotate = false) => {
       setBusy(true);
-      setErr(null);
       try {
         const res = await api<{ ingress: { server: string; bearerToken: string } }>(
           `/api/rooms/${code}/ingress${rotate ? "?rotate=1" : ""}`,
@@ -664,7 +799,7 @@ function useIngress(code: string, enabled: boolean) {
         );
         setIngress(res.ingress);
       } catch (error) {
-        setErr(error instanceof Error ? error.message : String(error));
+        toast.error(humanizeError(error));
       } finally {
         setBusy(false);
       }
@@ -674,24 +809,23 @@ function useIngress(code: string, enabled: boolean) {
 
   const revoke = useCallback(async () => {
     setBusy(true);
-    setErr(null);
     try {
       await api(`/api/rooms/${code}/ingress`, { method: "DELETE" });
       setIngress(null);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setBusy(false);
     }
   }, [code]);
 
-  return { ingress, busy, err, generate, revoke };
+  return { ingress, busy, generate, revoke };
 }
 
 /** 推流信息面板：一人一房一个独立 WHIP 地址。房间级闸门在「房间」那一栏。 */
 function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
   const obsEnabled = detail.obsEnabled;
-  const { ingress, busy, err, generate, revoke } = useIngress(code, obsEnabled);
+  const { ingress, busy, generate, revoke } = useIngress(code, obsEnabled);
   const [revoking, setRevoking] = useState(false);
 
   if (detail.node.ingressAvailable === false) {
@@ -727,7 +861,6 @@ function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
 
   return (
     <>
-      {err && <Banner tone="error">{err}</Banner>}
 
       <Card
         title="我的 OBS 推流地址"
@@ -806,38 +939,78 @@ function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
 function RoomSettingsPanel({
   code,
   detail,
-  onObsEnabledChange,
+  onPatched,
 }: {
   code: string;
   detail: RoomDetail;
-  onObsEnabledChange: (next: boolean) => void;
+  onPatched: (patch: Partial<RoomDetail>) => void;
 }) {
   const [closingGate, setClosingGate] = useState(false);
   const [gateBusy, setGateBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
   const obsEnabled = detail.obsEnabled;
+
+  type RoomPatchResult = { obsEnabled: boolean; viewerCanPublish: boolean; revoked: number };
 
   /** 开合闸门。关的那一下服务端会把本房间所有推流地址一起作废。 */
   async function setGate(next: boolean) {
     setGateBusy(true);
-    setErr(null);
     try {
-      const res = await api<{ obsEnabled: boolean; revoked: number }>(`/api/rooms/${code}`, {
+      const res = await api<RoomPatchResult>(`/api/rooms/${code}`, {
         method: "PATCH",
         json: { obsEnabled: next },
       });
-      onObsEnabledChange(res.obsEnabled);
+      onPatched({ obsEnabled: res.obsEnabled });
       setClosingGate(false);
+      toast.success(next ? "已允许 OBS 推流" : `已关闭 OBS 通道，作废了 ${res.revoked} 个推流地址`);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setGateBusy(false);
     }
   }
 
+  /** 让「仅观看」的成员也能共享屏幕。服务端会顺手把权限推给在线的人，当场生效。 */
+  async function setViewerPublish(next: boolean) {
+    setShareBusy(true);
+    try {
+      const res = await api<RoomPatchResult>(`/api/rooms/${code}`, {
+        method: "PATCH",
+        json: { viewerCanPublish: next },
+      });
+      onPatched({ viewerCanPublish: res.viewerCanPublish });
+      toast.success(next ? "现在所有成员都能共享屏幕了" : "已改回只有可推流的成员能共享");
+    } catch (error) {
+      toast.error(humanizeError(error));
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
   return (
     <>
-      {err && <Banner tone="error">{err}</Banner>}
+      <Card
+        title="谁能共享屏幕"
+        description="新加入的人默认是「仅观看」，所以他们看不到画面上方的「共享我的屏幕」按钮。想让所有人都能共享，打开下面这个开关；只想放开某几个人，就在画面左侧的成员卡片上右键改成「可推流」。"
+        actions={
+          detail.viewerCanPublish ? (
+            <Badge tone="success" dot>
+              所有人
+            </Badge>
+          ) : (
+            <Badge tone="neutral">仅房主与可推流成员</Badge>
+          )
+        }
+      >
+        <Switch
+          checked={detail.viewerCanPublish}
+          disabled={shareBusy || !detail.isActive}
+          label="允许所有成员共享屏幕"
+          hint="立刻对房里在线的人生效，不用他们刷新页面。只影响浏览器共享，OBS 那条路由下面的闸门管。"
+          onChange={(event) => void setViewerPublish(event.target.checked)}
+        />
+      </Card>
+
       <Card
         title="OBS 直播闸门"
         description="只管 OBS/WHIP 这条路。浏览器的「共享我的屏幕」是另一条路（WebRTC 直连），不受它影响。"
@@ -886,18 +1059,16 @@ function MembersPanel({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"viewer" | "publisher">("viewer");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   async function add(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
-    setErr(null);
     try {
       await api(`/api/rooms/${code}/members`, { method: "POST", json: { email, role } });
       setEmail("");
       await onChanged();
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setBusy(false);
     }
@@ -909,7 +1080,6 @@ function MembersPanel({
       description="不在这张表里的人签不出 token，也就订阅不到任何画面 —— 这是协议层的限制，不是前端过滤。改权限和踢人在画面左侧的成员卡片上右键。"
       actions={<Badge tone="neutral">{members.length} 人</Badge>}
     >
-      {err && <Banner tone="error">{err}</Banner>}
 
       <div className="mx-table-wrap">
         <table className="mx-table">
@@ -992,7 +1162,6 @@ function InvitePanel({ code }: { code: string }) {
   const [maxUses, setMaxUses] = useState("");
   const [fresh, setFresh] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<Invite | null>(null);
 
   const load = useCallback(async () => {
@@ -1001,13 +1170,12 @@ function InvitePanel({ code }: { code: string }) {
   }, [code]);
 
   useEffect(() => {
-    load().catch((error) => setErr(error instanceof Error ? error.message : String(error)));
+    load().catch((error) => toast.error(humanizeError(error)));
   }, [load]);
 
   async function create(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
-    setErr(null);
     try {
       const res = await api<{ joinUrl: string }>(`/api/rooms/${code}/invites`, {
         method: "POST",
@@ -1020,7 +1188,7 @@ function InvitePanel({ code }: { code: string }) {
       setFresh(res.joinUrl);
       await load();
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setBusy(false);
     }
@@ -1029,13 +1197,12 @@ function InvitePanel({ code }: { code: string }) {
   async function revoke() {
     if (!revoking) return;
     setBusy(true);
-    setErr(null);
     try {
       await api(`/api/rooms/${code}/invites?id=${revoking.id}`, { method: "DELETE" });
       setRevoking(null);
       await load();
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
       setRevoking(null);
     } finally {
       setBusy(false);
@@ -1050,7 +1217,6 @@ function InvitePanel({ code }: { code: string }) {
       description="对方打开链接、登录（或注册）后自动入房。链接只在创建时显示一次，之后库里只有哈希。"
       actions={<Badge tone="neutral">{active.length} 个有效</Badge>}
     >
-      {err && <Banner tone="error">{err}</Banner>}
 
       {fresh && (
         <Banner tone="success" title="新链接已生成，请立刻复制">
@@ -1159,7 +1325,6 @@ function InvitePanel({ code }: { code: string }) {
 function BansPanel({ code }: { code: string }) {
   const [bans, setBans] = useState<Ban[]>([]);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -1167,9 +1332,8 @@ function BansPanel({ code }: { code: string }) {
     try {
       const res = await api<{ bans: Ban[] }>(`/api/rooms/${code}/bans`);
       setBans(res.bans);
-      setErr(null);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setLoading(false);
     }
@@ -1185,7 +1349,7 @@ function BansPanel({ code }: { code: string }) {
       await api(`/api/rooms/${code}/bans?userId=${userId}`, { method: "DELETE" });
       await load();
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setBusy(false);
     }
@@ -1197,7 +1361,6 @@ function BansPanel({ code }: { code: string }) {
       description="在这张表里的人进不了这个房间 —— 邀请链接对他们也无效。解除拉黑不会自动把人加回成员，需要你再请他一次。"
       actions={<Badge tone="neutral">{bans.length} 人</Badge>}
     >
-      {err && <Banner tone="error">{err}</Banner>}
 
       {loading ? (
         <Loading />
@@ -1249,16 +1412,14 @@ function BansPanel({ code }: { code: string }) {
 function LogsPanel({ code }: { code: string }) {
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api<{ logs: LogRow[] }>(`/api/rooms/${code}/logs`);
       setLogs(res.logs);
-      setErr(null);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setLoading(false);
     }
@@ -1279,7 +1440,6 @@ function LogsPanel({ code }: { code: string }) {
         </Button>
       }
     >
-      {err && <Banner tone="error">{err}</Banner>}
       {loading ? (
         <Loading />
       ) : logs.length === 0 ? (
@@ -1318,12 +1478,10 @@ function CreateSyncPlayerModal({
 }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
-    setErr(null);
     try {
       const res = await api<{ player: SyncPlayerRow }>(`/api/rooms/${code}/sync-players`, {
         method: "POST",
@@ -1332,7 +1490,7 @@ function CreateSyncPlayerModal({
       setName("");
       onCreated(res.player);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setBusy(false);
     }
@@ -1355,8 +1513,6 @@ function CreateSyncPlayerModal({
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
-
-        {err && <Banner tone="error">{err}</Banner>}
 
         <Button type="submit" variant="primary" full disabled={busy || name.trim() === ""}>
           <Icon name="film" size={15} />
@@ -1385,7 +1541,7 @@ function IngressTipModal({
   onClose: () => void;
 }) {
   const publishable = detail.canPublish && detail.obsEnabled && detail.node.ingressAvailable !== false;
-  const { ingress, busy, err, generate } = useIngress(code, open && publishable);
+  const { ingress, busy, generate } = useIngress(code, open && publishable);
 
   return (
     <Modal
@@ -1429,7 +1585,6 @@ function IngressTipModal({
           <p className="mx-text-caption">
             你还没生成过推流地址。它绑定到「你 + 这个房间」，别人拿不到也用不了。
           </p>
-          {err && <Banner tone="error">{err}</Banner>}
           <Button variant="secondary" disabled={busy} onClick={() => void generate(false)}>
             <Icon name="broadcast" size={15} />
             {busy ? "生成中…" : "现在生成"}

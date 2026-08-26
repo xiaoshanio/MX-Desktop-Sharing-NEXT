@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api-client";
+import { APP_NAME } from "@/lib/brand";
+import { humanizeError } from "@/lib/error-text";
+import { toast } from "@/lib/toast";
 import type { ServiceRow } from "@/lib/api-types";
 import { CopyRow } from "@/components/CopyRow";
 import {
@@ -12,7 +15,7 @@ import {
   Card,
   ConfirmDialog,
   Icon,
-  Loading,
+  PageLoader,
   Switch,
   TextField,
 } from "@/ui";
@@ -84,8 +87,6 @@ export function ServicesPanel() {
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [callbacks, setCallbacks] = useState<{ github: string; google: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,9 +97,8 @@ export function ServicesPanel() {
       }>("/api/admin/services");
       setServices(res.services);
       setCallbacks(res.callbacks);
-      setErr(null);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setLoading(false);
     }
@@ -112,8 +112,6 @@ export function ServicesPanel() {
 
   return (
     <>
-      {err && <Banner tone="error">{err}</Banner>}
-      {notice && <Banner tone="success">{notice}</Banner>}
 
       <Banner tone="info" title="密钥加密后存在数据库里，不走环境变量">
         这些密钥用 AES-256-GCM 加密后写进 <code>service_credentials</code>，主密钥可以放在库外
@@ -122,7 +120,7 @@ export function ServicesPanel() {
       </Banner>
 
       {loading ? (
-        <Loading />
+        <PageLoader>正在加载第三方服务配置…</PageLoader>
       ) : (
         SERVICE_ORDER.map((service) => (
           <ServiceForm
@@ -134,10 +132,8 @@ export function ServicesPanel() {
             }
             onSaved={(rows, message) => {
               setServices(rows);
-              setNotice(message);
-              setErr(null);
+              toast.success(message);
             }}
-            onError={setErr}
           />
         ))
       )}
@@ -150,13 +146,11 @@ function ServiceForm({
   current,
   callbackUrl,
   onSaved,
-  onError,
 }: {
   service: ServiceKey;
   current: ServiceRow | undefined;
   callbackUrl: string | undefined;
   onSaved: (rows: ServiceRow[], message: string) => void;
-  onError: (message: string) => void;
 }) {
   const form = SERVICE_FORMS[service];
 
@@ -187,7 +181,7 @@ function ServiceForm({
       setSecret("");
       onSaved(res.services, `${form.title}已保存。`);
     } catch (error) {
-      onError(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setBusy(false);
     }
@@ -204,7 +198,7 @@ function ServiceForm({
       setRemoving(false);
       onSaved(res.services, `${form.title}已删除。`);
     } catch (error) {
-      onError(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setBusy(false);
     }
@@ -268,7 +262,7 @@ function ServiceForm({
         {service === "resend" && (
           <TextField
             label="发件人显示名（可选）"
-            hint="收件人看到的名字，例如「MX 桌面共享」。"
+            hint={`收件人看到的名字，例如「${APP_NAME}」。`}
             value={fromName}
             onChange={(event) => setFromName(event.target.value)}
           />

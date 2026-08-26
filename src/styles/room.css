@@ -24,12 +24,28 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 216px minmax(0, 1fr);
+  /* Two columns now: [members + sync players] [screen]. The left column is wide enough
+     for a usable 16:9 sync player (~324px ⇒ ~182px tall), not just for name chips. */
+  grid-template-columns: 324px minmax(0, 1fr);
   gap: var(--mx-space-md);
 }
-/* With a sync player open the stage yields room to it, but keeps the larger share. */
-.mx-room__grid[data-has-sync="true"] {
-  grid-template-columns: 216px minmax(0, 1.35fr) minmax(360px, 1fr);
+
+/**
+ * Left column. The member rail takes the space it needs at the top; sync players sit
+ * *under* it and are pushed to the bottom edge by the rail's flex-grow, so new players
+ * stack upward from the bottom.
+ */
+.mx-room__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-md);
+  min-height: 0;
+  min-width: 0;
+}
+.mx-room__side .mx-rail {
+  /* Claims the leftover height, which is what pins the sync stack to the bottom. */
+  flex: 1;
+  min-height: 0;
 }
 
 .mx-room__sync {
@@ -37,7 +53,9 @@
   flex-direction: column;
   gap: var(--mx-space-md);
   min-width: 0;
-  min-height: 0;
+  flex-shrink: 0;
+  /* Cap it so several open players can't push the member list off-screen. */
+  max-height: 70%;
   overflow-y: auto;
 }
 
@@ -242,6 +260,15 @@
   min-height: 0;
   height: 100%;
 }
+
+/* Explains why the share button is absent, instead of leaving a silent gap. */
+.mx-stage__note {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: var(--mx-font-size-caption);
+  text-align: right;
+  max-width: 42ch;
+  line-height: 1.35;
+}
 .mx-stage[data-fill="true"] .mx-stage__grid {
   flex: 1;
   min-height: 0;
@@ -328,6 +355,16 @@
   max-width: 40ch;
   font-size: var(--mx-font-size-caption);
   line-height: var(--mx-line-caption);
+}
+/* A failed source: the message replaces the "pick a video" hint and stays put. */
+.mx-syncplayer__empty[data-tone="error"] {
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.78);
+  /* Unlike the idle hint this one is real content, so let it be selectable/copyable. */
+  pointer-events: auto;
+}
+.mx-syncplayer__empty[data-tone="error"] .mx-syncplayer__empty-title {
+  color: #f0938a;
 }
 
 .mx-syncplayer__foot {
@@ -726,17 +763,11 @@
 }
 
 /* ============================================================
-   Responsive — stack the three columns
+   Responsive — collapse to a single column
    ============================================================ */
-@media (max-width: 1320px) {
-  .mx-room__grid[data-has-sync="true"] {
-    grid-template-columns: 216px minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-  }
-  /* The sync player drops under the stage, spanning past the rail. */
-  .mx-room__grid[data-has-sync="true"] .mx-room__sync {
-    grid-column: 2;
-    overflow: visible;
+@media (max-width: 1180px) {
+  .mx-room__grid {
+    grid-template-columns: 284px minmax(0, 1fr);
   }
 }
 
@@ -744,15 +775,15 @@
   .mx-room {
     padding: var(--mx-space-sm);
   }
-  .mx-room__grid,
-  .mx-room__grid[data-has-sync="true"] {
+  .mx-room__grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto;
   }
-  .mx-room__grid[data-has-sync="true"] .mx-room__sync {
-    grid-column: 1;
+  /* Narrow screens: the member rail becomes a horizontal strip above the stage, and the
+     sync players fall below it in normal document order. */
+  .mx-room__side {
+    display: contents;
   }
-  /* Narrow screens: the rail becomes a horizontal strip of cards above the stage. */
   .mx-rail__list {
     flex-direction: row;
     overflow-x: auto;
@@ -761,6 +792,10 @@
   .mx-pcard {
     width: 190px;
     flex-shrink: 0;
+  }
+  .mx-room__sync {
+    max-height: none;
+    overflow: visible;
   }
   .mx-room__live {
     display: block;

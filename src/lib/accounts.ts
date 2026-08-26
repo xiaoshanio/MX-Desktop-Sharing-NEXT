@@ -4,12 +4,17 @@ import { db } from "@/db";
 import { oauthAccounts, userAssets, users, type User } from "@/db/schema";
 import { ApiError } from "./http";
 import { fetchAvatarBytes, type OauthIdentity } from "./oauth";
+import { assertRegistrationOpen } from "./site-settings";
 
 /**
  * 「第三方身份 → 本站账号」的落地逻辑。
  *
  * 这个文件是整套第三方登录里最容易出安全事故的地方，所以把判断写死在一处，
  * 不散落到各个 route 里。
+ *
+ * 「站点关闭注册」也守在这里，理由同上：本模块的两个入口都是
+ * 「有账号就登录，没账号就当场建一个」，只有后半句该被拦下，前半句必须照常放行。
+ * 换句话说，关掉注册之后已有账号的人仍然能用 GitHub / Google / 邮箱验证码登录。
  */
 
 /**
@@ -59,6 +64,8 @@ async function storeAvatar(userId: string, avatarUrl: string | null): Promise<bo
  *    安全前提是 `emailVerified`：第三方替我们证明了「这个邮箱确实归这个人」。
  *
  * 3. **没绑过，本站也没有这个邮箱** —— 新建账号（无密码）。
+ *    这一条是唯一会建号的分支，所以「站点关闭注册」只拦它：
+ *    第 1、2 条都是登录已有账号，关不关注册都放行。
  *
  * 刻意**不做**的一件事：邮箱没被第三方验证过时，绝不自动绑到同邮箱的本站账号上。
  * 那是教科书级的账号接管 —— 攻击者在第三方注册一个 victim@example.com 的账号
@@ -130,6 +137,8 @@ export async function resolveOauthLogin(identity: OauthIdentity): Promise<User> 
   }
 
   // 全新用户。passwordHash 留空 —— 这个账号只能靠第三方或邮箱验证码进来。
+  await assertRegistrationOpen();
+
   const [created] = await db
     .insert(users)
     .values({
@@ -163,6 +172,10 @@ export async function resolveOauthLogin(identity: OauthIdentity): Promise<User> 
  *
  * 验证码本身已经证明了「这个邮箱是你的」，所以这里可以放心地按邮箱认人 ——
  * 和 OAuth 那条分支不同，这里的验证是我们自己发的。
+ *
+ * 关闭注册时只拦「建一个」那半句。判断刻意放在这里而不是发码那一步：
+ * 发码接口无论邮箱在不在库里都回同一个响应（见那个 route 的注释），
+ * 在那里拦等于把「这个邮箱注册过没有」告诉任何一个来问的人。
  */
 export async function resolveEmailCodeLogin(email: string): Promise<User> {
   const [existing] = await db
@@ -180,6 +193,8 @@ export async function resolveEmailCodeLogin(email: string): Promise<User> {
     }
     return existing;
   }
+
+  await assertRegistrationOpen();
 
   const [created] = await db
     .insert(users)

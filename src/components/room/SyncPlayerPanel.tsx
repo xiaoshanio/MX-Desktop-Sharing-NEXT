@@ -6,6 +6,8 @@ import { RoomEvent } from "livekit-client";
 
 import { api } from "@/lib/api-client";
 import type { SyncPlayerRow } from "@/lib/api-types";
+import { humanizeError } from "@/lib/error-text";
+import { toast } from "@/lib/toast";
 import {
   ClockSync,
   HEARTBEAT_MS,
@@ -114,6 +116,14 @@ export interface SyncPlayerPanelProps {
   player: SyncPlayerRow;
   /** 我能不能换片源 / 关掉它（创建者或房主） */
   canControl: boolean;
+  /**
+   * 房里有没有第二个人。false 时不发心跳、不探时钟、不纠偏。
+   *
+   * 一个人看的时候没有对齐目标：观众端收不到任何广播，而放映端每两秒往空房间
+   * 发一次心跳纯属浪费。第二个人进来时他会先发 hello，放映端立刻补一次状态，
+   * 所以「晚启动」不会漏掉任何东西。
+   */
+  syncActive: boolean;
   onClose: () => void;
   onSourceChange: (sourceUrl: string | null) => void;
 }
@@ -122,6 +132,7 @@ export function SyncPlayerPanel({
   code,
   player,
   canControl,
+  syncActive,
   onClose,
   onSourceChange,
 }: SyncPlayerPanelProps) {
@@ -139,6 +150,17 @@ export function SyncPlayerPanel({
   const [urlDraft, setUrlDraft] = useState(player.sourceUrl ?? "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  /**
+   * 播放器出错要同时做两件事：弹一个右上角提示（用户可能正看着别处），
+   * 以及在播放器区域内留下一条说明（错误是持续状态，提示卡片会消失，
+   * 而「这个播放器现在放不了」得一直看得见）。
+   */
+  const fail = useCallback((error: unknown) => {
+    const text = humanizeError(error);
+    setErr(text);
+    toast.error(text);
+  }, []);
 
   /** 观众端：跟不跟放映端。关掉后停止纠偏，用户可以自己拖进度。 */
   const [following, setFollowing] = useState(true);
@@ -218,7 +240,7 @@ export function SyncPlayerPanel({
       onSourceChangeRef.current(state.url);
       void instance
         .load({ kind: "url", url: state.url })
-        .catch((error: unknown) => setErr(error instanceof Error ? error.message : String(error)));
+        .catch((error: unknown) => fail(error));
       return; // 加载完之后的心跳会把进度对上
     }
 
@@ -283,7 +305,7 @@ export function SyncPlayerPanel({
           setErr(null);
         });
         instance.on("error", (payload) => {
-          setErr(typeof payload.message === "string" ? payload.message : "播放出错");
+          fail(typeof payload.message === "string" ? payload.message : "播放出错");
         });
 
         if (isHost) {
@@ -338,19 +360,21 @@ export function SyncPlayerPanel({
     void instance
       .load({ kind: "url", url: player.sourceUrl })
       .then(() => broadcastState())
-      .catch((error: unknown) => setErr(error instanceof Error ? error.message : String(error)));
-  }, [isHost, player.sourceUrl, ready, broadcastState]);
+      .catch((error: unknown) => fail(error));
+  }, [isHost, player.sourceUrl, ready, broadcastState, fail]);
 
   /* ---- 放映端：心跳 ---- */
   useEffect(() => {
-    if (!isHost) return;
+    if (!isHost || !syncActive) return;
+    // 先立刻广播一次，别让刚进来的人等满一个心跳周期
+    broadcastState();
     const timer = setInterval(broadcastState, HEARTBEAT_MS);
     return () => clearInterval(timer);
-  }, [isHost, broadcastState]);
+  }, [isHost, syncActive, broadcastState]);
 
   /* ---- 观众：进来先要一次状态，然后定期探时钟 ---- */
   useEffect(() => {
-    if (isHost) return;
+    if (isHost || !syncActive) return;
 
     const probe = () =>
       publish({
@@ -370,7 +394,7 @@ export function SyncPlayerPanel({
       warmup.forEach(clearTimeout);
       clearInterval(timer);
     };
-  }, [isHost, player.id, publish]);
+  }, [isHost, syncActive, player.id, publish]);
 
   /* ---- 收消息 ---- */
   useEffect(() => {
@@ -428,13 +452,13 @@ export function SyncPlayerPanel({
 
   /* ---- 观众：两次心跳之间也持续纠偏 ---- */
   useEffect(() => {
-    if (isHost) return;
+    if (isHost || !syncActive) return;
     const timer = setInterval(() => {
       const state = lastStateRef.current;
       if (state) applyState(state);
     }, 1000);
     return () => clearInterval(timer);
-  }, [isHost, applyState]);
+  }, [isHost, syncActive, applyState]);
 
   /* ---- 换片源 ---- */
   async function saveSource(event: React.FormEvent) {
@@ -454,8 +478,9 @@ export function SyncPlayerPanel({
         await instance.load({ kind: "url", url: res.sourceUrl });
         broadcastState();
       }
+      toast.success(res.sourceUrl ? "片源已切换，房里的人会一起换" : "已清空片源");
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      fail(error);
     } finally {
       setSaving(false);
     }
@@ -479,14 +504,19 @@ export function SyncPlayerPanel({
           {isHost ? "由你放映" : `${player.creatorName} 放映`}
         </Badge>
 
-        {!isHost && (
-          <Badge tone={syncTone} dot>
-            {drift === null
-              ? "等待放映端"
-              : Math.abs(drift) < 0.15
-                ? "已同步"
-                : `偏差 ${drift > 0 ? "+" : ""}${drift.toFixed(2)}s`}
-          </Badge>
+        {!syncActive ? (
+          // 一个人在房里时明确说清楚，否则观众会以为同步坏了
+          <Badge tone="neutral">等其他人进来后开始同步</Badge>
+        ) : (
+          !isHost && (
+            <Badge tone={syncTone} dot>
+              {drift === null
+                ? "等待放映端"
+                : Math.abs(drift) < 0.15
+                  ? "已同步"
+                  : `偏差 ${drift > 0 ? "+" : ""}${drift.toFixed(2)}s`}
+            </Badge>
+          )
         )}
 
         <span className="mx-syncplayer__spacer" />
@@ -519,23 +549,33 @@ export function SyncPlayerPanel({
       ) : (
         <div className="mx-syncplayer__stage">
           <div ref={holderRef} className="mx-syncplayer__mount" />
-          {!player.sourceUrl && (
-            <div className="mx-syncplayer__empty">
-              <Icon name="film" size={22} />
-              <span className="mx-syncplayer__empty-title">
-                {canControl ? "在下面填一个视频地址" : "放映端还没选片"}
-              </span>
-              <span className="mx-syncplayer__empty-body">
-                视频由你的浏览器直连片源按 Range 读取，不经过本站服务器，也不经过 LiveKit。
-              </span>
+          {err ? (
+            /**
+             * 播放失败是持续状态，所以留在画面里 —— 右上角的提示卡片会自动消失，
+             * 而「这个片源放不了」需要一直看得见（CORS / Range / 编码不支持之类）。
+             */
+            <div className="mx-syncplayer__empty" data-tone="error">
+              <Icon name="alert" size={22} />
+              <span className="mx-syncplayer__empty-title">这个片源放不了</span>
+              <span className="mx-syncplayer__empty-body">{err}</span>
             </div>
+          ) : (
+            !player.sourceUrl && (
+              <div className="mx-syncplayer__empty">
+                <Icon name="film" size={22} />
+                <span className="mx-syncplayer__empty-title">
+                  {canControl ? "在下面填一个视频地址" : "放映端还没选片"}
+                </span>
+                <span className="mx-syncplayer__empty-body">
+                  视频由你的浏览器直连片源按 Range 读取，不经过本站服务器，也不经过 LiveKit。
+                </span>
+              </div>
+            )
           )}
         </div>
       )}
 
       <footer className="mx-syncplayer__foot">
-        {err && <Banner tone="error">{err}</Banner>}
-
         {canControl ? (
           <form className="mx-syncplayer__form" onSubmit={saveSource}>
             <div className="mx-syncplayer__input">

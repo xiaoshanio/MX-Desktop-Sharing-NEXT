@@ -64,12 +64,29 @@
   display: block;
   animation: mx-auth-pop 260ms var(--mx-ease-emphasized) both;
 }
+/* The mark + title double as the way back to the landing page. */
+.mx-auth__home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mx-space-md);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--mx-radius-md);
+}
+.mx-auth__home:hover .mx-auth__title {
+  color: var(--mx-accent-text);
+}
 .mx-auth__title {
   font-size: var(--mx-font-size-title-lg);
   line-height: var(--mx-line-title-lg);
   font-weight: var(--mx-weight-semibold);
   color: var(--mx-text-primary);
   margin: 0;
+  transition: color var(--mx-duration-fast) var(--mx-ease-standard);
+  /* The product name is one long hyphenated token — let it break rather than overflow
+     the 440px panel on a narrow phone. */
+  overflow-wrap: anywhere;
 }
 .mx-auth__subtitle {
   margin: 0;
@@ -128,6 +145,42 @@
   color: var(--mx-text-tertiary);
   font-size: var(--mx-font-size-caption);
   line-height: var(--mx-line-caption);
+}
+
+/* Takes the switcher's slot when the site has registration turned off, so the panel keeps
+   its rhythm instead of leaving a gap where the tabs were. */
+.mx-auth__closed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mx-space-sm);
+  margin: 0;
+  padding: var(--mx-space-sm) var(--mx-space-md);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-subtle);
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-caption);
+  text-align: center;
+}
+.mx-auth__closed svg {
+  flex: none;
+  color: var(--mx-text-tertiary);
+}
+
+/* Footnote + copyright share one slot so they read as a single block instead of being
+   pushed apart by `.mx-auth__inner`'s section-sized gap. */
+.mx-auth__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+}
+.mx-auth__copyright {
+  margin: 0;
+  text-align: center;
+  color: var(--mx-text-disabled);
+  font-size: var(--mx-font-size-caption);
 }
 
 @keyframes mx-auth-rise {
@@ -567,6 +620,328 @@
   }
   .mx-log__actor {
     text-align: left;
+  }
+}
+
+/* ============================================================
+   Dashboard: centred room finder + room card grid
+   ============================================================ */
+
+.mx-finder {
+  display: flex;
+  justify-content: center;
+  padding: var(--mx-space-lg) 0 var(--mx-space-xs);
+}
+/* Anchor for the dropdown, which must match the field's width exactly. */
+.mx-finder__box {
+  position: relative;
+  width: min(100%, 620px);
+}
+
+.mx-finder__field {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  height: var(--mx-control-lg);
+  padding: 0 var(--mx-space-md);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-pill);
+  background: var(--mx-bg-card);
+  color: var(--mx-text-tertiary);
+  box-shadow: var(--mx-shadow-2);
+  cursor: text;
+  transition:
+    border-color var(--mx-duration-fast) var(--mx-ease-standard),
+    box-shadow var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-finder__field:hover {
+  border-color: var(--mx-stroke-strong);
+}
+.mx-finder__field:focus-within {
+  border-color: var(--mx-accent);
+  box-shadow: 0 0 0 3px var(--mx-focus-ring);
+}
+.mx-finder__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mx-text-primary);
+  font: inherit;
+  font-size: var(--mx-font-size-body);
+  outline: none;
+}
+.mx-finder__input::placeholder {
+  color: var(--mx-text-tertiary);
+}
+.mx-finder__clear {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mx-text-tertiary);
+  cursor: pointer;
+}
+.mx-finder__clear:hover {
+  background: var(--mx-bg-hover);
+  color: var(--mx-text-primary);
+}
+
+/* Results: a full-width strip hanging directly off the field. */
+.mx-finder__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: var(--mx-z-popover);
+  max-height: 420px;
+  overflow-y: auto;
+  padding: var(--mx-space-xs);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-overlay);
+  box-shadow: var(--mx-shadow-16);
+  animation: mx-menu-in var(--mx-duration-normal) var(--mx-ease-emphasized) both;
+}
+.mx-finder__hint {
+  padding: var(--mx-space-md);
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-caption);
+}
+.mx-finder__item {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-md);
+  width: 100%;
+  padding: var(--mx-space-sm) var(--mx-space-md);
+  border: 0;
+  border-radius: var(--mx-radius-sm);
+  background: transparent;
+  color: var(--mx-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+/* Hover and keyboard selection share one visual state so arrow keys read correctly. */
+.mx-finder__item[data-cursor="true"] {
+  background: var(--mx-bg-hover);
+}
+.mx-finder__item-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--mx-radius-sm);
+  background: var(--mx-bg-subtle);
+  color: var(--mx-text-secondary);
+}
+.mx-finder__item-icon[data-tone="accent"] {
+  background: var(--mx-accent-soft);
+  color: var(--mx-accent-text);
+}
+.mx-finder__item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.mx-finder__item-name {
+  font-size: var(--mx-font-size-body);
+  font-weight: var(--mx-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mx-finder__item-name code {
+  font-family: var(--mx-font-mono);
+  font-size: var(--mx-font-size-code);
+}
+.mx-finder__item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mx-finder__item-meta code {
+  font-family: var(--mx-font-mono);
+  font-size: var(--mx-font-size-code);
+}
+.mx-finder__item-side {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  color: var(--mx-text-tertiary);
+}
+
+/* ---- Room cards ---- */
+.mx-roomgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--mx-space-lg);
+}
+
+/* The whole card is the "enter room" target — hence <button>, not a div with a link inside. */
+.mx-roomcard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+  min-height: 188px;
+  padding: var(--mx-space-lg);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-lg);
+  background: var(--mx-bg-layer);
+  color: var(--mx-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  animation: mx-row-enter var(--mx-duration-normal) var(--mx-ease-decelerate) both;
+  transition:
+    background var(--mx-duration-fast) var(--mx-ease-standard),
+    border-color var(--mx-duration-fast) var(--mx-ease-standard),
+    transform var(--mx-duration-fast) var(--mx-ease-standard),
+    box-shadow var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-roomcard:hover {
+  background: var(--mx-bg-card);
+  border-color: var(--mx-accent);
+  transform: translateY(-2px);
+  box-shadow: var(--mx-shadow-8);
+}
+.mx-roomcard[data-active="false"] {
+  opacity: 0.72;
+}
+
+.mx-roomcard__top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mx-space-sm);
+}
+.mx-roomcard__icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-accent-soft);
+  color: var(--mx-accent-text);
+}
+.mx-roomcard__badges {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  flex-wrap: wrap;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.mx-roomcard__name {
+  font-size: var(--mx-font-size-title);
+  line-height: var(--mx-line-title);
+  font-weight: var(--mx-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.mx-roomcard__code {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+}
+.mx-roomcard__code code {
+  font-family: var(--mx-font-mono);
+  font-size: var(--mx-font-size-code);
+}
+/* A nested affordance inside the card button — a real <button> here would be invalid HTML. */
+.mx-roomcard__copy {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--mx-radius-sm);
+  color: var(--mx-text-tertiary);
+  cursor: pointer;
+}
+.mx-roomcard__copy:hover {
+  background: var(--mx-bg-active);
+  color: var(--mx-text-primary);
+}
+
+.mx-roomcard__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: var(--mx-space-sm);
+  border-top: 1px solid var(--mx-stroke-subtle);
+  font-size: var(--mx-font-size-caption);
+  color: var(--mx-text-tertiary);
+}
+.mx-roomcard__people {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  font-variant-numeric: tabular-nums;
+}
+.mx-roomcard__people[data-live="true"] {
+  color: var(--mx-success-text);
+  font-weight: var(--mx-weight-medium);
+}
+.mx-roomcard__node {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "进入 ›" reveals on hover — keeps the resting card calm. */
+.mx-roomcard__enter {
+  position: absolute;
+  right: var(--mx-space-lg);
+  bottom: var(--mx-space-lg);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--mx-accent-text);
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity var(--mx-duration-fast) var(--mx-ease-standard),
+    transform var(--mx-duration-normal) var(--mx-ease-emphasized);
+}
+.mx-roomcard:hover .mx-roomcard__enter,
+.mx-roomcard:focus-visible .mx-roomcard__enter {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mx-roomcard,
+  .mx-finder__menu {
+    animation: none;
+  }
+  .mx-roomcard:hover {
+    transform: none;
+  }
+  .mx-roomcard__enter {
+    opacity: 1;
+    transform: none;
   }
 }
 

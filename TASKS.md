@@ -1,7 +1,7 @@
 # 任务组
 
-**状态：功能开发完成，可部署。** `npm run typecheck`、`npm test`（77 项，含 24 项跑在真 Postgres 上）、
-`npm run build`（25 条路由，零环境变量裸构建）全部通过。
+**状态：功能开发完成，可部署。** `npm run typecheck`、`npm test`（137 项，含 30 项跑在真 Postgres 上）、
+`npm run build`（42 条路由，零环境变量裸构建）全部通过。
 
 **只需两个环境变量**：`DATABASE_URL` + `ADMIN_PASSWORD`。
 
@@ -68,6 +68,10 @@
 - [x] 管理后台：改节点 `allowPublic`/`maxRooms`/启停，**把任一节点「设为内置」**
 - [x] 用户管理：停用/启用、升降管理员；停用时连带作废其所有会话
 - [x] 守卫：不能改自己的角色/状态；不能把最后一个管理员降级
+- [x] **站点设置：开放/禁止注册**（`app_config.registration_enabled`，默认开放）。
+      三条建号的路一起关：注册接口 403、第三方登录只认已绑过的账号、邮箱验证码只放已有账号。
+      守卫收在 `lib/site-settings.ts`，由真的会 insert users 的那几处调用 ——
+      写在路由入口会把「已有账号登录」一起拦掉
 
 ## G2 · LiveKit 节点接入 ✅
 
@@ -134,7 +138,9 @@
 
 ## G6 · 前端 ✅
 
-- [x] `/` 分流、`/login`（登录/注册合一，支持 `next` 回跳，防 open redirect）
+- [x] `/` 项目首页（讲清「一房一节点」、两条推流路线、免费额度实算、快速开始、
+      桌面端预告、Q&A；库连不上时也能打开）、`/login`（登录/注册合一，支持 `next` 回跳，
+      防 open redirect；站点禁止注册时「注册」页签换成一句说明）
 - [x] `/dashboard` 房间列表 + 建房（节点选择器）+ 节点管理 + webhook 地址
 - [x] `/room/[code]` 画面（优先屏幕共享）+ OBS 面板 + 邀请面板 + 成员面板 + 日志面板
 - [x] `/admin` 管理后台
@@ -156,8 +162,9 @@
 - [x] 审计不记录任何密钥
 - [x] **定时清理**（`/api/cron/cleanup` + `vercel.json`）：过期会话、旧限流记录、旧去重记录
 - [x] cron 端点用 `CRON_SECRET` 定长比较保护
-- [x] **54 项测试**（`npm test`）：AES-GCM 往返/篡改检测、scrypt 往返/Unicode 归一化/畸形输入、零配置密钥供给路径、
-      URL 归一化、房间码字符集与碰撞、schema 默认值与边界
+- [x] **137 项测试**（`npm test`）：AES-GCM 往返/篡改检测、scrypt 往返/Unicode 归一化/畸形输入、零配置密钥供给路径、
+      URL 归一化、房间码字符集与碰撞、schema 默认值与边界、`app_config` 布尔值的 jsonb 往返
+      （关注册的开关最怕 `false` 被读成真值）
 - [x] 停用用户时连带作废会话
 
 ## 部署 ✅

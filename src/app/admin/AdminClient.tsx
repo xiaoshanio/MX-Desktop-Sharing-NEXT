@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api-client";
+import { humanizeError } from "@/lib/error-text";
+import { toast } from "@/lib/toast";
 import type { AdminNode, AdminUser } from "@/lib/api-types";
 import { healthLabel } from "@/lib/labels";
 import { AppShell, type ShellUser } from "@/components/AppShell";
 import { ServicesPanel } from "./ServicesPanel";
+import { SitePanel } from "./SitePanel";
 import {
   Badge,
   Banner,
@@ -20,14 +23,13 @@ import {
   Tabs,
 } from "@/ui";
 
-type Panel = "nodes" | "users" | "services";
+type Panel = "nodes" | "users" | "services" | "site";
 
 export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string }) {
   const [panel, setPanel] = useState<Panel>("nodes");
   const [nodes, setNodes] = useState<AdminNode[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
   const [promoting, setPromoting] = useState<AdminNode | null>(null);
   const [promoteBusy, setPromoteBusy] = useState(false);
 
@@ -36,9 +38,8 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
       const res = await api<{ nodes: AdminNode[]; users: AdminUser[] }>("/api/admin");
       setNodes(res.nodes);
       setUsers(res.users);
-      setErr(null);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setLoading(false);
     }
@@ -49,22 +50,20 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
   }, [load]);
 
   async function patchNode(nodeId: string, body: Record<string, unknown>) {
-    setErr(null);
     try {
       await api(`/api/admin?nodeId=${nodeId}`, { method: "PATCH", json: body });
       await load();
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     }
   }
 
   async function patchUser(id: string, body: Record<string, unknown>) {
-    setErr(null);
     try {
       await api(`/api/admin/users/${id}`, { method: "PATCH", json: body });
       await load();
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     }
   }
 
@@ -82,6 +81,8 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
   return (
     <AppShell
       user={user}
+      loading={loading}
+      loadingLabel="正在加载全站数据…"
       heading={<span>管理后台</span>}
       status={
         <>
@@ -108,7 +109,6 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
           </div>
         </header>
 
-        {err && <Banner tone="error">{err}</Banner>}
 
         <Tabs
           label="管理分区"
@@ -118,12 +118,11 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
             { value: "nodes", label: "节点", icon: "node", count: nodes.length },
             { value: "users", label: "用户", icon: "users", count: users.length },
             { value: "services", label: "第三方服务", icon: "key" },
+            { value: "site", label: "站点设置", icon: "settings" },
           ]}
         />
 
-        {loading ? (
-          <Loading />
-        ) : panel === "nodes" ? (
+        {panel === "nodes" ? (
           <NodesPanel
             nodes={nodes}
             onPatch={(id, body) => void patchNode(id, body)}
@@ -135,8 +134,10 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
             selfId={selfId}
             onPatch={(id, body) => void patchUser(id, body)}
           />
-        ) : (
+        ) : panel === "services" ? (
           <ServicesPanel />
+        ) : (
+          <SitePanel />
         )}
       </section>
 

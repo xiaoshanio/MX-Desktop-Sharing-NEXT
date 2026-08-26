@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api-client";
+import { humanizeError } from "@/lib/error-text";
+import { toast } from "@/lib/toast";
 import type { NodeSummary } from "@/lib/api-types";
 import { healthLabel } from "@/lib/labels";
 import { AppShell, type ShellUser } from "@/components/AppShell";
@@ -28,8 +30,6 @@ import {
 export function NodesClient({ user }: { user: ShellUser }) {
   const [nodes, setNodes] = useState<NodeSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const [adding, setAdding] = useState(false);
   const [rotating, setRotating] = useState<NodeSummary | null>(null);
@@ -41,9 +41,8 @@ export function NodesClient({ user }: { user: ShellUser }) {
     try {
       const res = await api<{ nodes: NodeSummary[] }>("/api/nodes");
       setNodes(res.nodes);
-      setErr(null);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setLoading(false);
     }
@@ -55,13 +54,11 @@ export function NodesClient({ user }: { user: ShellUser }) {
 
   async function recheck(node: NodeSummary) {
     setCheckingId(node.id);
-    setErr(null);
-    setNotice(null);
     try {
       await api(`/api/nodes/${node.id}`, { method: "POST" });
       await refresh();
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setCheckingId(null);
     }
@@ -70,13 +67,12 @@ export function NodesClient({ user }: { user: ShellUser }) {
   async function confirmDelete() {
     if (!deleting) return;
     setDeleteBusy(true);
-    setErr(null);
     try {
       await api(`/api/nodes/${deleting.id}`, { method: "DELETE" });
       setDeleting(null);
       await refresh();
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
       setDeleting(null);
     } finally {
       setDeleteBusy(false);
@@ -89,6 +85,8 @@ export function NodesClient({ user }: { user: ShellUser }) {
   return (
     <AppShell
       user={user}
+      loading={loading}
+      loadingLabel="正在加载节点…"
       heading={<span>LiveKit 节点</span>}
       status={
         <>
@@ -121,12 +119,8 @@ export function NodesClient({ user }: { user: ShellUser }) {
           </div>
         </header>
 
-        {err && <Banner tone="error">{err}</Banner>}
-        {notice && <Banner tone="success">{notice}</Banner>}
 
-        {loading ? (
-          <Loading />
-        ) : nodes.length === 0 ? (
+        {nodes.length === 0 ? (
           <EmptyState
             icon="node"
             title="还没有任何节点"
@@ -161,7 +155,7 @@ export function NodesClient({ user }: { user: ShellUser }) {
         onClose={() => setAdding(false)}
         onSaved={async () => {
           setAdding(false);
-          setNotice("节点已保存，凭据体检通过。");
+          toast.success("节点已保存，凭据体检通过。");
           await refresh();
         }}
       />
@@ -171,7 +165,7 @@ export function NodesClient({ user }: { user: ShellUser }) {
         onClose={() => setRotating(null)}
         onSaved={async (name) => {
           setRotating(null);
-          setNotice(`「${name}」的密钥已更新，新凭据体检通过。`);
+          toast.success(`「${name}」的密钥已更新，新凭据体检通过。`);
           await refresh();
         }}
       />
@@ -289,23 +283,20 @@ function AddNodeDialog({
 }) {
   const [draft, setDraft] = useState<NodeDraft>(emptyNodeDraft());
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setDraft(emptyNodeDraft());
-    setErr(null);
   }, [open]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
-    setErr(null);
     try {
       await api("/api/nodes", { method: "POST", json: draft });
       await onSaved();
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setBusy(false);
     }
@@ -330,7 +321,6 @@ function AddNodeDialog({
     >
       <form id="mx-add-node" className="mx-form" onSubmit={submit}>
         <NodeCredentialFields value={draft} onChange={setDraft} />
-        {err && <Banner tone="error">{err}</Banner>}
       </form>
     </Modal>
   );
@@ -352,20 +342,17 @@ function RotateKeyDialog({
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!node) return;
     setApiKey("");
     setApiSecret("");
-    setErr(null);
   }, [node]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!node) return;
     setBusy(true);
-    setErr(null);
     try {
       await api(`/api/nodes/${node.id}`, {
         method: "PATCH",
@@ -373,7 +360,7 @@ function RotateKeyDialog({
       });
       await onSaved(node.name);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
+      toast.error(humanizeError(error));
     } finally {
       setBusy(false);
     }
@@ -417,7 +404,6 @@ function RotateKeyDialog({
           value={apiSecret}
           onChange={(event) => setApiSecret(event.target.value)}
         />
-        {err && <Banner tone="error">{err}</Banner>}
       </form>
     </Modal>
   );

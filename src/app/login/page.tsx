@@ -2,12 +2,16 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 import { api } from "@/lib/api-client";
 import type { AuthProviders } from "@/lib/api-types";
+import { APP_NAME, COPYRIGHT } from "@/lib/brand";
+import { humanizeError } from "@/lib/error-text";
+import { toast } from "@/lib/toast";
 import { BrandMark } from "@/components/BrandMark";
 import { Turnstile } from "@/components/Turnstile";
-import { Banner, Button, Icon, TextField } from "@/ui";
+import { Button, Icon, TextField } from "@/ui";
 
 /** 只接受站内相对路径，防止 open redirect。 */
 function safeNext(raw: string | null): string {
@@ -42,10 +46,6 @@ function LoginScreen() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // 第三方回调失败时会把原因放在 ?error= 上带回来（见 oauth/[provider]/callback）
-  const [err, setErr] = useState<string | null>(params.get("error"));
-  const [notice, setNotice] = useState<string | null>(null);
-
   const [providers, setProviders] = useState<AuthProviders | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   /** 改变它会换一枚新的人机验证 token —— 每次提交失败后必须换。 */
@@ -55,11 +55,27 @@ function LoginScreen() {
   const [codeSent, setCodeSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
+  /**
+   * 第三方登录失败时，原因是通过 ?error= 带回来的（见 oauth/[provider]/callback ——
+   * 那一步是浏览器跳转，没法回 JSON）。进页面就弹出来。
+   */
+  const oauthError = params.get("error");
+  useEffect(() => {
+    if (oauthError) toast.error(oauthError, { title: "第三方登录没成功" });
+  }, [oauthError]);
+
   useEffect(() => {
     api<AuthProviders>("/api/auth/providers")
       .then(setProviders)
       // 拿不到就退化成「只有邮箱密码登录」，不能让登录页打不开
-      .catch(() => setProviders({ oauth: [], turnstileSiteKey: null, emailCodeEnabled: false }));
+      .catch(() =>
+        setProviders({
+          oauth: [],
+          turnstileSiteKey: null,
+          emailCodeEnabled: false,
+          registrationEnabled: true,
+        }),
+      );
   }, []);
 
   useEffect(() => {
@@ -70,43 +86,50 @@ function LoginScreen() {
 
   const registering = mode === "register";
   const needsCaptcha = providers?.turnstileSiteKey != null;
+  /**
+   * 站点关了注册时不显示「注册」页签。
+   *
+   * 还不知道（providers 未到）时按开放算：绝大多数部署是开放的，
+   * 先按开放渲染只在极少数站点上会有一次页签消失，反过来则是每次打开
+   * 登录页都要等一个来回才出现页签。真正的拦截在服务端，藏不藏按钮都拦得住。
+   */
+  const registrationOpen = providers?.registrationEnabled ?? true;
+
+  /** 已经切到注册页签、这时才知道注册关了 —— 把人送回登录，别留在一个提交必失败的表单上。 */
+  useEffect(() => {
+    if (providers && !providers.registrationEnabled) setMode("login");
+  }, [providers]);
 
   /** 提交失败后重置人机验证：token 是一次性的，不换的话下一次必然失败。 */
-  const failed = useCallback((message: string) => {
-    setErr(message);
+  const failed = useCallback((error: unknown) => {
+    toast.error(humanizeError(error));
     setCaptchaToken(null);
     setCaptchaNonce((nonce) => nonce + 1);
   }, []);
 
   function switchMode(target: Mode) {
     setMode(target);
-    setErr(null);
-    setNotice(null);
     if (target === "register") setMethod("password");
   }
 
   function switchMethod(target: Method) {
     setMethod(target);
-    setErr(null);
-    setNotice(null);
     setCodeSent(false);
     setCode("");
   }
 
   async function sendCode() {
     setBusy(true);
-    setErr(null);
-    setNotice(null);
     try {
       await api("/api/auth/email/code", { method: "POST", json: { email, captchaToken } });
       setCodeSent(true);
       setCooldown(60);
-      setNotice(`验证码已发到 ${email}，10 分钟内有效。`);
+      toast.success(`验证码已发到 ${email}，10 分钟内有效。`);
       // 这枚 token 已经被服务端消费掉了，换一枚给后面的操作用
       setCaptchaToken(null);
       setCaptchaNonce((nonce) => nonce + 1);
     } catch (error) {
-      failed(error instanceof Error ? error.message : String(error));
+      failed(error);
     } finally {
       setBusy(false);
     }
@@ -122,7 +145,6 @@ function LoginScreen() {
     }
 
     setBusy(true);
-    setErr(null);
     try {
       if (registering) {
         await api("/api/auth/register", {
@@ -137,7 +159,7 @@ function LoginScreen() {
       router.push(next);
       router.refresh();
     } catch (error) {
-      failed(error instanceof Error ? error.message : String(error));
+      failed(error);
     } finally {
       setBusy(false);
     }
@@ -165,34 +187,43 @@ function LoginScreen() {
     <div className="mx-auth">
       <div className="mx-auth__inner">
         <div className="mx-auth__brand">
-          <BrandMark size={64} className="mx-auth__mark" />
-          <h1 className="mx-auth__title">MX 桌面共享</h1>
+          <Link href="/" className="mx-auth__home" aria-label="回首页">
+            <BrandMark size={64} className="mx-auth__mark" />
+            <h1 className="mx-auth__title">{APP_NAME}</h1>
+          </Link>
           <p className="mx-auth__subtitle">
             一房一节点，一人一推流地址。用 OBS 或浏览器直接把屏幕推给房间里的人。
           </p>
         </div>
 
         <form className="mx-auth__panel" onSubmit={submit}>
-          <div className="mx-auth__switcher" role="tablist" aria-label="登录或注册">
-            <button
-              type="button"
-              role="tab"
-              className="mx-auth__switch"
-              aria-selected={!registering}
-              onClick={() => switchMode("login")}
-            >
-              登录
-            </button>
-            <button
-              type="button"
-              role="tab"
-              className="mx-auth__switch"
-              aria-selected={registering}
-              onClick={() => switchMode("register")}
-            >
-              注册
-            </button>
-          </div>
+          {registrationOpen ? (
+            <div className="mx-auth__switcher" role="tablist" aria-label="登录或注册">
+              <button
+                type="button"
+                role="tab"
+                className="mx-auth__switch"
+                aria-selected={!registering}
+                onClick={() => switchMode("login")}
+              >
+                登录
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className="mx-auth__switch"
+                aria-selected={registering}
+                onClick={() => switchMode("register")}
+              >
+                注册
+              </button>
+            </div>
+          ) : (
+            <p className="mx-auth__closed">
+              <Icon name="ban" size={14} />
+              本站点禁止注册，只有已有账号可以登录。
+            </p>
+          )}
 
           {/* 第三方登录。没配的话整块不出现。 */}
           {providers && providers.oauth.length > 0 && (
@@ -301,9 +332,6 @@ function LoginScreen() {
               </>
             )}
 
-            {notice && <Banner tone="success">{notice}</Banner>}
-            {err && <Banner tone="error">{err}</Banner>}
-
             {/* 人机验证放在提交按钮正上方 */}
             {captchaRequired && providers?.turnstileSiteKey && (
               <Turnstile
@@ -319,11 +347,14 @@ function LoginScreen() {
           </div>
         </form>
 
-        <p className="mx-auth__footnote">
-          {registering
-            ? "注册即拥有自己的工作区，可接入你自己的 LiveKit 节点。"
-            : "收到邀请链接的话，直接打开链接登录就会自动入房。"}
-        </p>
+        <div className="mx-auth__foot">
+          <p className="mx-auth__footnote">
+            {registering
+              ? "注册即拥有自己的工作区，可接入你自己的 LiveKit 节点。"
+              : "收到邀请链接的话，直接打开链接登录就会自动入房。"}
+          </p>
+          <p className="mx-auth__copyright">{COPYRIGHT}</p>
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-# MX Desktop Sharing
+# MX-Desktop-Sharing-NEXT
 
 基于 LiveKit 的桌面共享。核心设计：**一房一节点，一人一推流地址**。
 
@@ -44,7 +44,7 @@ npm run dev
 登录后到侧栏「LiveKit 节点」→「接入节点」配一个 LiveKit 节点（怎么拿凭据见下一节）。
 LiveKit 不占用任何环境变量。
 
-其他命令：`npm test`（73 项）、`npm run typecheck`、`npm run build`。
+其他命令：`npm test`（137 项）、`npm run typecheck`、`npm run build`。
 `build` 会先跑一遍数据库迁移（没配 `DATABASE_URL` 就跳过）；只想编译不碰数据库用
 `npm run build:only`。
 
@@ -88,6 +88,35 @@ drizzle-kit 找不到它时**不报错**，而是默默建一个空的然后什�
 | `CREDENTIAL_ENCRYPTION_KEY` | | 不填则首次启动自动生成并存库（见 [DEPLOY.md](DEPLOY.md#关于自动生成的加密密钥) 的取舍说明） |
 | `NEXT_PUBLIC_APP_URL` | | 不填则从请求头推导 |
 | `CRON_SECRET` | | 保护定时清理端点 |
+
+### 只给自己人用（关闭注册）
+
+**管理后台 →「站点设置」→ 关掉「开放注册」**。开关存在 `app_config` 表里（键
+`registration_enabled`），不占环境变量，改完立刻生效、不用重新部署。键不存在时默认
+**开放** —— 老部署升级上来不会突然把人关在门外。
+
+关键在于**建号有三条路，关的时候必须一起关**，否则等于没关：
+
+| 入口 | 关闭后的行为 |
+| --- | --- |
+| 邮箱密码注册 | `POST /api/auth/register` 直接 `403 registration_closed` |
+| GitHub / Google | 已经绑过的账号照常登录；没绑过、本站也没这个邮箱的，在建号那一步被拒 |
+| 邮箱验证码 | 同上 —— 已有账号照常登录，新邮箱不再自动建号 |
+
+所以判断没有写在三个 route 的入口，而是收在 `src/lib/site-settings.ts` 的
+`assertRegistrationOpen()`，由**真的会 insert users 的那两处**调用
+（`src/lib/accounts.ts` 的两个 resolve 函数 + register 路由）。第三方登录和验证码登录
+本质都是「有账号就登录，没有就建一个」，只有后半句该被拦，前半句必须照常放行。
+
+两个刻意的位置选择：
+
+- **验证码那条拦在「验证之后」而不是「发码之前」**。发码接口无论邮箱在不在库里都回
+  同一个响应（否则它就成了一个查询用户名单的接口），在那一步拦会把这个性质破坏掉。
+- **register 路由里拦在人机验证之前**。Turnstile 的 token 是一次性的，让它在一个注定
+  被拒的请求上烧掉，等于逼用户重验一次才能看到「本站点禁止注册」。
+
+登录页的「注册」页签会跟着消失，换成一句「本站点禁止注册，只有已有账号可以登录」——
+但那只是提示。前端拿到的 `registrationEnabled` 改成 `true` 也绕不过服务端那道。
 
 
 ---
@@ -319,6 +348,9 @@ OBS 那条要先在服务端建 ingress，再由 OBS 把 WHIP 推给 LiveKit。�
 | `src/lib/rooms.ts` | 成员判定（`requireMember` / `requireRoomOwner`） |
 | `src/lib/invites.ts` | 邀请链接的签发与原子兑换 |
 | `src/lib/crypto.ts` | 凭据 AES-256-GCM 加解密 |
+| `src/lib/site-settings.ts` | 站点级策略（当前只有「开放注册」），含建号守卫 |
+| `src/lib/app-config.ts` | `app_config` 这张全局 KV 的读写 |
+| `src/lib/brand.ts` | 站点名 / 公司名 / 版权行，全站只在这里写一遍 |
 | `src/lib/bootstrap.ts` | 启动引导：建管理员、供给密钥。惰性触发，幂等 |
 | `src/app/api/rooms/[code]/token/route.ts` | 鉴权收口 |
 | `src/app/api/rooms/[code]/route.ts` | 房间详情、OBS 闸门（PATCH）、关闭房间 |
@@ -337,17 +369,38 @@ OBS 那条要先在服务端建 ingress，再由 OBS 把 WHIP 推给 LiveKit。�
 | `src/styles/components.css` | 原语样式（按钮、表单、卡片、表格、弹窗…） |
 | `src/styles/shell.css` | 应用外壳：顶栏、侧栏、状态栏 |
 | `src/styles/pages.css` | 页面级组合：登录页、统计块、视频舞台 |
+| `src/styles/landing.css` | 首页（`/`）。唯一的对外介绍页，见下 |
 | `src/ui/` | React 原语，只消费 token，从不写死颜色尺寸 |
 | `src/components/AppShell.tsx` | 顶栏 + 可折叠侧栏 + 主区 + 状态栏；<1024px 侧栏变抽屉 |
 | `src/components/BrandMark.tsx` | 品牌标记（等距立方体 + 上行信号），见下 |
 | `src/lib/theme.ts` | 主题持久化 + 首屏防闪脚本 |
 
-两个刻意的取舍：
+三个刻意的取舍：
 
 - **主题在首屏之前定好**。`themeBootstrapScript` 内联进 `<head>`，在第一次绘制前就把
   `data-theme` 打到 `<html>` 上，所以不会有一闪的白底。
 - **视频舞台恒定深色**。`--mx-stage-bg` 在两个主题下都是近黑 —— 画面周围的亮色边框会
   影响对画面本身的判读。
+- **首页自带一套排版步进**。`landing.css` 顶上声明了一小组 `--land-*`（hero 字号、
+  段落节奏），因为 `--mx-font-size-display` 是 30px —— 给页面标题合适，给 hero 太小了。
+  颜色、圆角、阴影仍然全部走 `--mx-*`。
+
+### 首页
+
+`/` 是讲项目的落地页，不是分流器：顶栏 + hero + 推流路线 + 免费额度实算 + 功能 +
+快速开始 + 桌面端预告 + Q&A + 收尾 CTA。已登录时 CTA 变成「进入控制台」，未登录是
+「登录 / 注册」。
+
+**它必须在数据库没配好的时候也能打开** —— 那正是最需要读它的时候。所以 `currentUser()`
+的失败被吞掉按未登录渲染（`src/app/page.tsx`），而不是让首页跟着 500。
+
+Q&A 用原生 `<details>`，不是自己写的折叠：首页是服务端组件，没有 JS 也要能展开，
+而键盘操作和读屏器播报浏览器已经做对了。
+
+桌面端预告那一节讲的是 `MX-Desktop-Sharing-APP`（自部署、端到端加密的聊天 + 屏幕分享）。
+**它一行代码都还没写**，所以那一节全部用「考虑」「打算」的语气，并且挂了一枚「构想阶段」
+的标签 —— 落地页上写成既成事实就是假承诺。两个 CTA 都指向本仓库的 issues 和 discussions，
+本项目没有单独的邮箱或联系表单。
 
 ### 品牌标记
 
