@@ -4,6 +4,7 @@ export * from "./Button";
 export * from "./Card";
 export * from "./Checkbox";
 export * from "./ConfirmDialog";
+export * from "./ContextMenu";
 export * from "./EmptyState";
 export * from "./Icon";
 export * from "./IconButton";

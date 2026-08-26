@@ -12,6 +12,7 @@ import {
   clearLoginFailures,
   recordLoginFailure,
 } from "@/lib/rate-limit";
+import { assertHuman } from "@/lib/turnstile";
 import { clientIp } from "@/lib/url";
 import { loginSchema } from "@/lib/validation";
 
@@ -26,6 +27,10 @@ export const POST = route(async (req) => {
   const boot = await requireBootstrapped();
 
   const ip = clientIp(req);
+
+  // 人机验证在限流和 hash 之前：它最便宜，也最该先挡住自动化撞库。
+  // 没配 Turnstile 凭据时 assertHuman 直接放行（零配置部署的默认形态）。
+  await assertHuman(input.captchaToken, ip);
 
   // 限流在校验密码之前：达到阈值直接 429，连 hash 都不算
   await assertLoginAllowed(input.email, ip);

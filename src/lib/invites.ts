@@ -2,8 +2,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { roomInvites, roomMembers, rooms, type User } from "@/db/schema";
-import { badRequest, notFound } from "./http";
+import { roomBans, roomInvites, roomMembers, rooms, type User } from "@/db/schema";
+import { badRequest, forbidden, notFound } from "./http";
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -49,6 +49,31 @@ export async function createInvite(input: CreateInviteInput) {
  */
 export async function redeemInvite(token: string, user: User) {
   const tokenHash = hash(token);
+
+  /**
+   * 先只读地摸一下这条邀请指向哪个房间，为的是在**占用名额之前**判黑名单。
+   *
+   * 顺序反过来的话，被拉黑的人每点一次链接都会白烧掉一次使用名额 ——
+   * 一条限 5 次的邀请链接会被他自己点没，房主完全看不出发生了什么。
+   *
+   * 这一读和下面的原子占用之间存在极小的竞态（读完之后那一刻才被拉黑），
+   * 不去消除它：真正的兜底在签 token 那一步（见 api/rooms/[code]/token），
+   * 那里过不去就拿不到任何画面。这里只是为了不浪费名额和给出准确的报错。
+   */
+  const [peek] = await db
+    .select({ roomId: roomInvites.roomId })
+    .from(roomInvites)
+    .where(eq(roomInvites.tokenHash, tokenHash))
+    .limit(1);
+
+  if (peek) {
+    const [banned] = await db
+      .select({ userId: roomBans.userId })
+      .from(roomBans)
+      .where(and(eq(roomBans.roomId, peek.roomId), eq(roomBans.userId, user.id)))
+      .limit(1);
+    if (banned) throw forbidden("你已被移出这个房间，邀请链接对你无效。");
+  }
 
   const claimed = await db
     .update(roomInvites)

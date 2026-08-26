@@ -207,3 +207,60 @@
   --mx-stage-bg: #0e0e0e;
   --mx-stage-stroke: rgba(255, 255, 255, 0.08);
 }
+
+/* ============================================================
+   Per-user accent seeds.
+   Each account gets one of these deterministically from its id (lib/identity.ts), so member
+   cards and avatars are visually distinguishable at a glance without anyone picking a colour.
+   Declared once here and consumed via color-mix by every component that shows a person —
+   avatar, member card, profile swatch — so adding a hue is a one-line change.
+   ============================================================ */
+[data-accent="iris"] {
+  --mx-seed: #5640c9;
+}
+[data-accent="azure"] {
+  --mx-seed: #2d6fd6;
+}
+[data-accent="teal"] {
+  --mx-seed: #0f9b8e;
+}
+[data-accent="lime"] {
+  --mx-seed: #5c9b18;
+}
+[data-accent="amber"] {
+  --mx-seed: #c2790b;
+}
+[data-accent="rose"] {
+  --mx-seed: #d23b2e;
+}
+[data-accent="magenta"] {
+  --mx-seed: #a4308f;
+}
+[data-accent="slate"] {
+  --mx-seed: #5b6472;
+}
+/* Dark theme wants brighter seeds — the same hex reads muddy against #181818. */
+[data-theme="dark"] [data-accent="iris"] {
+  --mx-seed: #8878e6;
+}
+[data-theme="dark"] [data-accent="azure"] {
+  --mx-seed: #5c95ee;
+}
+[data-theme="dark"] [data-accent="teal"] {
+  --mx-seed: #2fc0b1;
+}
+[data-theme="dark"] [data-accent="lime"] {
+  --mx-seed: #8cc63f;
+}
+[data-theme="dark"] [data-accent="amber"] {
+  --mx-seed: #e0a106;
+}
+[data-theme="dark"] [data-accent="rose"] {
+  --mx-seed: #e2675a;
+}
+[data-theme="dark"] [data-accent="magenta"] {
+  --mx-seed: #d167bd;
+}
+[data-theme="dark"] [data-accent="slate"] {
+  --mx-seed: #8b95a5;
+}

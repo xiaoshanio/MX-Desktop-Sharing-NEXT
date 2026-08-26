@@ -42,6 +42,14 @@ type GrantOptions = {
   roomName: string;
   canPublish: boolean;
   ttlSeconds: number;
+  /**
+   * 随 token 带给房里所有人的公开信息（头像版本、卡片底色）。
+   *
+   * 走 metadata 而不是让前端为每个参与者发一次请求：参与者列表是客户端 SDK
+   * 直接给的，卡片要在人一上线的瞬间就画对。**房里所有人可见**，
+   * 所以只能放呈现用的字段，见 lib/identity.ts 的 ParticipantMeta。
+   */
+  metadata?: string;
 };
 
 /**
@@ -58,6 +66,7 @@ export async function mintJoinToken(
     identity: opts.identity,
     name: opts.name,
     ttl: opts.ttlSeconds,
+    metadata: opts.metadata,
   });
 
   at.addGrant({
@@ -65,7 +74,9 @@ export async function mintJoinToken(
     room: opts.roomName,
     canSubscribe: true,
     canPublish: opts.canPublish,
-    canPublishData: opts.canPublish,
+    // 同步播放器的时钟对齐走 data channel，所有人都要能发 —— 观众也得能回 ping。
+    // 这只放开数据消息，跟能不能发布音视频轨（canPublish）是两件事。
+    canPublishData: true,
     // 不给 roomCreate / roomAdmin / roomList，房间由服务端提前建好
   });
 

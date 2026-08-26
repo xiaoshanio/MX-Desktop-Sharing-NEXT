@@ -61,12 +61,26 @@ export const createNodeSchema = nodeCredentialsSchema.extend({
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "请输入密码"),
+  /** Turnstile 的一次性 token。没配人机验证时前端不会带，服务端也会放行。 */
+  captchaToken: z.string().trim().max(4096).optional(),
 });
 
 export const registerSchema = z.object({
   email: emailSchema,
   displayName: z.string().trim().min(1).max(60),
   password: z.string().min(8, "密码至少 8 位"),
+  captchaToken: z.string().trim().max(4096).optional(),
+});
+
+/** 请求邮箱验证码。人机验证在这一步是硬要求（配了的话）—— 否则等于开放的发信接口。 */
+export const requestEmailCodeSchema = z.object({
+  email: emailSchema,
+  captchaToken: z.string().trim().max(4096).optional(),
+});
+
+export const verifyEmailCodeSchema = z.object({
+  email: emailSchema,
+  code: z.string().trim().regex(/^\d{6}$/, "验证码是 6 位数字"),
 });
 
 export const createRoomSchema = z.object({
@@ -118,4 +132,85 @@ export const adminUpdateNodeSchema = z.object({
 export const adminUpdateUserSchema = z.object({
   role: z.enum(["admin", "user"]).optional(),
   isDisabled: z.boolean().optional(),
+});
+
+/* ============================================================
+   成员权限 / 黑名单
+   ============================================================ */
+
+/** 房主右键成员卡片改权限。owner 不在可选项里 —— 转让房主是另一件事。 */
+export const updateMemberSchema = z.object({
+  userId: z.string().uuid(),
+  role: z.enum(["publisher", "viewer"]),
+});
+
+/* ============================================================
+   个人中心
+   ============================================================ */
+
+/**
+ * 改自己的资料。
+ *
+ * 头像和背景收 base64 的 data URL（字节校验在 lib/images.ts）：
+ * 传 null 表示「删掉，回到默认底色」，不传表示「这次不动它」。
+ * 两者必须能区分，所以用 .nullable().optional() 而不是简单的 optional。
+ *
+ * 底色档位这里是**手抄**的一份，没有 import identity.ts —— 本模块刻意保持零项目内依赖
+ * （见文件头）。抄重了会漂移，所以 tests/validation.test.mts 里有一条断言把两份钉在一起。
+ */
+export const CARD_ACCENT_VALUES = [
+  "iris",
+  "azure",
+  "teal",
+  "lime",
+  "amber",
+  "rose",
+  "magenta",
+  "slate",
+] as const;
+
+export const updateProfileSchema = z.object({
+  displayName: z.string().trim().min(1, "显示名不能为空").max(60).optional(),
+  cardAccent: z.enum(CARD_ACCENT_VALUES).nullable().optional(),
+  avatar: z.string().max(700_000).nullable().optional(),
+  banner: z.string().max(2_800_000).nullable().optional(),
+});
+
+/* ============================================================
+   同步播放器
+   ============================================================ */
+
+export const createSyncPlayerSchema = z.object({
+  name: z.string().trim().min(1, "给播放器起个名字").max(60),
+});
+
+/**
+ * 换片源。
+ *
+ * 只收 http(s)：播放器是在**浏览器里**直接对这个地址发 Range 请求的，
+ * 别的协议浏览器也取不到。地址本身不做可达性校验 —— 那要服务端去请求一次，
+ * 既慢又等于给了一个 SSRF 探测口子。取不到时播放器会把 CORS/Range 的报错显示出来。
+ */
+export const updateSyncPlayerSchema = z.object({
+  sourceUrl: z
+    .string()
+    .trim()
+    .max(2048)
+    .refine((v) => v === "" || /^https?:\/\//i.test(v), "地址要以 http:// 或 https:// 开头")
+    .transform((v) => (v === "" ? null : v))
+    .nullable(),
+});
+
+/* ============================================================
+   管理后台 → 第三方服务
+   ============================================================ */
+
+export const upsertServiceSchema = z.object({
+  service: z.enum(["github", "google", "turnstile", "resend"]),
+  /** Client ID / Site Key / 发件地址 */
+  publicValue: z.string().trim().min(1, "这一项不能为空").max(400),
+  /** 留空 = 保留库里已有的密钥 */
+  secret: z.string().trim().max(4096).optional(),
+  isEnabled: z.boolean().default(true),
+  fromName: z.string().trim().max(80).optional(),
 });

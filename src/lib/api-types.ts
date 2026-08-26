@@ -1,5 +1,7 @@
 /** 前端视角的响应类型。和 src/app/api/* 的返回结构保持一致。 */
 
+import type { CardAccent } from "./identity";
+
 export type NodeSummary = {
   id: string;
   name: string;
@@ -38,6 +40,58 @@ export type Member = {
   displayName: string;
   role: string;
   isOnline: boolean;
+  /** 卡片呈现用 —— 见 lib/identity.ts */
+  cardAccent: CardAccent;
+  avatarAt: string | null;
+  bannerAt: string | null;
+};
+
+export type Ban = {
+  userId: string;
+  email: string;
+  displayName: string;
+  reason: string | null;
+  createdAt: string;
+};
+
+/** 同步播放器。sourceUrl 只是给后进房的人用的初始片源，进度走 data channel。 */
+export type SyncPlayerRow = {
+  id: string;
+  name: string;
+  sourceUrl: string | null;
+  createdBy: string;
+  creatorName: string;
+  createdAt: string;
+  /** 我是不是创建者 —— 决定我是同步的时钟基准还是跟随者 */
+  isMine: boolean;
+};
+
+export type MyProfile = {
+  id: string;
+  email: string;
+  displayName: string;
+  role: string;
+  cardAccent: CardAccent;
+  avatarAt: string | null;
+  bannerAt: string | null;
+  hasPassword: boolean;
+  emailVerified: boolean;
+};
+
+/** 登录页开局问的那份配置。密钥不在里面，只有公开的 site key。 */
+export type AuthProviders = {
+  oauth: Array<{ provider: "github" | "google" }>;
+  turnstileSiteKey: string | null;
+  emailCodeEnabled: boolean;
+};
+
+export type ServiceRow = {
+  service: "github" | "google" | "turnstile" | "resend";
+  publicValue: string;
+  secretMask: string;
+  isEnabled: boolean;
+  meta: { fromName?: string };
+  updatedAt: string;
 };
 
 export type Invite = {

@@ -1,9 +1,10 @@
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { badRequest, json, route } from "@/lib/http";
+import { badRequest, forbidden, json, route } from "@/lib/http";
+import { accentFor, encodeParticipantMeta } from "@/lib/identity";
 import { ensureRoom, mintJoinToken } from "@/lib/livekit";
 import { resolve } from "@/lib/nodes";
-import { canPublish, requireMember } from "@/lib/rooms";
+import { canPublish, isBanned, requireMember } from "@/lib/rooms";
 
 export const runtime = "nodejs";
 
@@ -21,23 +22,43 @@ export const POST = route(async (_req, ctx: { params: Promise<{ code: string }> 
   if (!roomCtx.room.isActive) throw badRequest("房间已关闭");
   if (!roomCtx.node.isEnabled) throw badRequest("该房间所在节点已停用");
 
+  /**
+   * 黑名单也在这里守一道。
+   *
+   * 正常流程里被拉黑的人已经不在成员表里了，所以上面那关就拦住了。但两张表是分开的，
+   * 中间可能出现「成员行还在、黑名单也有他」的状态（比如先手动加了成员又拉黑，
+   * 或者某次删除只成功了一半）。既然这里是所有人拿画面的唯一入口，就在这里兜住 ——
+   * 少一道检查的代价是被拉黑的人还能看。
+   */
+  if (await isBanned(roomCtx.room.id, user.id)) {
+    throw forbidden("你已被移出这个房间。");
+  }
+
   const node = await resolve(roomCtx.node);
   // 房间可能被 LiveKit 的 emptyTimeout 回收掉了，签 token 前补一次
   await ensureRoom(node, roomCtx.room.code);
+
+  const publishable = canPublish(roomCtx, user);
 
   const grant = await mintJoinToken(node, {
     identity: user.id,
     name: user.displayName,
     roomName: roomCtx.room.code,
-    canPublish: canPublish(roomCtx, user),
+    canPublish: publishable,
     ttlSeconds: roomCtx.room.tokenTtlSeconds,
+    // 房里的成员卡片靠这几个字段渲染，不用再为每个人查一次库
+    metadata: encodeParticipantMeta({
+      accent: accentFor(user.id, user.cardAccent),
+      avatarAt: user.avatarUpdatedAt?.toISOString() ?? null,
+      bannerAt: user.bannerUpdatedAt?.toISOString() ?? null,
+    }),
   });
 
   audit({
     actorId: user.id,
     roomId: roomCtx.room.id,
     action: "room.token.issue",
-    detail: { canPublish: canPublish(roomCtx, user) },
+    detail: { canPublish: publishable },
   });
 
   return json(grant);

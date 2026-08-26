@@ -4,8 +4,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { after, before, describe, it } from "node:test";
 
 import { PGlite } from "@electric-sql/pglite";
+import { getTableName, isTable } from "drizzle-orm";
 
 import { hashPassword, verifyPassword } from "../src/lib/password.ts";
+import * as schema from "../src/db/schema.ts";
 
 /**
  * 用 PGlite（WASM 版真 Postgres）把 drizzle 生成的迁移跑起来，验证那些「读代码读不出来」
@@ -38,29 +40,32 @@ after(async () => {
 });
 
 describe("迁移", () => {
-  it("12 张表全部建起来了", async () => {
+  it("schema.ts 里声明的每一张表都被建了出来", async () => {
     const r = await pg.query<{ table_name: string }>(
       `select table_name from information_schema.tables
        where table_schema = 'public' order by table_name`,
     );
-    const names = r.rows.map((x) => x.table_name);
-    for (const t of [
-      "app_config",
-      "audit_logs",
-      "livekit_nodes",
-      "login_attempts",
-      "room_ingress",
-      "room_invites",
-      "room_members",
-      "room_presence",
-      "rooms",
-      "sessions",
-      "users",
-      "webhook_events",
-    ]) {
-      assert.ok(names.includes(t), `缺表 ${t}`);
-    }
-    assert.equal(names.length, 12);
+    const present = r.rows.map((x) => x.table_name);
+
+    // 期望值从 schema.ts 推导，而不是写一个数字。
+    // 写死数量的话每加一张表这条测试都会红一次，而它想守的其实是
+    // 「迁移有没有漏掉某张声明过的表」——那个问题跟总数是多少无关。
+    const declared: string[] = Object.values(schema)
+      .filter(isTable)
+      .map((table) => getTableName(table))
+      .sort();
+
+    assert.deepEqual(
+      declared.filter((t) => !present.includes(t)),
+      [],
+      "迁移没建出这些声明过的表",
+    );
+    // 反向也要守：库里多出来的表说明有人手写了 SQL 却没同步 schema.ts
+    assert.deepEqual(
+      present.filter((t) => !declared.includes(t)),
+      [],
+      "库里有 schema.ts 里没声明的表",
+    );
   });
 });
 

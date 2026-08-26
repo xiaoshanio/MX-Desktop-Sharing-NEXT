@@ -7,6 +7,8 @@ import { createSession } from "@/lib/auth";
 import { requireBootstrapped } from "@/lib/bootstrap";
 import { conflict, json, readJson, route, parseOr400 } from "@/lib/http";
 import { hashPassword } from "@/lib/password";
+import { assertHuman } from "@/lib/turnstile";
+import { clientIp } from "@/lib/url";
 import { registerSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -17,6 +19,9 @@ export const POST = route(async (req) => {
 
   // 和登录一样：数据库/环境变量没就绪时给可读的 503，而不是笼统的 500
   await requireBootstrapped();
+
+  // 注册比登录更需要人机验证：没有它，脚本可以批量建号把 users 表撑满
+  await assertHuman(input.captchaToken, clientIp(req));
 
   const existing = await db
     .select({ id: users.id })

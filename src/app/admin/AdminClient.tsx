@@ -6,6 +6,7 @@ import { api } from "@/lib/api-client";
 import type { AdminNode, AdminUser } from "@/lib/api-types";
 import { healthLabel } from "@/lib/labels";
 import { AppShell, type ShellUser } from "@/components/AppShell";
+import { ServicesPanel } from "./ServicesPanel";
 import {
   Badge,
   Banner,
@@ -19,7 +20,7 @@ import {
   Tabs,
 } from "@/ui";
 
-type Panel = "nodes" | "users";
+type Panel = "nodes" | "users" | "services";
 
 export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string }) {
   const [panel, setPanel] = useState<Panel>("nodes");
@@ -116,6 +117,7 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
           items={[
             { value: "nodes", label: "节点", icon: "node", count: nodes.length },
             { value: "users", label: "用户", icon: "users", count: users.length },
+            { value: "services", label: "第三方服务", icon: "key" },
           ]}
         />
 
@@ -127,12 +129,14 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
             onPatch={(id, body) => void patchNode(id, body)}
             onPromote={setPromoting}
           />
-        ) : (
+        ) : panel === "users" ? (
           <UsersPanel
             users={users}
             selfId={selfId}
             onPatch={(id, body) => void patchUser(id, body)}
           />
+        ) : (
+          <ServicesPanel />
         )}
       </section>
 

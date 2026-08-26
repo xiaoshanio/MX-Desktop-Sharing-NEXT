@@ -812,6 +812,13 @@ textarea.mx-input {
 .mx-modal__panel[data-size="lg"] {
   width: min(760px, 100%);
 }
+/* The room settings dialog: ingress, room switches, logs and the ban list all live in it,
+   so it needs room to breathe. Tall too — the log list is the point of opening it. */
+.mx-modal__panel[data-size="xl"] {
+  width: min(1040px, 100%);
+  height: min(760px, 92vh);
+  max-height: 92vh;
+}
 .mx-modal__header {
   display: flex;
   align-items: center;

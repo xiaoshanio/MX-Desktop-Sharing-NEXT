@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
 
 import type { ButtonSize } from "./Button";
 import { cx } from "./cx";
@@ -10,6 +10,11 @@ export interface IconButtonProps
   size?: ButtonSize;
   /** `danger` tints the hover state red, for destructive row actions. */
   tone?: "neutral" | "danger";
+  /**
+   * React 19 lets function components take `ref` as an ordinary prop, so no forwardRef.
+   * The room's guided tour needs it to anchor its callout to the settings button.
+   */
+  ref?: Ref<HTMLButtonElement>;
   children: ReactNode;
 }
 
@@ -20,10 +25,12 @@ export function IconButton({
   type = "button",
   className,
   children,
+  ref,
   ...props
 }: IconButtonProps): ReactNode {
   return (
     <button
+      ref={ref}
       type={type}
       aria-label={label}
       title={label}

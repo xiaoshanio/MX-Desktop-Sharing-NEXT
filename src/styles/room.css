@@ -1,0 +1,787 @@
+/* ============================================================
+   Room workspace — member rail + screen stage + sync players.
+   Everything in this file only exists inside /room/[code].
+   ============================================================ */
+
+.mx-room {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-md);
+  height: 100%;
+  min-height: 0;
+  /* The main scroller runs flush here (AppShell `flush`), so gutters live on this element. */
+  padding: var(--mx-space-md);
+}
+
+/* LiveKitRoom renders a plain div — make it a flex child so the grid can fill the height. */
+.mx-room__live {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.mx-room__grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr);
+  gap: var(--mx-space-md);
+}
+/* With a sync player open the stage yields room to it, but keeps the larger share. */
+.mx-room__grid[data-has-sync="true"] {
+  grid-template-columns: 216px minmax(0, 1.35fr) minmax(360px, 1fr);
+}
+
+.mx-room__sync {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-md);
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ============================================================
+   Member rail — one card per ONLINE participant
+   ============================================================ */
+.mx-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+  min-height: 0;
+  min-width: 0;
+}
+.mx-rail__head {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  padding: 0 var(--mx-space-xs);
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
+  flex-shrink: 0;
+}
+.mx-rail__clear {
+  margin-left: auto;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--mx-accent-text);
+  font: inherit;
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-medium);
+  cursor: pointer;
+}
+.mx-rail__clear:hover {
+  text-decoration: underline;
+}
+.mx-rail__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+  min-height: 0;
+  overflow-y: auto;
+  /* Room for the focus ring not to be clipped by the scroll container. */
+  padding: 2px;
+  margin: -2px;
+}
+.mx-rail__empty {
+  margin: 0;
+  padding: var(--mx-space-lg) var(--mx-space-md);
+  border: 1px dashed var(--mx-stroke-default);
+  border-radius: var(--mx-radius-md);
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+  text-align: center;
+}
+
+/* The card itself. Also reused as a static preview on the profile page. */
+.mx-pcard {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 74px;
+  padding: 0;
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-layer);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  flex-shrink: 0;
+  transition:
+    border-color var(--mx-duration-fast) var(--mx-ease-standard),
+    transform var(--mx-duration-fast) var(--mx-ease-standard),
+    box-shadow var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-pcard:hover {
+  border-color: var(--mx-stroke-strong);
+  transform: translateY(-1px);
+}
+.mx-pcard[data-active="true"] {
+  border-color: var(--mx-accent);
+  box-shadow: 0 0 0 1px var(--mx-accent);
+}
+.mx-pcard[data-preview="true"] {
+  max-width: 260px;
+  cursor: default;
+}
+.mx-pcard[data-preview="true"]:hover {
+  transform: none;
+}
+
+/**
+ * Card background. Default is a wash built from the account's seed colour; an uploaded
+ * banner replaces it. Either way a scrim goes on top so the name stays legible over
+ * arbitrary photos — that's what the ::after is for.
+ */
+.mx-pcard__bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--mx-seed, var(--mx-accent)) 34%, transparent),
+      color-mix(in srgb, var(--mx-seed, var(--mx-accent)) 10%, transparent)
+    );
+  background-size: cover;
+  background-position: center;
+}
+.mx-pcard__bg[data-custom="true"] {
+  background-color: var(--mx-bg-subtle);
+  background-repeat: no-repeat;
+}
+.mx-pcard__bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Darker at the bottom where the text sits, near-clear at the top. */
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--mx-bg-layer) 88%, transparent),
+    color-mix(in srgb, var(--mx-bg-layer) 34%, transparent)
+  );
+}
+
+.mx-pcard__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-md);
+  min-width: 0;
+}
+.mx-pcard__avatar {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--mx-seed, var(--mx-accent)) 30%, var(--mx-bg-card));
+  color: color-mix(in srgb, var(--mx-seed, var(--mx-accent)) 78%, var(--mx-text-primary));
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
+  text-transform: uppercase;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mx-bg-layer) 70%, transparent);
+}
+.mx-pcard__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mx-pcard__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.mx-pcard__name {
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
+  color: var(--mx-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mx-pcard__meta {
+  font-size: 11px;
+  color: var(--mx-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "Currently sharing a screen" pip. */
+.mx-pcard__live {
+  position: absolute;
+  top: var(--mx-space-sm);
+  right: var(--mx-space-sm);
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--mx-bg-layer) 70%, transparent);
+}
+.mx-pcard__live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mx-error);
+  animation: mx-badge-pulse 1.4s var(--mx-ease-standard) infinite;
+}
+
+/* Stage stretches to fill its grid cell in the room layout. */
+.mx-stage[data-fill="true"] {
+  min-height: 0;
+  height: 100%;
+}
+.mx-stage[data-fill="true"] .mx-stage__grid {
+  flex: 1;
+  min-height: 0;
+  align-content: stretch;
+}
+/* A single feed should use the whole cell rather than sit in a 16/9 box. */
+.mx-stage[data-fill="true"] .mx-stage__grid[data-single="true"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.mx-stage[data-fill="true"] .mx-stage__grid[data-single="true"] .mx-stage__tile {
+  aspect-ratio: auto;
+  min-height: 0;
+}
+.mx-stage[data-fill="true"] .mx-stage__idle {
+  flex: 1;
+  aspect-ratio: auto;
+  max-height: none;
+}
+
+/* ============================================================
+   Sync video player (MX Player Pro)
+   ============================================================ */
+.mx-syncplayer {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-lg);
+  background: var(--mx-bg-layer);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.mx-syncplayer__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-sm) var(--mx-space-md);
+  border-bottom: 1px solid var(--mx-stroke-subtle);
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+  flex-wrap: wrap;
+}
+.mx-syncplayer__name {
+  font-weight: var(--mx-weight-semibold);
+  color: var(--mx-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+.mx-syncplayer__spacer {
+  flex: 1;
+}
+
+.mx-syncplayer__stage {
+  position: relative;
+  background: var(--mx-stage-bg);
+  aspect-ratio: 16 / 9;
+}
+/* The SDK mounts its own UI into this node and manages its internals. */
+.mx-syncplayer__mount {
+  position: absolute;
+  inset: 0;
+}
+.mx-syncplayer__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mx-space-xs);
+  padding: var(--mx-space-lg);
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  /* Purely informational — must not swallow clicks meant for the player beneath. */
+  pointer-events: none;
+}
+.mx-syncplayer__empty-title {
+  color: #f4f4f4;
+  font-size: var(--mx-font-size-body);
+  font-weight: var(--mx-weight-semibold);
+}
+.mx-syncplayer__empty-body {
+  max-width: 40ch;
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-caption);
+}
+
+.mx-syncplayer__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-md);
+  border-top: 1px solid var(--mx-stroke-subtle);
+}
+.mx-syncplayer__form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--mx-space-sm);
+  flex-wrap: wrap;
+}
+.mx-syncplayer__input {
+  flex: 1;
+  min-width: 220px;
+}
+.mx-syncplayer__viewer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-xs);
+}
+.mx-syncplayer__fallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-md);
+  padding: var(--mx-space-lg);
+  align-items: flex-start;
+}
+
+/* ============================================================
+   Right-click menu (member cards)
+   ============================================================ */
+.mx-context {
+  position: fixed;
+  z-index: var(--mx-z-popover);
+  min-width: 208px;
+  padding: var(--mx-space-xs);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-overlay);
+  box-shadow: var(--mx-shadow-16);
+  animation: mx-menu-in var(--mx-duration-normal) var(--mx-ease-emphasized) both;
+}
+.mx-context__head {
+  padding: var(--mx-space-sm) var(--mx-space-md) var(--mx-space-xs);
+  border-bottom: 1px solid var(--mx-stroke-subtle);
+  margin-bottom: var(--mx-space-xs);
+  color: var(--mx-text-primary);
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
+  overflow-wrap: anywhere;
+}
+.mx-context__label {
+  padding: var(--mx-space-xs) var(--mx-space-md);
+  color: var(--mx-text-tertiary);
+  font-size: 11px;
+  font-weight: var(--mx-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mx-context__item {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--mx-space-md);
+  border: 0;
+  border-radius: var(--mx-radius-sm);
+  background: transparent;
+  color: var(--mx-text-primary);
+  font: inherit;
+  font-size: var(--mx-font-size-caption);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-context__item:hover:not(:disabled) {
+  background: var(--mx-bg-hover);
+}
+.mx-context__item:disabled {
+  color: var(--mx-text-disabled);
+  cursor: default;
+}
+.mx-context__item[data-tone="danger"] {
+  color: var(--mx-error-text);
+}
+.mx-context__item[data-tone="danger"]:hover:not(:disabled) {
+  background: var(--mx-error-soft);
+}
+.mx-context__sep {
+  height: 1px;
+  margin: var(--mx-space-xs) 0;
+  background: var(--mx-stroke-subtle);
+}
+
+/* ============================================================
+   Guided-tour callout — points at the settings button on first room entry
+   ============================================================ */
+.mx-coach {
+  position: fixed;
+  inset: 0;
+  z-index: var(--mx-z-toast);
+  /* Not a modal: the page stays usable, only the bubble takes clicks. */
+  pointer-events: none;
+}
+.mx-coach__halo {
+  position: absolute;
+  transform: translate(-50%, 0);
+  border-radius: 50%;
+  border: 2px solid var(--mx-accent);
+  animation: mx-coach-pulse 1.8s var(--mx-ease-standard) infinite;
+}
+.mx-coach__bubble {
+  position: absolute;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-md);
+  border: 1px solid var(--mx-accent);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-overlay);
+  box-shadow: var(--mx-shadow-16);
+  animation: mx-coach-in var(--mx-duration-slow) var(--mx-ease-emphasized) both;
+}
+.mx-coach__arrow {
+  position: absolute;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  transform: translateX(-50%) rotate(45deg);
+  border-left: 1px solid var(--mx-accent);
+  border-top: 1px solid var(--mx-accent);
+  background: var(--mx-bg-overlay);
+}
+.mx-coach__head {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  color: var(--mx-accent-text);
+  font-size: var(--mx-font-size-caption);
+}
+.mx-coach__body {
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-body);
+}
+.mx-coach__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@keyframes mx-coach-pulse {
+  0% {
+    opacity: 0.9;
+    transform: translate(-50%, 0) scale(0.82);
+  }
+  70% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(1.25);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(1.25);
+  }
+}
+@keyframes mx-coach-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ============================================================
+   Auth extras — OAuth buttons, method switch, captcha
+   ============================================================ */
+.mx-oauth {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-sm);
+}
+.mx-oauth__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mx-space-sm);
+  height: var(--mx-control-lg);
+  padding: 0 var(--mx-space-lg);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-card);
+  color: var(--mx-text-primary);
+  font-size: var(--mx-font-size-body);
+  font-weight: var(--mx-weight-medium);
+  text-decoration: none;
+  transition:
+    background var(--mx-duration-fast) var(--mx-ease-standard),
+    border-color var(--mx-duration-fast) var(--mx-ease-standard),
+    transform var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-oauth__button:hover {
+  background: var(--mx-bg-hover);
+  border-color: var(--mx-stroke-strong);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.mx-auth__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-md);
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+}
+.mx-auth__divider::before,
+.mx-auth__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--mx-stroke-subtle);
+}
+
+.mx-auth__methods {
+  display: flex;
+  gap: var(--mx-space-xs);
+}
+.mx-auth__method {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mx-space-xs);
+  height: var(--mx-control-sm);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-sm);
+  background: transparent;
+  color: var(--mx-text-secondary);
+  font: inherit;
+  font-size: var(--mx-font-size-caption);
+  cursor: pointer;
+  transition:
+    background var(--mx-duration-fast) var(--mx-ease-standard),
+    color var(--mx-duration-fast) var(--mx-ease-standard),
+    border-color var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-auth__method:hover {
+  color: var(--mx-text-primary);
+}
+.mx-auth__method[aria-selected="true"] {
+  background: var(--mx-accent-soft);
+  border-color: color-mix(in srgb, var(--mx-accent) 40%, transparent);
+  color: var(--mx-accent-text);
+  font-weight: var(--mx-weight-semibold);
+}
+
+.mx-auth__resend {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--mx-accent-text);
+  font: inherit;
+  font-size: var(--mx-font-size-caption);
+  cursor: pointer;
+}
+.mx-auth__resend:hover:not(:disabled) {
+  text-decoration: underline;
+}
+.mx-auth__resend:disabled {
+  color: var(--mx-text-disabled);
+  cursor: default;
+}
+
+/* Turnstile injects a fixed-size iframe; just centre whatever it renders. */
+.mx-turnstile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-xs);
+  align-items: center;
+  min-height: 66px;
+}
+
+/* ============================================================
+   Profile page — uploaders and colour swatches
+   ============================================================ */
+.mx-cardpreview {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.mx-uploader {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-lg);
+  flex-wrap: wrap;
+}
+.mx-uploader__preview {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--mx-seed, var(--mx-accent)) 24%, transparent);
+  color: color-mix(in srgb, var(--mx-seed, var(--mx-accent)) 78%, var(--mx-text-primary));
+  font-size: 26px;
+  font-weight: var(--mx-weight-semibold);
+  text-transform: uppercase;
+}
+.mx-uploader__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mx-uploader__banner {
+  width: 160px;
+  height: 90px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--mx-radius-sm);
+  border: 1px solid var(--mx-stroke-subtle);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--mx-seed, var(--mx-accent)) 34%, transparent),
+    color-mix(in srgb, var(--mx-seed, var(--mx-accent)) 10%, transparent)
+  );
+  background-size: cover;
+  background-position: center;
+  color: var(--mx-text-tertiary);
+}
+.mx-uploader__banner[data-custom="true"] {
+  background-color: var(--mx-bg-subtle);
+  background-repeat: no-repeat;
+}
+.mx-uploader__actions {
+  display: flex;
+  gap: var(--mx-space-sm);
+  flex-wrap: wrap;
+}
+
+.mx-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: var(--mx-space-sm);
+}
+.mx-swatch {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-sm);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-sm);
+  background: var(--mx-bg-card);
+  color: var(--mx-text-secondary);
+  font: inherit;
+  font-size: var(--mx-font-size-caption);
+  cursor: pointer;
+  transition:
+    border-color var(--mx-duration-fast) var(--mx-ease-standard),
+    background var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-swatch:hover:not(:disabled) {
+  border-color: var(--mx-stroke-strong);
+}
+.mx-swatch[data-active="true"] {
+  border-color: var(--mx-accent);
+  box-shadow: 0 0 0 1px var(--mx-accent);
+  color: var(--mx-text-primary);
+  font-weight: var(--mx-weight-semibold);
+}
+.mx-swatch:disabled {
+  cursor: default;
+}
+.mx-swatch__chip {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--mx-seed, var(--mx-accent)),
+    color-mix(in srgb, var(--mx-seed, var(--mx-accent)) 45%, transparent)
+  );
+}
+
+/* ============================================================
+   Responsive — stack the three columns
+   ============================================================ */
+@media (max-width: 1320px) {
+  .mx-room__grid[data-has-sync="true"] {
+    grid-template-columns: 216px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  /* The sync player drops under the stage, spanning past the rail. */
+  .mx-room__grid[data-has-sync="true"] .mx-room__sync {
+    grid-column: 2;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 900px) {
+  .mx-room {
+    padding: var(--mx-space-sm);
+  }
+  .mx-room__grid,
+  .mx-room__grid[data-has-sync="true"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
+  .mx-room__grid[data-has-sync="true"] .mx-room__sync {
+    grid-column: 1;
+  }
+  /* Narrow screens: the rail becomes a horizontal strip of cards above the stage. */
+  .mx-rail__list {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .mx-pcard {
+    width: 190px;
+    flex-shrink: 0;
+  }
+  .mx-room__live {
+    display: block;
+    overflow-y: auto;
+  }
+  .mx-stage[data-fill="true"] {
+    height: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mx-pcard:hover,
+  .mx-oauth__button:hover {
+    transform: none;
+  }
+  .mx-pcard__live-dot,
+  .mx-coach__halo {
+    animation: none;
+  }
+  .mx-context,
+  .mx-coach__bubble {
+    animation: none;
+  }
+}

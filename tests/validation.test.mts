@@ -4,10 +4,14 @@ import { describe, it } from "node:test";
 import { httpUrl } from "../src/lib/livekit.ts";
 import { describeDbError, parseOr400, redactSecrets } from "../src/lib/http.ts";
 import { generateRoomCode } from "../src/lib/room-code.ts";
+import { CARD_ACCENTS } from "../src/lib/identity.ts";
 import {
+  CARD_ACCENT_VALUES,
   createInviteSchema,
   createRoomSchema,
   emailSchema,
+  updateProfileSchema,
+  updateSyncPlayerSchema,
   updateRoomSchema,
   wsUrlSchema,
 } from "../src/lib/validation.ts";
@@ -218,5 +222,40 @@ describe("createInviteSchema", () => {
 
   it("拒绝非法角色", () => {
     assert.throws(() => parseOr400(createInviteSchema, { role: "owner" }));
+  });
+});
+
+describe("updateProfileSchema", () => {
+  it("底色档位和 identity.ts 里的那份必须完全一致", () => {
+    // validation.ts 刻意零项目内依赖，所以那份列表是手抄的。
+    // 抄漏一档的后果是「个人中心能选、但保存时报 400」，界面上看不出原因，所以在这里钉住。
+    assert.deepEqual([...CARD_ACCENT_VALUES], [...CARD_ACCENTS]);
+  });
+
+  it("区分「删掉头像」和「这次不改头像」", () => {
+    // null = 删掉，undefined（不传）= 保持原样。两者混淆会让用户一改显示名就丢头像。
+    assert.equal(parseOr400(updateProfileSchema, { avatar: null }).avatar, null);
+    assert.equal("avatar" in parseOr400(updateProfileSchema, { displayName: "阿伟" }), false);
+  });
+
+  it("拒绝空显示名和不认识的底色", () => {
+    assert.throws(() => parseOr400(updateProfileSchema, { displayName: "   " }));
+    assert.throws(() => parseOr400(updateProfileSchema, { cardAccent: "chartreuse" }));
+  });
+});
+
+describe("updateSyncPlayerSchema", () => {
+  it("空字符串归一成 null（= 清空片源）", () => {
+    assert.equal(parseOr400(updateSyncPlayerSchema, { sourceUrl: "" }).sourceUrl, null);
+    assert.equal(parseOr400(updateSyncPlayerSchema, { sourceUrl: null }).sourceUrl, null);
+  });
+
+  it("只收 http(s) —— 浏览器取不到别的协议", () => {
+    assert.equal(
+      parseOr400(updateSyncPlayerSchema, { sourceUrl: "https://a.example/v.mkv" }).sourceUrl,
+      "https://a.example/v.mkv",
+    );
+    assert.throws(() => parseOr400(updateSyncPlayerSchema, { sourceUrl: "file:///etc/passwd" }));
+    assert.throws(() => parseOr400(updateSyncPlayerSchema, { sourceUrl: "magnet:?xt=urn:btih:x" }));
   });
 });

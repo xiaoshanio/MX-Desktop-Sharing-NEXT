@@ -7,6 +7,7 @@ import "@/styles/base.css";
 import "@/styles/components.css";
 import "@/styles/shell.css";
 import "@/styles/pages.css";
+import "@/styles/room.css";
 
 export const metadata: Metadata = {
   title: "MX 桌面共享",

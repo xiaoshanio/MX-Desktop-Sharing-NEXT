@@ -1,6 +1,7 @@
 import { currentUser } from "@/lib/auth";
 import { ensureBootstrapped } from "@/lib/bootstrap";
 import { json, route } from "@/lib/http";
+import { accentFor } from "@/lib/identity";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,17 @@ export const GET = route(async () => {
 
   return json({
     user: user
-      ? { id: user.id, email: user.email, displayName: user.displayName, role: user.role }
+      ? {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          role: user.role,
+          // 顶栏那个头像要用；没上传过就是 null，前端回退到底色 + 首字母
+          cardAccent: accentFor(user.id, user.cardAccent),
+          avatarAt: user.avatarUpdatedAt?.toISOString() ?? null,
+          /** 首次进房的推流引导弹过了没有 */
+          ingressTipSeen: user.ingressTipSeenAt !== null,
+        }
       : null,
   });
 });

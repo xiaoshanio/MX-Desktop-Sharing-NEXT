@@ -29,8 +29,19 @@ export type IconName =
   | "info"
   | "external"
   | "chevronRight"
+  | "chevronLeft"
   | "signal"
-  | "broadcast";
+  | "broadcast"
+  | "settings"
+  | "film"
+  | "ban"
+  | "upload"
+  | "mail"
+  | "github"
+  | "google"
+  | "image"
+  | "sparkle"
+  | "user";
 
 export interface IconProps {
   name: IconName;
@@ -258,6 +269,104 @@ export function Icon({ name, size = 16 }: IconProps): ReactNode {
       return (
         <svg {...common}>
           <path d="m9 6 6 6-6 6" />
+        </svg>
+      );
+    case "chevronLeft":
+      // The reversed chevron — reads as "back out of here", used by the room's title button.
+      return (
+        <svg {...common}>
+          <path d="m15 6-6 6 6 6" />
+        </svg>
+      );
+    case "settings":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 3.5v2.2M12 18.3v2.2M4.6 7.8l1.9 1.1M17.5 15.1l1.9 1.1M4.6 16.2l1.9-1.1M17.5 8.9l1.9-1.1" />
+        </svg>
+      );
+    case "film":
+      // A frame strip — the sync video player.
+      return (
+        <svg {...common}>
+          <rect x="3" y="4.5" width="18" height="15" rx="2" />
+          <path d="M8 4.5v15M16 4.5v15" />
+          <path d="M3 12h18M3 8.2h5M3 15.8h5M16 8.2h5M16 15.8h5" />
+        </svg>
+      );
+    case "ban":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="m6.4 6.4 11.2 11.2" />
+        </svg>
+      );
+    case "upload":
+      return (
+        <svg {...common}>
+          <path d="M12 16V4.5" />
+          <path d="m8 8.5 4-4 4 4" />
+          <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+        </svg>
+      );
+    case "mail":
+      return (
+        <svg {...common}>
+          <rect x="3" y="5.5" width="18" height="13" rx="2" />
+          <path d="m3.6 7 8.4 5.6L20.4 7" />
+        </svg>
+      );
+    case "github":
+      // Solid path — brand marks read wrong as thin strokes.
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 1.8a10.2 10.2 0 0 0-3.23 19.89c.51.1.7-.22.7-.49v-1.9c-2.84.62-3.44-1.2-3.44-1.2-.46-1.18-1.13-1.5-1.13-1.5-.93-.63.07-.62.07-.62 1.02.07 1.56 1.05 1.56 1.05.91 1.56 2.39 1.11 2.97.85.09-.66.36-1.11.65-1.37-2.27-.26-4.65-1.14-4.65-5.06 0-1.12.4-2.03 1.05-2.75-.11-.26-.46-1.3.1-2.71 0 0 .85-.27 2.79 1.05a9.6 9.6 0 0 1 5.08 0c1.94-1.32 2.79-1.05 2.79-1.05.56 1.41.21 2.45.1 2.71.65.72 1.05 1.63 1.05 2.75 0 3.93-2.39 4.79-4.67 5.05.37.32.7.94.7 1.9v2.82c0 .27.18.6.71.49A10.2 10.2 0 0 0 12 1.8Z" />
+        </svg>
+      );
+    case "google":
+      // Google's four-colour G. Fixed brand colours — it must not inherit currentColor.
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="#4285F4"
+            d="M21.6 12.2c0-.64-.06-1.25-.16-1.84H12v3.49h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.22c1.88-1.73 2.96-4.28 2.96-7.17Z"
+          />
+          <path
+            fill="#34A853"
+            d="M12 22c2.7 0 4.96-.9 6.61-2.43l-3.23-2.5c-.9.6-2.04.96-3.38.96a5.9 5.9 0 0 1-5.54-4.08H3.1v2.58A10 10 0 0 0 12 22Z"
+          />
+          <path
+            fill="#FBBC05"
+            d="M6.46 13.95a5.99 5.99 0 0 1 0-3.83V7.54H3.1a10.01 10.01 0 0 0 0 8.99l3.36-2.58Z"
+          />
+          <path
+            fill="#EA4335"
+            d="M12 5.98c1.47 0 2.79.5 3.83 1.5l2.86-2.86A9.58 9.58 0 0 0 12 2 10 10 0 0 0 3.1 7.54l3.36 2.58A5.9 5.9 0 0 1 12 5.98Z"
+          />
+        </svg>
+      );
+    case "image":
+      return (
+        <svg {...common}>
+          <rect x="3" y="4.5" width="18" height="15" rx="2" />
+          <circle cx="8.6" cy="9.8" r="1.6" />
+          <path d="m4 17 4.7-4.2a1.8 1.8 0 0 1 2.4 0L16 17" />
+          <path d="m13.6 14.6 1.7-1.5a1.8 1.8 0 0 1 2.4 0L20 15.2" />
+        </svg>
+      );
+    case "sparkle":
+      // Marks the guided-tour callout.
+      return (
+        <svg {...common}>
+          <path d="M12 3.5 13.6 9l5.4 1.6-5.4 1.6L12 17.7l-1.6-5.5L5 10.6 10.4 9Z" />
+          <path d="M18.4 16.2l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6Z" />
+        </svg>
+      );
+    case "user":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="8.4" r="3.6" />
+          <path d="M4.8 20.5v-.8a7.2 7.2 0 0 1 14.4 0v.8" />
         </svg>
       );
     case "signal":

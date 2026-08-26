@@ -3,6 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   livekitNodes,
+  roomBans,
   roomMembers,
   rooms,
   type LivekitNode,
@@ -64,6 +65,28 @@ export async function requireRoomOwner(code: string, user: User): Promise<RoomCo
   const isOwner = ctx.room.ownerId === user.id || ctx.membership?.role === "owner";
   if (!isOwner && user.role !== "admin") throw forbidden("只有房主可以做这个操作");
   return ctx;
+}
+
+/**
+ * 这个人是不是被这个房间拉黑了。
+ *
+ * 黑名单和成员表是两道独立的门：删成员行只能把人踢到门外，
+ * 而他手上那条邀请链接还能让他自己走回来。所以每一条「往房间里加人」的路径
+ * （加成员、用邀请链接入房）都必须先过这一关。
+ */
+export async function isBanned(roomId: string, userId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ userId: roomBans.userId })
+    .from(roomBans)
+    .where(and(eq(roomBans.roomId, roomId), eq(roomBans.userId, userId)))
+    .limit(1);
+  return row !== undefined;
+}
+
+export async function assertNotBanned(roomId: string, userId: string): Promise<void> {
+  if (await isBanned(roomId, userId)) {
+    throw forbidden("这个用户已被移入该房间的黑名单，需要先解除拉黑。");
+  }
 }
 
 export function canPublish(ctx: RoomContext, user: User): boolean {

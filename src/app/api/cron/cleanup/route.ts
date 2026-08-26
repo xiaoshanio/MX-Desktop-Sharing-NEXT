@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { lt } from "drizzle-orm";
 
 import { db } from "@/db";
-import { loginAttempts, sessions, webhookEvents } from "@/db/schema";
+import { emailCodes, loginAttempts, oauthStates, sessions, webhookEvents } from "@/db/schema";
 import { forbidden, json, route } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -25,7 +25,7 @@ function assertCron(req: Request): void {
   if (a.length !== b.length || !timingSafeEqual(a, b)) throw forbidden("凭据不正确");
 }
 
-/** 清理过期会话、旧的登录失败记录、旧的 webhook 去重记录。 */
+/** 清理过期会话、旧的登录失败记录、旧的 webhook 去重记录、用完的验证码和 OAuth state。 */
 export const GET = route(async (req) => {
   assertCron(req);
   const now = new Date();
@@ -47,12 +47,32 @@ export const GET = route(async (req) => {
     .where(lt(webhookEvents.receivedAt, new Date(now.getTime() - 7 * 24 * 3600_000)))
     .returning({ id: webhookEvents.id });
 
+  /**
+   * 验证码本身 10 分钟就过期，留 1 天是为了「这个邮箱一小时内要了几次码」那条频次统计
+   * （见 lib/email-codes.ts）还能查到历史行。再久就没用了。
+   */
+  const staleCodes = await db
+    .delete(emailCodes)
+    .where(lt(emailCodes.createdAt, new Date(now.getTime() - 24 * 3600_000)))
+    .returning({ id: emailCodes.id });
+
+  /**
+   * OAuth state 是一次性的：正常流程里回调那一步就被 delete 掉了。留在库里的都是
+   * 「点了第三方登录又中途关掉」的残留，过期即可删。
+   */
+  const staleStates = await db
+    .delete(oauthStates)
+    .where(lt(oauthStates.expiresAt, now))
+    .returning({ id: oauthStates.id });
+
   return json({
     ok: true,
     deleted: {
       sessions: expiredSessions.length,
       loginAttempts: staleAttempts.length,
       webhookEvents: staleEvents.length,
+      emailCodes: staleCodes.length,
+      oauthStates: staleStates.length,
     },
   });
 });
