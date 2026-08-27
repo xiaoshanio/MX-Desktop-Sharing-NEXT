@@ -36,6 +36,7 @@ import {
   Loading,
   Modal,
   Select,
+  Slider,
   Switch,
   Tabs,
   TextField,
@@ -911,6 +912,13 @@ function ShareControls() {
   const room = useRoomContext();
   const [busy, setBusy] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // 共享参数状态
+  const [resolution, setResolution] = useState(1080);
+  const [frameRate, setFrameRate] = useState(30);
+  const [bitrate, setBitrate] = useState(3000);
+  const [codec, setCodec] = useState<"auto" | "vp8" | "vp9" | "h264" | "av1">("auto");
 
   useEffect(() => {
     const sync = () => setSharing(room.localParticipant.isScreenShareEnabled);
@@ -923,33 +931,203 @@ function ShareControls() {
     };
   }, [room]);
 
+  const resolutionPresets = [
+    { value: 720, label: "1280×720 (HD)" },
+    { value: 1080, label: "1920×1080 (Full HD)" },
+    { value: 1440, label: "2560×1440 (2K)" },
+    { value: 2160, label: "3840×2160 (4K)" },
+  ];
+
+  const currentResolution = resolutionPresets.find((p) => p.value === resolution);
+  const [width, height] =
+    resolution === 720
+      ? [1280, 720]
+      : resolution === 1080
+        ? [1920, 1080]
+        : resolution === 1440
+          ? [2560, 1440]
+          : [3840, 2160];
+
   async function toggle() {
     setBusy(true);
     try {
       await room.localParticipant.setScreenShareEnabled(!sharing, {
         audio: true,
-        // 桌面共享要清晰的文字，优先分辨率而非帧率
-        resolution: { width: 1920, height: 1080, frameRate: 15 },
+        resolution: { width, height, frameRate },
       });
+
+      // 如果指定了编码器，尝试应用（需要浏览器支持）
+      if (!sharing && codec !== "auto") {
+        const tracks = room.localParticipant.videoTrackPublications;
+        for (const [, pub] of tracks) {
+          if (pub.source === Track.Source.ScreenShare && pub.track) {
+            const sender = await (pub.track as any).sender;
+            if (sender) {
+              const params = sender.getParameters();
+              if (params.codecs) {
+                const preferredCodec = params.codecs.find(
+                  (c: { mimeType: string }) =>
+                    c.mimeType.toLowerCase().includes(codec)
+                );
+                if (preferredCodec) {
+                  params.codecs = [preferredCodec, ...params.codecs.filter((c: any) => c !== preferredCodec)];
+                  await sender.setParameters(params);
+                }
+              }
+              // 应用码率设置
+              if (params.encodings && params.encodings.length > 0) {
+                params.encodings[0].maxBitrate = bitrate * 1000;
+                await sender.setParameters(params);
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
-      // 用户在系统的「选择要共享的窗口」里点了取消也会走到这里 —— 那是正常操作，
-      // isBenignError 会把它认出来，不弹提示
       if (!isBenignError(error)) toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
   }
 
+  function applyPreset(preset: "presentation" | "balanced" | "smooth" | "hq") {
+    switch (preset) {
+      case "presentation":
+        setResolution(1080);
+        setFrameRate(15);
+        setBitrate(2500);
+        setCodec("auto");
+        break;
+      case "balanced":
+        setResolution(1080);
+        setFrameRate(30);
+        setBitrate(3000);
+        setCodec("auto");
+        break;
+      case "smooth":
+        setResolution(720);
+        setFrameRate(60);
+        setBitrate(4000);
+        setCodec("auto");
+        break;
+      case "hq":
+        setResolution(1440);
+        setFrameRate(30);
+        setBitrate(5000);
+        setCodec("auto");
+        break;
+    }
+  }
+
   return (
-    <Button
-      size="sm"
-      variant={sharing ? "danger" : "primary"}
-      disabled={busy}
-      onClick={() => void toggle()}
-    >
-      <Icon name={sharing ? "stop" : "play"} size={13} />
-      {busy ? t("room.share.busy") : sharing ? t("room.share.stop") : t("room.share.start")}
-    </Button>
+    <>
+      <Button
+        size="sm"
+        variant={sharing ? "danger" : "primary"}
+        disabled={busy}
+        onClick={() => void toggle()}
+      >
+        <Icon name={sharing ? "stop" : "play"} size={13} />
+        {busy ? t("room.share.busy") : sharing ? t("room.share.stop") : t("room.share.start")}
+      </Button>
+      {!sharing && (
+        <IconButton
+          size="sm"
+          label={t("room.share.settings")}
+          onClick={() => setSettingsOpen(true)}
+        >
+          <Icon name="settings" size={14} />
+        </IconButton>
+      )}
+
+      <Modal
+        open={settingsOpen}
+        size="md"
+        title={t("room.share.settings")}
+        onClose={() => setSettingsOpen(false)}
+      >
+        <Card title={t("room.share.presets")}>
+          <div className="mx-share-presets">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => applyPreset("presentation")}
+            >
+              {t("room.share.presetPresentation")}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => applyPreset("balanced")}
+            >
+              {t("room.share.presetBalanced")}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => applyPreset("smooth")}
+            >
+              {t("room.share.presetSmooth")}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => applyPreset("hq")}
+            >
+              {t("room.share.presetHQ")}
+            </Button>
+          </div>
+        </Card>
+
+        <Card title={t("room.share.quality")}>
+          <Slider
+            label={t("room.share.resolution")}
+            showValue
+            formatValue={(v) => resolutionPresets.find((p) => p.value === v)?.label ?? `${v}p`}
+            min={720}
+            max={2160}
+            step={360}
+            value={resolution}
+            onChange={(e) => setResolution(Number(e.target.value))}
+          />
+
+          <Slider
+            label={t("room.share.frameRate")}
+            showValue
+            unit=" fps"
+            min={15}
+            max={60}
+            step={15}
+            value={frameRate}
+            onChange={(e) => setFrameRate(Number(e.target.value))}
+          />
+
+          <Slider
+            label={t("room.share.bitrate")}
+            showValue
+            unit=" Mbps"
+            min={1}
+            max={10}
+            step={0.5}
+            value={bitrate / 1000}
+            onChange={(e) => setBitrate(Number(e.target.value) * 1000)}
+          />
+
+          <Select
+            label={t("room.share.codec")}
+            value={codec}
+            onChange={(e) => setCodec(e.target.value as any)}
+            options={[
+              { value: "auto", label: t("room.share.codecAuto") },
+              { value: "vp8", label: t("room.share.codecVP8") },
+              { value: "vp9", label: t("room.share.codecVP9") },
+              { value: "h264", label: t("room.share.codecH264") },
+              { value: "av1", label: t("room.share.codecAV1") },
+            ]}
+          />
+        </Card>
+      </Modal>
+    </>
   );
 }
 

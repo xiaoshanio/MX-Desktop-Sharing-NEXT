@@ -257,6 +257,90 @@ textarea.mx-input {
   border-color: var(--mx-accent);
 }
 .mx-checkbox:checked,
+
+/* ============================================================
+   Slider (range input)
+   ============================================================ */
+.mx-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--mx-bg-subtle);
+  outline: none;
+  transition: background var(--mx-duration-fast) var(--mx-ease-standard);
+}
+
+.mx-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--mx-accent);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition:
+    background var(--mx-duration-fast) var(--mx-ease-standard),
+    transform var(--mx-duration-fast) var(--mx-ease-standard);
+}
+
+.mx-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: var(--mx-accent);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition:
+    background var(--mx-duration-fast) var(--mx-ease-standard),
+    transform var(--mx-duration-fast) var(--mx-ease-standard);
+}
+
+.mx-slider:hover::-webkit-slider-thumb {
+  background: var(--mx-accent-hover);
+  transform: scale(1.1);
+}
+
+.mx-slider:hover::-moz-range-thumb {
+  background: var(--mx-accent-hover);
+  transform: scale(1.1);
+}
+
+.mx-slider:active::-webkit-slider-thumb {
+  transform: scale(1.05);
+}
+
+.mx-slider:active::-moz-range-thumb {
+  transform: scale(1.05);
+}
+
+.mx-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mx-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+}
+
+.mx-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+}
+
+.mx-slider__value {
+  margin-left: auto;
+  font-weight: var(--mx-weight-medium);
+  color: var(--mx-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Checkbox / switch (continued)
+   ============================================================ */
+.mx-checkbox:checked,
 .mx-checkbox:indeterminate {
   border-color: var(--mx-accent);
   background: var(--mx-accent);
