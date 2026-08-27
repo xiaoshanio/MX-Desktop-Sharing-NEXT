@@ -63,6 +63,8 @@ export interface AppShellProps {
   wide?: boolean;
   /** Drops the main scroller's padding — the room workspace manages its own gutters. */
   flush?: boolean;
+  /** Optional page action shown at the top of the sidebar. */
+  sidebarAction?: ReactNode;
   /**
    * Replaces `children` with a centred spinner until the page's first load resolves.
    *
@@ -93,6 +95,7 @@ export function AppShell({
   status,
   wide = false,
   flush = false,
+  sidebarAction,
   loading = false,
   loadingLabel,
   children,
@@ -273,6 +276,7 @@ export function AppShell({
               </Link>
             );
           })}
+          {sidebarAction ? <div className="mx-sidebar__action">{sidebarAction}</div> : null}
           <span className="mx-sidebar__spacer" />
           <div className="mx-sidebar__footer">
             <IconButton

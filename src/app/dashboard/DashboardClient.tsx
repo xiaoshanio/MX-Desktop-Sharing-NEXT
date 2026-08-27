@@ -73,6 +73,16 @@ export function DashboardClient({ user }: { user: ShellUser }) {
       loading={loading}
       loadingLabel={t("dash.loading")}
       heading={<span>{t("dash.heading")}</span>}
+      sidebarAction={
+        <button
+          type="button"
+          className="mx-sidebar__create"
+          onClick={() => setCreating(true)}
+        >
+          <Icon name="plus" size={16} />
+          <span>{t("dash.create")}</span>
+        </button>
+      }
       status={
         <>
           <span className="mx-statusbar__item">
@@ -98,19 +108,12 @@ export function DashboardClient({ user }: { user: ShellUser }) {
         <RoomFinder
           rooms={rooms}
           onEnter={(code) => router.push(`/room/${code}`)}
-          onCreate={() => setCreating(true)}
         />
 
         {rooms.length === 0 ? (
           <EmptyState
             icon="rooms"
             title={t("dash.empty.title")}
-            actions={
-              <Button variant="primary" onClick={() => setCreating(true)}>
-                <Icon name="plus" size={16} />
-                {t("dash.empty.action")}
-              </Button>
-            }
           >
             {t("dash.empty.body")}
           </EmptyState>
@@ -149,11 +152,9 @@ export function DashboardClient({ user }: { user: ShellUser }) {
 function RoomFinder({
   rooms,
   onEnter,
-  onCreate,
 }: {
   rooms: RoomRow[];
   onEnter: (code: string) => void;
-  onCreate: () => void;
 }) {
   const t = useT();
   const [query, setQuery] = useState("");
@@ -348,10 +349,6 @@ function RoomFinder({
         )}
       </div>
 
-      <Button variant="primary" size="sm" onClick={onCreate}>
-        <Icon name="plus" size={14} />
-        {t("dash.create")}
-      </Button>
     </div>
   );
 }

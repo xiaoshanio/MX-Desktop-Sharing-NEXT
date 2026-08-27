@@ -126,13 +126,16 @@ export function ParticipantRail({
         };
       })
       .sort((a, b) => {
-        // 有画面的排前面（那是你现在最可能想点的），然后自己，最后按名字
-        if (a.hasVideo !== b.hasVideo) return a.hasVideo ? -1 : 1;
+        // 本人固定在在线列表最上方，其他在线成员再按画面和名称排列。
         if (a.isLocal !== b.isLocal) return a.isLocal ? -1 : 1;
+        if (a.hasVideo !== b.hasVideo) return a.hasVideo ? -1 : 1;
         // 按当前语言的排序规则比 —— 中文按拼音，法语忽略变音符号，等等
         return a.displayName.localeCompare(b.displayName, locale);
       });
   }, [participants, memberById, publishing, sharingScreen, locale]);
+
+  const selfEntry = entries.find((entry) => entry.isLocal) ?? null;
+  const otherEntries = entries.filter((entry) => !entry.isLocal);
 
   return (
     <aside className="mx-rail" aria-label={t("rail.label")}>
@@ -146,11 +149,22 @@ export function ParticipantRail({
         )}
       </header>
 
+      {selfEntry && (
+        <div className="mx-rail__self">
+          <RailCard
+            entry={selfEntry}
+            active={selected === selfEntry.identity}
+            onSelect={() => onSelect(selected === selfEntry.identity ? null : selfEntry.identity)}
+            onContextMenu={() => false}
+          />
+        </div>
+      )}
+
       <div className="mx-rail__list">
-        {entries.length === 0 ? (
+        {otherEntries.length === 0 && !selfEntry ? (
           <p className="mx-rail__empty">{t("rail.empty")}</p>
         ) : (
-          entries.map((entry) => (
+          otherEntries.map((entry) => (
             <RailCard
               key={entry.identity}
               entry={entry}

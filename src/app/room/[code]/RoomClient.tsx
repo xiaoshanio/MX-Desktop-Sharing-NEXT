@@ -117,6 +117,14 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
     void loadSyncPlayers();
   }, [load, loadMembers, loadSyncPlayers]);
 
+  useEffect(() => {
+    setActiveRoom((current) =>
+      current && syncPlayers.some((player) => player.id === current)
+        ? current
+        : (syncPlayers[0]?.id ?? null),
+    );
+  }, [syncPlayers]);
+
   /** 首次进房弹一次推流地址引导。看过之后 users.ingress_tip_seen_at 就落了。 */
   useEffect(() => {
     if (!detail || user.ingressTipSeen) return;
@@ -580,13 +588,15 @@ function RoomWorkspace({
   const syncActive = participants.length >= 2;
 
   // 当前激活的房间对象
-  const currentRoom = activeRoom ? syncPlayers.find((p) => p.id === activeRoom) : null;
+  const currentRoom = activeRoom
+    ? (syncPlayers.find((p) => p.id === activeRoom) ?? null)
+    : null;
 
   return (
     <div className="mx-room__grid">
-      {/* 左侧：房间列表 + 成员栏 */}
+      {/* 左侧：同步播放器列表 + 成员栏 */}
       <div className="mx-room__side">
-        {/* 房间列表 */}
+        {/* 同步播放器列表。创建按钮只创建播放器，不再伪装成创建房间。 */}
         <aside className="mx-room__rooms">
           <div className="mx-room__rooms-header">
             <h3 className="mx-room__rooms-title">{t("channel.rooms.title")}</h3>
@@ -595,7 +605,7 @@ function RoomWorkspace({
                 type="button"
                 className="mx-room__rooms-add"
                 onClick={onCreateRoom}
-                title={t("channel.rooms.create")}
+                title={t("room.action.newPlayer")}
               >
                 <Icon name="plus" size={16} />
               </button>
@@ -622,7 +632,7 @@ function RoomWorkspace({
               {canManage && (
                 <Button size="sm" variant="subtle" onClick={onCreateRoom}>
                   <Icon name="plus" size={14} />
-                  {t("channel.rooms.create")}
+                  {t("room.action.newPlayer")}
                 </Button>
               )}
             </div>
@@ -640,20 +650,6 @@ function RoomWorkspace({
           onKick={onKick}
         />
 
-        {/* 当前房间的播放器控制面板 */}
-        {currentRoom && (
-          <div className="mx-room__sync">
-            <SyncPlayerPanel
-              key={currentRoom.id}
-              code={code}
-              player={currentRoom}
-              canControl={currentRoom.isMine || canManage}
-              syncActive={syncActive}
-              onClose={() => onCloseSyncPlayer(currentRoom.id)}
-              onSourceChange={(sourceUrl) => onSyncSourceChange(currentRoom.id, sourceUrl)}
-            />
-          </div>
-        )}
       </div>
 
       {/* 右侧：大屏幕播放器 */}
@@ -664,6 +660,10 @@ function RoomWorkspace({
         canManage={canManage}
         stageMode={stageMode}
         onStageModeChange={setStageMode}
+        currentRoom={currentRoom}
+        syncActive={syncActive}
+        onCloseSyncPlayer={onCloseSyncPlayer}
+        onSyncSourceChange={onSyncSourceChange}
         onQuickPlay={(url) => {
           if (currentRoom) {
             onSyncSourceChange(currentRoom.id, url);
@@ -697,6 +697,10 @@ function Stage({
   canManage,
   stageMode,
   onStageModeChange,
+  currentRoom,
+  syncActive,
+  onCloseSyncPlayer,
+  onSyncSourceChange,
   onQuickPlay,
 }: {
   selected: string | null;
@@ -705,6 +709,10 @@ function Stage({
   canManage: boolean;
   stageMode: "screen" | "player";
   onStageModeChange: (mode: "screen" | "player") => void;
+  currentRoom: SyncPlayerRow | null;
+  syncActive: boolean;
+  onCloseSyncPlayer: (id: string) => void;
+  onSyncSourceChange: (id: string, sourceUrl: string | null) => void;
   onQuickPlay: (url: string) => void;
 }) {
   const t = useT();
@@ -754,36 +762,39 @@ function Stage({
   const live = tracks.length > 0;
 
   return (
-    <div className="mx-stage" data-fill="true">
+    <div className="mx-stage" data-fill="true" data-mode={stageMode}>
       <div className="mx-stage__bar">
         <span className="mx-stage__live" data-live={live}>
           <span className="mx-stage__live-dot" />
           {live ? t("room.stage.live") : t("room.stage.noSignal")}
         </span>
-        <span>{t("room.stage.inRoom", { count: participants.length })}</span>
+        <div className="mx-stage__presence">
+          <span>{t("room.stage.inRoom", { count: participants.length })}</span>
+
+          <div className="mx-stage__mode-switch" role="group" aria-label={t("room.stage.modePlayer")}>
+            <button
+              type="button"
+              className={`mx-stage__mode-btn ${stageMode === "screen" ? "active" : ""}`}
+              aria-pressed={stageMode === "screen"}
+              onClick={() => onStageModeChange("screen")}
+            >
+              <Icon name="monitor" size={14} />
+              {t("room.stage.modeScreen")}
+            </button>
+            <button
+              type="button"
+              className={`mx-stage__mode-btn ${stageMode === "player" ? "active" : ""}`}
+              aria-pressed={stageMode === "player"}
+              onClick={() => onStageModeChange("player")}
+            >
+              <Icon name="film" size={14} />
+              {t("room.stage.modePlayer")}
+            </button>
+          </div>
+        </div>
         {selected && <Badge tone="info">{t("room.stage.onlySelected")}</Badge>}
 
-        {/* 模式切换按钮 */}
-        <div className="mx-stage__mode-switch">
-          <button
-            type="button"
-            className={`mx-stage__mode-btn ${stageMode === "screen" ? "active" : ""}`}
-            onClick={() => onStageModeChange("screen")}
-          >
-            <Icon name="monitor" size={14} />
-            {t("room.stage.modeScreen")}
-          </button>
-          <button
-            type="button"
-            className={`mx-stage__mode-btn ${stageMode === "player" ? "active" : ""}`}
-            onClick={() => onStageModeChange("player")}
-          >
-            <Icon name="film" size={14} />
-            {t("room.stage.modePlayer")}
-          </button>
-        </div>
-
-        {stageMode === "player" && canManage && (
+        {stageMode === "player" && currentRoom && canManage && (
           <form
             className="mx-stage__url"
             onSubmit={(event) => {
@@ -874,13 +885,26 @@ function Stage({
             {selected ? t("room.stage.idleSelectedBody") : t("room.stage.idleBody")}
           </span>
         </div>
-      ) : stageMode === "player" ? (
-        <div className="mx-stage__player-placeholder">
-          <div className="mx-stage__player-hint">
-            <Icon name="film" size={48} />
-            <p>{t("room.stage.urlPlaceholder")}</p>
+        ) : stageMode === "player" ? (
+        currentRoom ? (
+          <SyncPlayerPanel
+            key={currentRoom.id}
+            code={code}
+            player={currentRoom}
+            canControl={currentRoom.isMine || canManage}
+            hideSourceForm
+            syncActive={syncActive}
+            onClose={() => onCloseSyncPlayer(currentRoom.id)}
+            onSourceChange={(sourceUrl) => onSyncSourceChange(currentRoom.id, sourceUrl)}
+          />
+        ) : (
+          <div className="mx-stage__player-placeholder">
+            <div className="mx-stage__player-hint">
+              <Icon name="film" size={48} />
+              <p>{t("room.stage.urlPlaceholder")}</p>
+            </div>
           </div>
-        </div>
+        )
       ) : null}
     </div>
   );

@@ -461,7 +461,7 @@ const zhCN: Messages = {
   "room.closedTitle": "频道已关闭",
   "room.closedBody": "无法再签发 token，画面和推流都不可用。",
 
-  "channel.rooms.title": "频道房间",
+  "channel.rooms.title": "同步播放器",
   "channel.rooms.create": "创建房间",
   "channel.rooms.emptyTitle": "还没有房间",
   "channel.rooms.emptyBody": "频道管理员可以创建房间，每个房间有独立的同步播放器",

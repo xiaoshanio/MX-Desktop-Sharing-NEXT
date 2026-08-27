@@ -471,6 +471,37 @@ html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
   font-weight: var(--mx-weight-regular);
 }
 
+.mx-sidebar__action {
+  margin-top: var(--mx-space-sm);
+  padding: 0 var(--mx-space-xs);
+}
+.mx-sidebar__create {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mx-space-sm);
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--mx-space-sm);
+  border: 1px solid color-mix(in srgb, var(--mx-accent) 38%, var(--mx-stroke-default));
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-accent-soft);
+  color: var(--mx-accent-text);
+  font: inherit;
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
+  cursor: pointer;
+  transition:
+    background var(--mx-duration-fast) var(--mx-ease-standard),
+    border-color var(--mx-duration-fast) var(--mx-ease-standard),
+    transform var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-sidebar__create:hover {
+  background: var(--mx-bg-selected);
+  border-color: var(--mx-accent);
+  transform: translateY(-1px);
+}
+
 [data-sidebar="collapsed"] .mx-app .mx-sidebar__item {
   width: 38px;
   align-self: center;
@@ -481,6 +512,16 @@ html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
 }
 [data-sidebar="collapsed"] .mx-app .mx-sidebar__item-label,
 [data-sidebar="collapsed"] .mx-app .mx-sidebar__item-badge {
+  display: none;
+}
+[data-sidebar="collapsed"] .mx-app .mx-sidebar__action {
+  padding-inline: 0;
+}
+[data-sidebar="collapsed"] .mx-app .mx-sidebar__create {
+  width: 38px;
+  padding: 0;
+}
+[data-sidebar="collapsed"] .mx-app .mx-sidebar__create span {
   display: none;
 }
 

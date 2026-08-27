@@ -117,6 +117,8 @@ export interface SyncPlayerPanelProps {
   player: SyncPlayerRow;
   /** 我能不能换片源 / 关掉它（创建者或房主） */
   canControl: boolean;
+  /** The room stage can provide the source input in its header. */
+  hideSourceForm?: boolean;
   /**
    * 房里有没有第二个人。false 时不发心跳、不探时钟、不纠偏。
    *
@@ -133,6 +135,7 @@ export function SyncPlayerPanel({
   code,
   player,
   canControl,
+  hideSourceForm = false,
   syncActive,
   onClose,
   onSourceChange,
@@ -580,7 +583,8 @@ export function SyncPlayerPanel({
         </div>
       )}
 
-      <footer className="mx-syncplayer__foot">
+      {(!canControl || !hideSourceForm) && (
+        <footer className="mx-syncplayer__foot">
         {canControl ? (
           <form className="mx-syncplayer__form" onSubmit={saveSource}>
             <div className="mx-syncplayer__input">
@@ -615,7 +619,8 @@ export function SyncPlayerPanel({
             )}
           </div>
         )}
-      </footer>
+        </footer>
+      )}
     </section>
   );
 }
