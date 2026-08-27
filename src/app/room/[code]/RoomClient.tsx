@@ -723,8 +723,6 @@ function Stage({
     : everyTrack;
   const live = tracks.length > 0;
 
-  const stageMode = currentRoom ? "player" : "screen";
-
   return (
     <div className="mx-stage" data-fill="true" data-mode={stageMode}>
       <div className="mx-stage__bar">
