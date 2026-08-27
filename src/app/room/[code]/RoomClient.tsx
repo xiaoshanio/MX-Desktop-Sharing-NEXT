@@ -56,6 +56,7 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [syncPlayers, setSyncPlayers] = useState<SyncPlayerRow[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [activeRoom, setActiveRoom] = useState<string | null>(null);
 
   /** 哪个弹窗开着。分享和添加成员是同一个弹窗的两个标签。 */
   const [peopleTab, setPeopleTab] = useState<PeopleTab | null>(null);
@@ -383,6 +384,9 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
               syncPlayers={syncPlayers}
               onCloseSyncPlayer={(id) => void closeSyncPlayer(id)}
               onSyncSourceChange={patchSyncSource}
+              activeRoom={activeRoom}
+              onActiveRoomChange={setActiveRoom}
+              onCreateRoom={() => setCreatingPlayer(true)}
             />
             <RoomAudioRenderer />
           </LiveKitRoom>
@@ -541,6 +545,9 @@ function RoomWorkspace({
   syncPlayers,
   onCloseSyncPlayer,
   onSyncSourceChange,
+  activeRoom,
+  onActiveRoomChange,
+  onCreateRoom,
 }: {
   code: string;
   detail: RoomDetail;
@@ -554,8 +561,12 @@ function RoomWorkspace({
   syncPlayers: SyncPlayerRow[];
   onCloseSyncPlayer: (id: string) => void;
   onSyncSourceChange: (id: string, sourceUrl: string | null) => void;
+  activeRoom: string | null;
+  onActiveRoomChange: (id: string | null) => void;
+  onCreateRoom: () => void;
 }) {
   const participants = useParticipants();
+  const t = useT();
 
   /**
    * 只有房里不止一个人时才开始对时。
@@ -566,9 +577,86 @@ function RoomWorkspace({
    */
   const syncActive = participants.length >= 2;
 
+  // 当前激活的房间对象
+  const currentRoom = activeRoom ? syncPlayers.find((p) => p.id === activeRoom) : null;
+
+  // 如果没有选中房间，显示房间列表
+  if (!activeRoom) {
+    return (
+      <div className="mx-room-list">
+        <header className="mx-room-list__header">
+          <h2 className="mx-room-list__title">{t("channel.rooms.title")}</h2>
+          {canManage && (
+            <Button size="sm" variant="primary" onClick={onCreateRoom}>
+              <Icon name="plus" size={14} />
+              {t("channel.rooms.create")}
+            </Button>
+          )}
+        </header>
+
+        {syncPlayers.length === 0 ? (
+          <EmptyState
+            icon="film"
+            title={t("channel.rooms.emptyTitle")}
+            actions={
+              canManage ? (
+                <Button variant="primary" onClick={onCreateRoom}>
+                  <Icon name="plus" size={16} />
+                  {t("channel.rooms.create")}
+                </Button>
+              ) : undefined
+            }
+          >
+            {t("channel.rooms.emptyBody")}
+          </EmptyState>
+        ) : (
+          <div className="mx-room-list__grid">
+            {syncPlayers.map((player) => (
+              <button
+                key={player.id}
+                type="button"
+                className="mx-room-card"
+                onClick={() => onActiveRoomChange(player.id)}
+              >
+                <div className="mx-room-card__icon">
+                  <Icon name="film" size={24} />
+                </div>
+                <h3 className="mx-room-card__name">{player.name}</h3>
+                <p className="mx-room-card__meta">
+                  {t("channel.rooms.creator", { name: player.creatorName })}
+                </p>
+                {player.sourceUrl && (
+                  <p className="mx-room-card__source">{player.sourceUrl}</p>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 选中了房间，显示工作区
   return (
     <div className="mx-room__grid">
       <div className="mx-room__side">
+        <aside className="mx-room__nav">
+          <button
+            type="button"
+            className="mx-room__back"
+            onClick={() => onActiveRoomChange(null)}
+          >
+            <Icon name="chevronLeft" size={16} />
+            {t("channel.rooms.backToList")}
+          </button>
+          {currentRoom && (
+            <div className="mx-room__current">
+              <Icon name="film" size={14} />
+              <span>{currentRoom.name}</span>
+            </div>
+          )}
+        </aside>
+
         <ParticipantRail
           selected={selected}
           onSelect={onSelect}
@@ -579,24 +667,39 @@ function RoomWorkspace({
           onKick={onKick}
         />
 
-        {syncPlayers.length > 0 && (
+        {currentRoom && (
           <div className="mx-room__sync">
-            {syncPlayers.map((player) => (
-              <SyncPlayerPanel
-                key={player.id}
-                code={code}
-                player={player}
-                canControl={player.isMine || canManage}
-                syncActive={syncActive}
-                onClose={() => onCloseSyncPlayer(player.id)}
-                onSourceChange={(sourceUrl) => onSyncSourceChange(player.id, sourceUrl)}
-              />
-            ))}
+            <SyncPlayerPanel
+              key={currentRoom.id}
+              code={code}
+              player={currentRoom}
+              canControl={currentRoom.isMine || canManage}
+              syncActive={syncActive}
+              onClose={() => onCloseSyncPlayer(currentRoom.id)}
+              onSourceChange={(sourceUrl) => onSyncSourceChange(currentRoom.id, sourceUrl)}
+            />
           </div>
         )}
       </div>
 
-      <Stage selected={selected} viewerCanPublish={detail.viewerCanPublish} />
+      <Stage
+        selected={selected}
+        viewerCanPublish={detail.viewerCanPublish}
+        code={code}
+        canManage={canManage}
+        onQuickPlay={(url) => {
+          if (currentRoom) {
+            onSyncSourceChange(currentRoom.id, url);
+            // Persist to server
+            void api(`/api/rooms/${code}/sync-players/${currentRoom.id}`, {
+              method: "PATCH",
+              json: { sourceUrl: url },
+            }).catch(() => {
+              /* toast is handled by the panel */
+            });
+          }
+        }}
+      />
     </div>
   );
 }
@@ -613,9 +716,15 @@ function RoomWorkspace({
 function Stage({
   selected,
   viewerCanPublish,
+  code,
+  canManage,
+  onQuickPlay,
 }: {
   selected: string | null;
   viewerCanPublish: boolean;
+  code: string;
+  canManage: boolean;
+  onQuickPlay: (url: string) => void;
 }) {
   const t = useT();
   const room = useRoomContext();
@@ -645,6 +754,8 @@ function Stage({
     () => room.localParticipant.permissions?.canPublish ?? false,
   );
 
+  const [quickUrl, setQuickUrl] = useState("");
+
   useEffect(() => {
     const sync = () => setCanPublish(room.localParticipant.permissions?.canPublish ?? false);
     sync();
@@ -670,6 +781,33 @@ function Stage({
         </span>
         <span>{t("room.stage.inRoom", { count: participants.length })}</span>
         {selected && <Badge tone="info">{t("room.stage.onlySelected")}</Badge>}
+
+        {canManage && (
+          <form
+            className="mx-stage__url"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const trimmed = quickUrl.trim();
+              if (trimmed) {
+                onQuickPlay(trimmed);
+                setQuickUrl("");
+              }
+            }}
+          >
+            <input
+              type="url"
+              className="mx-stage__url-input"
+              placeholder={t("room.stage.urlPlaceholder")}
+              value={quickUrl}
+              onChange={(event) => setQuickUrl(event.target.value)}
+            />
+            <Button type="submit" size="sm" variant="primary" disabled={!quickUrl.trim()}>
+              <Icon name="play" size={13} />
+              {t("room.stage.urlPlay")}
+            </Button>
+          </form>
+        )}
+
         <span className="mx-stage__spacer" />
         {canPublish ? (
           <ShareControls />
@@ -703,6 +841,23 @@ function Stage({
                     ? t("room.stage.tagScreen")
                     : t("room.stage.tagCamera")}
               </span>
+              <button
+                type="button"
+                className="mx-stage__fullscreen"
+                aria-label={t("room.stage.fullscreen")}
+                onClick={(event) => {
+                  const tile = (event.currentTarget as HTMLElement).closest(".mx-stage__tile");
+                  if (tile) {
+                    if (document.fullscreenElement) {
+                      void document.exitFullscreen();
+                    } else {
+                      void tile.requestFullscreen();
+                    }
+                  }
+                }}
+              >
+                <Icon name="maximize" size={15} />
+              </button>
             </div>
           ))}
         </div>

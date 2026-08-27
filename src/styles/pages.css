@@ -435,6 +435,35 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
+.mx-stage__url {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  flex: 1;
+  min-width: 0;
+}
+.mx-stage__url-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--mx-space-sm);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--mx-radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f4f4f4;
+  font-size: var(--mx-font-size-caption);
+  font-family: var(--mx-font-mono);
+  transition: all 120ms var(--mx-ease-standard);
+}
+.mx-stage__url-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+.mx-stage__url-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .mx-stage__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
@@ -454,6 +483,32 @@
   height: 100%;
   object-fit: contain;
   display: block;
+}
+.mx-stage__fullscreen {
+  position: absolute;
+  top: var(--mx-space-sm);
+  right: var(--mx-space-sm);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--mx-radius-md);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  color: #f4f4f4;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 120ms var(--mx-ease-standard);
+}
+.mx-stage__tile:hover .mx-stage__fullscreen {
+  opacity: 1;
+}
+.mx-stage__fullscreen:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+.mx-stage__fullscreen:active {
+  transform: scale(0.95);
 }
 .mx-stage__tag {
   position: absolute;
@@ -613,12 +668,14 @@
 .mx-finder {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: var(--mx-space-md);
   padding: var(--mx-space-lg) 0 var(--mx-space-xs);
 }
 /* Anchor for the dropdown, which must match the field's width exactly. */
 .mx-finder__box {
   position: relative;
-  width: min(100%, 620px);
+  width: min(100%, 720px);
 }
 
 .mx-finder__field {
@@ -772,7 +829,7 @@
 .mx-roomgrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: var(--mx-space-lg);
+  gap: var(--mx-space-xl);
 }
 
 /* The whole card is the "enter room" target — hence <button>, not a div with a link inside. */

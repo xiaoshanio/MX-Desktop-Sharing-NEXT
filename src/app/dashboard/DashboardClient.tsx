@@ -94,26 +94,12 @@ export function DashboardClient({ user }: { user: ShellUser }) {
       }
     >
       <section className="mx-section">
-        {/* 搜索区：居中，输入房间码直接进；也能搜自己已加入的房间 */}
-        <RoomFinder rooms={rooms} onEnter={(code) => router.push(`/room/${code}`)} />
-
-        <header className="mx-section__header">
-          <div className="mx-section__heading">
-            <h2 className="mx-section__title">{t("dash.title")}</h2>
-            <p className="mx-section__subtitle">{t("dash.subtitle")}</p>
-          </div>
-          <span className="mx-section__spacer" />
-          <div className="mx-section__actions">
-            <Button variant="secondary" size="sm" onClick={() => void refresh(true)}>
-              <Icon name="refresh" size={14} />
-              {t("common.refresh")}
-            </Button>
-            <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
-              <Icon name="plus" size={14} />
-              {t("dash.create")}
-            </Button>
-          </div>
-        </header>
+        {/* 搜索区 + 创建按钮：居中，输入频道码直接进；也能搜自己已加入的频道 */}
+        <RoomFinder
+          rooms={rooms}
+          onEnter={(code) => router.push(`/room/${code}`)}
+          onCreate={() => setCreating(true)}
+        />
 
         {rooms.length === 0 ? (
           <EmptyState
@@ -163,9 +149,11 @@ export function DashboardClient({ user }: { user: ShellUser }) {
 function RoomFinder({
   rooms,
   onEnter,
+  onCreate,
 }: {
   rooms: RoomRow[];
   onEnter: (code: string) => void;
+  onCreate: () => void;
 }) {
   const t = useT();
   const [query, setQuery] = useState("");
@@ -359,6 +347,11 @@ function RoomFinder({
           </div>
         )}
       </div>
+
+      <Button variant="primary" size="sm" onClick={onCreate}>
+        <Icon name="plus" size={14} />
+        {t("dash.create")}
+      </Button>
     </div>
   );
 }

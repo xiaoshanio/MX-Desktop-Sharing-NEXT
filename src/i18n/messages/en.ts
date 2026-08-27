@@ -506,6 +506,14 @@ const en = {
   "room.stat.members": "Members: {count}",
   "room.closedTitle": "Room closed",
   "room.closedBody": "No more tokens can be issued; video and publishing are both unavailable.",
+
+  "channel.rooms.title": "Channel Rooms",
+  "channel.rooms.create": "Create Room",
+  "channel.rooms.emptyTitle": "No rooms yet",
+  "channel.rooms.emptyBody": "Channel admins can create rooms, each with its own sync player",
+  "channel.rooms.creator": "Creator: {name}",
+  "channel.rooms.backToList": "Back to room list",
+
   "room.stage.live": "Live",
   "room.stage.noSignal": "No signal",
   "room.stage.inRoom": "In room: {count}",
@@ -513,6 +521,9 @@ const en = {
   "room.stage.gettingPermission": "Getting publish permission…",
   "room.stage.viewerOnly":
     "You're view-only — ask the owner to change your permission, or to turn on \"anyone can share\"",
+  "room.stage.urlPlaceholder": "Enter playback URL",
+  "room.stage.urlPlay": "Play",
+  "room.stage.fullscreen": "Fullscreen",
   "room.stage.tagObs": "OBS",
   "room.stage.tagScreen": "Screen share",
   "room.stage.tagCamera": "Camera",
@@ -540,6 +551,7 @@ const en = {
   "rail.onlineTag": "Online",
   "rail.hasVideo": " · sharing",
   "rail.sharing": "Sharing their screen",
+  "rail.sharingScreen": "Sharing screen",
   "rail.menu.ownerLocked": "Room owner — can't be changed or removed",
   "rail.menu.permission": "Permission",
   "rail.menu.current": " (current)",

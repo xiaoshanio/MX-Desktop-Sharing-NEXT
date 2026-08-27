@@ -27,6 +27,7 @@ export type RailEntry = {
   isLocal: boolean;
   isObs: boolean;
   hasVideo: boolean;
+  isSharingScreen?: boolean;
   accent: string;
   avatarAt: string | null;
   bannerAt: string | null;
@@ -90,6 +91,17 @@ export function ParticipantRail({
     return set;
   }, [tracks]);
 
+  /** 正在分享屏幕的 identity 集合 */
+  const sharingScreen = useMemo(() => {
+    const set = new Set<string>();
+    for (const ref of tracks) {
+      if ("participant" in ref && ref.source === Track.Source.ScreenShare) {
+        set.add(ref.participant.identity);
+      }
+    }
+    return set;
+  }, [tracks]);
+
   const entries = useMemo<RailEntry[]>(() => {
     return participants
       .map((participant) => {
@@ -106,6 +118,7 @@ export function ParticipantRail({
           isLocal: participant.isLocal,
           isObs,
           hasVideo: publishing.has(identity),
+          isSharingScreen: sharingScreen.has(identity),
           accent: meta.accent,
           avatarAt: meta.avatarAt,
           bannerAt: meta.bannerAt,
@@ -119,7 +132,7 @@ export function ParticipantRail({
         // 按当前语言的排序规则比 —— 中文按拼音，法语忽略变音符号，等等
         return a.displayName.localeCompare(b.displayName, locale);
       });
-  }, [participants, memberById, publishing, locale]);
+  }, [participants, memberById, publishing, sharingScreen, locale]);
 
   return (
     <aside className="mx-rail" aria-label={t("rail.label")}>
@@ -279,13 +292,26 @@ function RailCard({
         <span className="mx-pcard__text">
           <span className="mx-pcard__name">{entry.displayName}</span>
           <span className="mx-pcard__meta">
-            {entry.isObs
-              ? t("rail.obs")
-              : entry.isLocal
-                ? t("rail.you")
-                : entry.role
-                  ? roleLabel(t, entry.role)
-                  : t("rail.onlineTag")}
+            {entry.isSharingScreen ? (
+              <button
+                type="button"
+                className="mx-pcard__screen-link"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect();
+                }}
+              >
+                {t("rail.sharingScreen")}
+              </button>
+            ) : entry.isObs ? (
+              t("rail.obs")
+            ) : entry.isLocal ? (
+              t("rail.you")
+            ) : entry.role ? (
+              roleLabel(t, entry.role)
+            ) : (
+              t("rail.onlineTag")
+            )}
           </span>
         </span>
       </span>

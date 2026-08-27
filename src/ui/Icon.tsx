@@ -44,7 +44,8 @@ export type IconName =
   | "google"
   | "image"
   | "sparkle"
-  | "user";
+  | "user"
+  | "maximize";
 
 export interface IconProps {
   name: IconName;
@@ -394,6 +395,12 @@ export function Icon({ name, size = 16 }: IconProps): ReactNode {
         <svg {...common}>
           <circle cx="12" cy="8.4" r="3.6" />
           <path d="M4.8 20.5v-.8a7.2 7.2 0 0 1 14.4 0v.8" />
+        </svg>
+      );
+    case "maximize":
+      return (
+        <svg {...common}>
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
         </svg>
       );
     case "signal":

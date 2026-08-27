@@ -133,23 +133,14 @@ export function moveIndicator(
 }
 
 /**
- * 首次挂载时侧栏一项项落进来。只跑一次 —— 软导航不会重挂这些节点。
+ * 首次挂载时标记侧栏可见。
  *
- * 接手时给 .mx-sidebar 打上 data-mx-shown，让 shell.css 里的预隐藏规则失效：
- * 不先藏起来的话，服务端渲染的条目会先被画出来，然后才被拽回起点闪一下。
+ * 给 .mx-sidebar 打上 data-mx-shown，让 shell.css 里的预隐藏规则失效。
+ * 以前这里有一段 stagger 进场动画（一项项落进来），已移除。
  */
 export function introSidebar(nav: HTMLElement | null): void {
   if (!nav) return;
   nav.dataset.mxShown = "";
-  if (!startMotion() || reducedMotion()) return;
-  gsap.from(nav.querySelectorAll(".mx-sidebar__group-label, .mx-sidebar__item"), {
-    x: -10,
-    opacity: 0,
-    duration: 0.32,
-    ease: EASE.emphasized,
-    stagger: 0.045,
-    clearProps: "transform,opacity",
-  });
 }
 
 /**

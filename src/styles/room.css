@@ -13,6 +13,84 @@
   padding: var(--mx-space-md);
 }
 
+/* ============================================================
+   Room list — shown when no room is selected
+   ============================================================ */
+.mx-room-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-xl);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--mx-space-xl);
+  width: 100%;
+}
+.mx-room-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mx-space-md);
+}
+.mx-room-list__title {
+  font-size: var(--mx-font-size-display);
+  font-weight: var(--mx-weight-bold);
+  color: var(--mx-text-primary);
+}
+.mx-room-list__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--mx-space-lg);
+}
+
+/* Room card */
+.mx-room-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mx-space-md);
+  padding: var(--mx-space-xl);
+  text-align: center;
+  cursor: pointer;
+  transition: all 160ms var(--mx-ease-standard);
+  border: 2px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-lg);
+  background: var(--mx-bg-card);
+  box-shadow: var(--mx-shadow-4);
+  font-family: inherit;
+}
+.mx-room-card:hover {
+  border-color: var(--mx-accent);
+  transform: translateY(-2px);
+  box-shadow: var(--mx-shadow-16);
+}
+.mx-room-card__icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--mx-radius-lg);
+  background: var(--mx-bg-subtle);
+  color: var(--mx-accent);
+}
+.mx-room-card__name {
+  font-size: var(--mx-font-size-title);
+  font-weight: var(--mx-weight-semibold);
+  color: var(--mx-text-primary);
+}
+.mx-room-card__meta {
+  font-size: var(--mx-font-size-caption);
+  color: var(--mx-text-tertiary);
+}
+.mx-room-card__source {
+  font-size: var(--mx-font-size-caption);
+  color: var(--mx-text-secondary);
+  font-family: var(--mx-font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
 /* LiveKitRoom renders a plain div — make it a flex child so the grid can fill the height. */
 .mx-room__live {
   flex: 1;
@@ -46,6 +124,45 @@
   /* Claims the leftover height, which is what pins the sync stack to the bottom. */
   flex: 1;
   min-height: 0;
+}
+
+/* Room navigation bar */
+.mx-room__nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mx-space-xs);
+  padding: var(--mx-space-sm);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-lg);
+  background: var(--mx-bg-layer);
+  flex-shrink: 0;
+}
+.mx-room__back {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  padding: var(--mx-space-xs) var(--mx-space-sm);
+  border: none;
+  border-radius: var(--mx-radius-md);
+  background: transparent;
+  color: var(--mx-text-secondary);
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-medium);
+  cursor: pointer;
+  transition: all 120ms var(--mx-ease-standard);
+}
+.mx-room__back:hover {
+  background: var(--mx-bg-hover);
+  color: var(--mx-text-primary);
+}
+.mx-room__current {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  padding: var(--mx-space-xs) var(--mx-space-sm);
+  color: var(--mx-text-primary);
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-semibold);
 }
 
 .mx-room__sync {
@@ -232,6 +349,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.mx-pcard__screen-link {
+  all: unset;
+  color: var(--mx-accent);
+  cursor: pointer;
+  transition: color 120ms var(--mx-ease-standard);
+}
+.mx-pcard__screen-link:hover {
+  color: var(--mx-accent-hover);
+  text-decoration: underline;
 }
 
 /* "Currently sharing a screen" pip. */

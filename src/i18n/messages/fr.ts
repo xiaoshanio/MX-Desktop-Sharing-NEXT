@@ -530,7 +530,18 @@ const fr: Messages = {
   "room.closedTitle": "Salle fermée",
   "room.closedBody":
     "Plus aucun jeton ne peut être émis ; la vidéo et la diffusion sont indisponibles.",
+
+  "channel.rooms.title": "Salles du canal",
+  "channel.rooms.create": "Créer une salle",
+  "channel.rooms.emptyTitle": "Pas encore de salles",
+  "channel.rooms.emptyBody": "Les administrateurs du canal peuvent créer des salles, chacune avec son propre lecteur synchronisé",
+  "channel.rooms.creator": "Créateur : {name}",
+  "channel.rooms.backToList": "Retour à la liste des salles",
+
   "room.stage.live": "En direct",
+  "room.stage.urlPlaceholder": "Entrer l'URL de lecture",
+  "room.stage.urlPlay": "Lecture",
+  "room.stage.fullscreen": "Plein écran",
   "room.stage.noSignal": "Aucun signal",
   "room.stage.inRoom": "Dans la salle : {count}",
   "room.stage.onlySelected": "Une seule personne affichée",
@@ -566,6 +577,7 @@ const fr: Messages = {
   "rail.onlineTag": "En ligne",
   "rail.hasVideo": " · partage",
   "rail.sharing": "Partage son écran",
+  "rail.sharingScreen": "Partage d'écran",
   "rail.menu.ownerLocked": "Propriétaire de la salle — ni modifiable ni expulsable",
   "rail.menu.permission": "Permission",
   "rail.menu.current": " (actuel)",
