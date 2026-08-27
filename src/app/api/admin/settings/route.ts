@@ -1,6 +1,7 @@
 import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth";
-import { json, parseOr400, readJson, route } from "@/lib/http";
+import { json, parseOr400, readJson } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { registrationEnabled, setRegistrationEnabled } from "@/lib/site-settings";
 import { adminUpdateSettingsSchema } from "@/lib/validation";
 

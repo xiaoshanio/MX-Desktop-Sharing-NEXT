@@ -1,9 +1,11 @@
 import { getTableName, isTable, sql, type Table } from "drizzle-orm";
 
 import { db, schema } from "@/db";
+import { tFromRequest } from "@/i18n/request";
 import { ensureBootstrapped } from "@/lib/bootstrap";
 import { encryptionKeySource } from "@/lib/key-store";
-import { describeDbError, json, route } from "@/lib/http";
+import { describeDbError, formatDbError, json } from "@/lib/http";
+import { route } from "@/lib/api-route";
 
 export const runtime = "nodejs";
 
@@ -43,22 +45,29 @@ async function existingTables(): Promise<Set<string>> {
  *
  * 故意不需要登录，所以回显的驱动错误一律先过 describeDbError()：它会顺着 cause 链
  * 挖出真实原因、按 SQLSTATE 补一句可操作的指引，并抹掉连接串里的口令。
+ *
+ * 文案跟着请求的语言走。这一页是「部署卡住时唯一还能读的东西」，用一种读不懂的
+ * 语言写等于没写。
  */
-export const GET = route(async () => {
+export const GET = route(async (req) => {
+  const t = tFromRequest(req);
   const checks: Record<string, { ok: boolean; detail: string }> = {};
 
   const hasDbUrl = Boolean(process.env.DATABASE_URL);
   checks.databaseUrl = {
     ok: hasDbUrl,
-    detail: hasDbUrl ? "已设置" : "缺少 DATABASE_URL —— 这是唯一必填项",
+    detail: hasDbUrl ? t("api.health.set") : t("api.health.dbUrlMissing"),
   };
 
   if (hasDbUrl) {
     try {
       await db.execute(sql`select 1`);
-      checks.database = { ok: true, detail: "连接正常" };
+      checks.database = { ok: true, detail: t("api.health.dbOk") };
     } catch (err) {
-      checks.database = { ok: false, detail: `连不上：${describeDbError(err).message}` };
+      checks.database = {
+        ok: false,
+        detail: t("api.health.dbFail", { message: formatDbError(t.raw, describeDbError(err)) }),
+      };
     }
   }
 
@@ -70,15 +79,21 @@ export const GET = route(async () => {
       const missing = expectedTables().filter((name) => !present.has(name));
       checks.tables =
         missing.length === 0
-          ? { ok: true, detail: `${expectedTables().length} 张表齐了` }
+          ? { ok: true, detail: t("api.health.tablesOk", { count: expectedTables().length }) }
           : {
               ok: false,
-              detail:
-                `缺 ${missing.length} 张表（${missing.join("、")}）—— ` +
-                `迁移没跑过或只跑了一半，对着这个库执行一次 npm run db:migrate。`,
+              detail: t("api.health.tablesMissing", {
+                count: missing.length,
+                list: missing.join(", "),
+              }),
             };
     } catch (err) {
-      checks.tables = { ok: false, detail: `查不到表清单：${describeDbError(err).message}` };
+      checks.tables = {
+        ok: false,
+        detail: t("api.health.tablesFail", {
+          message: formatDbError(t.raw, describeDbError(err)),
+        }),
+      };
     }
   }
 
@@ -86,9 +101,7 @@ export const GET = route(async () => {
   const hasAdminPassword = (process.env.ADMIN_PASSWORD ?? "").trim() !== "";
   checks.adminPassword = {
     ok: hasAdminPassword,
-    detail: hasAdminPassword
-      ? "已设置"
-      : "缺少 ADMIN_PASSWORD（空字符串也算）—— 管理员账户不会被创建",
+    detail: hasAdminPassword ? t("api.health.set") : t("api.health.adminPasswordMissing"),
   };
 
   // 表没建齐就别跑引导了：它必然失败，只会再抛一条同源的报错盖住上面的结论
@@ -98,10 +111,10 @@ export const GET = route(async () => {
       ? {
           ok: true,
           detail: boot.adminConfigured
-            ? `就绪，管理员邮箱 ${boot.adminEmail}`
-            : "已就绪，但管理员账户没创建（ADMIN_PASSWORD 为空）",
+            ? t("api.health.bootReady", { email: boot.adminEmail ?? "" })
+            : t("api.health.bootReadyNoAdmin"),
         }
-      : { ok: false, detail: boot.error ?? "启动引导失败" };
+      : { ok: false, detail: boot.error ?? t("api.health.bootFailed") };
   }
 
   const src = encryptionKeySource();
@@ -110,10 +123,10 @@ export const GET = route(async () => {
     ok: true,
     detail:
       src === "env"
-        ? "来自 CREDENTIAL_ENCRYPTION_KEY"
+        ? t("api.health.keyFromEnv")
         : src
-          ? "自动生成并存于数据库（要更强的隔离就显式设置该变量）"
-          : "尚未加载 —— 先解决上面标红的项",
+          ? t("api.health.keyAuto")
+          : t("api.health.keyPending"),
   };
 
   const ok = Object.values(checks).every((c) => c.ok);

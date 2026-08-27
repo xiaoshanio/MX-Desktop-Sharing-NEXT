@@ -2,18 +2,24 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { currentUser } from "@/lib/auth";
-import { APP_NAME, APP_TAGLINE, COPYRIGHT } from "@/lib/brand";
+import { RichText, type MessageKey } from "@/i18n";
+import { serverT } from "@/i18n/server";
+import { APP_NAME, COPYRIGHT } from "@/lib/brand";
 import { BrandMark } from "@/components/BrandMark";
+import { LandingBarFit } from "@/components/LandingBarFit";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Icon, LinkButton, type IconName } from "@/ui";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: `${APP_NAME} · ${APP_TAGLINE}`,
-  description:
-    "基于 LiveKit 的桌面共享。每个房间绑定一套自己的 LiveKit 凭据，用 OBS 或浏览器把屏幕推给房间里的人。鉴权在协议层，两个环境变量就能跑。",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await serverT();
+  return {
+    title: `${APP_NAME} · ${t("brand.tagline")}`,
+    description: t("landing.meta.description"),
+  };
+}
 
 const REPO = "https://github.com/xiaoshanio/MX-Desktop-Sharing-NEXT";
 const DOC_DEPLOY = `${REPO}/blob/main/DEPLOY.md`;
@@ -25,137 +31,59 @@ const DISCUSSIONS = `${REPO}/discussions`;
 /** 还在构想阶段的桌面端产品名。刻意和本站的名字区分开，别让人以为已经能下载了。 */
 const APP_PRODUCT = "MX-Desktop-Sharing-APP";
 
-const NAV = [
-  { href: "#paths", label: "推流路线" },
-  { href: "#quota", label: "免费额度" },
-  { href: "#features", label: "功能" },
-  { href: "#start", label: "快速开始" },
-  { href: "#app", label: "APP 预告" },
-  { href: "#qa", label: "Q&A" },
+const NAV: Array<{ href: string; key: MessageKey }> = [
+  { href: "#paths", key: "landing.nav.paths" },
+  { href: "#quota", key: "landing.nav.quota" },
+  { href: "#features", key: "landing.nav.features" },
+  { href: "#start", key: "landing.nav.start" },
+  { href: "#app", key: "landing.nav.app" },
+  { href: "#qa", key: "landing.nav.qa" },
 ];
 
 /** 首屏那张拓扑图里的假数据。房间码用的是真实字母表（无歧义字符）。 */
 const TOPOLOGY: Array<{
-  name: string;
-  tag: string;
+  nameKey: MessageKey;
+  tagKey: MessageKey;
   url: string;
-  rooms: Array<{ code: string; state: string; live?: boolean }>;
+  rooms: Array<{ code: string; online?: number }>;
 }> = [
   {
-    name: "节点 A",
-    tag: "你接入的",
+    nameKey: "landing.topo.nodeA",
+    tagKey: "landing.topo.nodeATag",
     url: "wss://your-project.livekit.cloud",
-    rooms: [
-      { code: "7K3M9Q", state: "3 人在线", live: true },
-      { code: "B2W8XR", state: "空闲" },
-    ],
+    rooms: [{ code: "7K3M9Q", online: 3 }, { code: "B2W8XR" }],
   },
   {
-    name: "节点 B",
-    tag: "同事接入的",
+    nameKey: "landing.topo.nodeB",
+    tagKey: "landing.topo.nodeBTag",
     url: "wss://her-project.livekit.cloud",
-    rooms: [{ code: "QF4L2N", state: "1 人在线", live: true }],
+    rooms: [{ code: "QF4L2N", online: 1 }],
   },
   {
-    name: "内置节点",
-    tag: "管理员共享 · 限 20 间",
+    nameKey: "landing.topo.builtin",
+    tagKey: "landing.topo.builtinTag",
     url: "wss://mx-builtin.livekit.cloud",
-    rooms: [{ code: "M9ZP6T", state: "5 人在线", live: true }],
+    rooms: [{ code: "M9ZP6T", online: 5 }],
   },
 ];
 
-const FEATURES: Array<{ icon: IconName; title: string; body: React.ReactNode }> = [
-  {
-    icon: "shield",
-    title: "鉴权在协议层，不是前端过滤",
-    body: (
-      <>
-        不在成员表里 → 签不出 token → 连不上房间 → 订阅不到任何一条 track。签出来的 grant
-        里 <code>room</code> 只写得下一个房间名，所以这张 token
-        物理上打不开别的房间。非成员一律返回 404，拿房间码也探测不出东西。
-      </>
-    ),
-  },
-  {
-    icon: "node",
-    title: "节点自带，额度各烧各的",
-    body: (
-      <>
-        接入你自己的 LiveKit Cloud project，建房时选用哪一套。保存前本站会拿这套凭据实地打一次
-        API 体检，填错的不入库；Ingress 能不能用也一并探出来标在节点上。
-      </>
-    ),
-  },
-  {
-    icon: "broadcast",
-    title: "OBS 走 WHIP 直通",
-    body: (
-      <>
-        <code>enableTranscoding: false</code> —— 不吃每月 60
-        分钟的转码额度。一人一条推流地址，可轮换、可撤销；stream key 加密落库，只对本人解密回显。
-      </>
-    ),
-  },
-  {
-    icon: "ban",
-    title: "「OBS 直播」是真开关",
-    body: (
-      <>
-        房主关掉它，正在推的立刻断：删掉 ingress 让旧密钥再也连不上来，同时把 <code>obs:</code>{" "}
-        那个参与者踢出房间。不是只改一个标志位、「显示已关闭其实还在推」的假开关。
-      </>
-    ),
-  },
-  {
-    icon: "film",
-    title: "同步播放",
-    body: (
-      <>
-        房主开一个播放器，房间里的人一起看同一个片源。进度走 LiveKit 的 data channel
-        广播，先用 ping/pong 估出两台机器的时钟偏移再对齐，视频字节完全不经过本服务。
-      </>
-    ),
-  },
-  {
-    icon: "link",
-    title: "邀请链接",
-    body: (
-      <>
-        token 只存哈希，可设有效期、次数上限、随时撤销。兑换用一条条件 UPDATE
-        原子占名额，并发下打不穿 <code>max_uses</code>；未登录打开会先跳登录再自动入房。
-      </>
-    ),
-  },
-  {
-    icon: "key",
-    title: "两个环境变量就能跑",
-    body: (
-      <>
-        <code>DATABASE_URL</code> 加 <code>ADMIN_PASSWORD</code>
-        。管理员账户首次启动自动创建，凭据加密密钥没配就自己生成落库，LiveKit
-        在网页里配、不占环境变量。没有安装向导。
-      </>
-    ),
-  },
-  {
-    icon: "logs",
-    title: "出问题有地方看",
-    body: (
-      <>
-        房间内可展开审计日志（不记任何密钥）。<code>/api/health</code>{" "}
-        不用登录，逐项报告数据库连通性、12 张表建没建、管理员引导过没过 ——
-        缺哪几张表直接列出来，不用对着报错猜。
-      </>
-    ),
-  },
+const FEATURES: Array<{ icon: IconName; title: MessageKey; body: MessageKey }> = [
+  { icon: "shield", title: "landing.feat.auth.title", body: "landing.feat.auth.body" },
+  { icon: "node", title: "landing.feat.nodes.title", body: "landing.feat.nodes.body" },
+  { icon: "broadcast", title: "landing.feat.whip.title", body: "landing.feat.whip.body" },
+  { icon: "ban", title: "landing.feat.gate.title", body: "landing.feat.gate.body" },
+  { icon: "film", title: "landing.feat.sync.title", body: "landing.feat.sync.body" },
+  { icon: "link", title: "landing.feat.invite.title", body: "landing.feat.invite.body" },
+  { icon: "key", title: "landing.feat.env.title", body: "landing.feat.env.body" },
+  { icon: "logs", title: "landing.feat.health.title", body: "landing.feat.health.body" },
 ];
 
 /** 50 GB 下行是主要瓶颈。数字的推导过程见 README 的「免费额度能用多久」。 */
-const QUOTA_ROWS = [
-  { rate: "4 Mbps", note: "1080p 高码率", minutes: "1,667", hours: "≈ 28 h" },
-  { rate: "2.5 Mbps", note: "1080p 常规", minutes: "2,667", hours: "≈ 44 h" },
-  { rate: "1.5 Mbps", note: "720p", minutes: "4,444", hours: "≈ 74 h" },
-  { rate: "0.8 Mbps", note: "低码率", minutes: "5,000", hours: "≈ 83 h" },
+const QUOTA_ROWS: Array<{ rate: string; note: MessageKey; minutes: string; hours: string }> = [
+  { rate: "4 Mbps", note: "landing.quota.note4", minutes: "1,667", hours: "≈ 28 h" },
+  { rate: "2.5 Mbps", note: "landing.quota.note25", minutes: "2,667", hours: "≈ 44 h" },
+  { rate: "1.5 Mbps", note: "landing.quota.note15", minutes: "4,444", hours: "≈ 74 h" },
+  { rate: "0.8 Mbps", note: "landing.quota.note08", minutes: "5,000", hours: "≈ 83 h" },
 ];
 
 /**
@@ -164,27 +92,11 @@ const QUOTA_ROWS = [
  * 全部用「打算」「考虑」的语气 —— 这个产品一行代码都还没写，
  * 写成既成事实会变成假承诺。
  */
-const APP_IDEAS: Array<{ icon: IconName; title: string; body: string }> = [
-  {
-    icon: "shield",
-    title: "端到端加密",
-    body: "消息和分享的内容在两端加解密，服务端只负责转发密文 —— 拿到服务器也读不出聊了什么。",
-  },
-  {
-    icon: "node",
-    title: "自部署",
-    body: "服务端自己跑，账号、消息、密钥都不必交给第三方。和本站一样，不搞非要联网激活的那套。",
-  },
-  {
-    icon: "share",
-    title: "聊天 + 屏幕在同一处",
-    body: "文字、文件和屏幕共享在一个客户端里，不用一边开会议软件一边开聊天软件。",
-  },
-  {
-    icon: "signal",
-    title: "桌面端原生",
-    body: "Windows / macOS / Linux 客户端，不是浏览器标签页 —— 采集整个桌面、常驻后台、开机自启这些浏览器给不了。",
-  },
+const APP_IDEAS: Array<{ icon: IconName; title: MessageKey; body: MessageKey }> = [
+  { icon: "shield", title: "landing.app.idea1.title", body: "landing.app.idea1.body" },
+  { icon: "node", title: "landing.app.idea2.title", body: "landing.app.idea2.body" },
+  { icon: "share", title: "landing.app.idea3.title", body: "landing.app.idea3.body" },
+  { icon: "signal", title: "landing.app.idea4.title", body: "landing.app.idea4.body" },
 ];
 
 /**
@@ -193,130 +105,71 @@ const APP_IDEAS: Array<{ icon: IconName; title: string; body: string }> = [
  * 每一条都能在 README / 代码里落到实处 —— 这一节最容易变成软广，
  * 所以只收「真的会被问到、且答案是确定的」问题，不写「我们致力于……」那种话。
  */
-const QA: Array<{ q: string; a: React.ReactNode }> = [
-  {
-    q: "要自己准备服务器吗？",
-    a: (
-      <>
-        不用准备媒体服务器。本站部署到 Vercel + Neon（都有免费档），画面走 LiveKit
-        Cloud，你只需要一套 LiveKit 凭据 —— 免费的 Build 计划不用绑卡。真想全自建也行：地址支持{" "}
-        <code className="mx-code">ws://</code>，但要用 OBS 推流就得自己额外部署 Ingress 和 Redis。
-      </>
-    ),
-  },
-  {
-    q: "免费额度到底能用多久？",
-    a: (
-      <>
-        多数情况下先撞的是 50 GB 下行带宽，不是 5,000 参与者分钟。一个人分享、三个人看
-        1080p，一个月大约 15 小时。所以本项目让每个人接自己的 LiveKit
-        项目：额度从「站长的一份」变成「每人一份」。
-      </>
-    ),
-  },
-  {
-    q: "屏幕画面会经过你们的服务器吗？",
-    a: (
-      <>
-        不会。浏览器共享时本站只被访问一次 —— 领一张 token，之后画面直连 LiveKit
-        节点。同步播放器更彻底：视频字节由你的浏览器直接向片源发 Range
-        请求，既不过本服务也不过 LiveKit。
-      </>
-    ),
-  },
-  {
-    q: "一定要装 OBS 吗？",
-    a: (
-      <>
-        不用。浏览器里点一下就能共享（<code className="mx-code">getDisplayMedia</code>
-        ，1920×1080@15fps，桌面共享优先给分辨率不给帧率）。OBS 那条路是给要多路场景、
-        要转场和叠加的人准备的，走 WHIP 直通、不吃转码额度。
-      </>
-    ),
-  },
-  {
-    q: "别人拿到房间码就能进来吗？",
-    a: (
-      <>
-        不能。成员表是唯一的鉴权依据：不在表里就签不出 token，也就订阅不到任何一条 track。
-        签出来的 token 里房间名只写得下一个，物理上打不开别的房间；非成员访问一律返回
-        404，连「这个房间存不存在」都探不出来。
-      </>
-    ),
-  },
-  {
-    q: "把「OBS 直播」关掉，正在推的流会断吗？",
-    a: (
-      <>
-        会，立刻断。关闭那一刻服务端会删掉 ingress（旧的推流密钥再也连不上）并把{" "}
-        <code className="mx-code">obs:</code> 那个参与者踢出房间。不是只改一个标志位、
-        界面显示已关闭但其实还在推的假开关。浏览器共享走的是另一条路，不受它影响。
-      </>
-    ),
-  },
-  {
-    q: "数据库被拖走了，第三方密钥会跟着泄露吗？",
-    a: (
-      <>
-        不会。GitHub / Google / Turnstile / Resend 的密钥都是 AES-256-GCM
-        加密后才落库的，而主密钥可以用 <code className="mx-code">CREDENTIAL_ENCRYPTION_KEY</code>{" "}
-        放在数据库之外。任何接口都不回传密钥明文，管理后台里显示的是掩码。
-      </>
-    ),
-  },
-  {
-    q: "可以只让我自己用，不让陌生人注册吗？",
-    a: (
-      <>
-        可以。管理后台 →「站点设置」里关掉「开放注册」：邮箱密码注册、第三方登录首次进来、
-        邮箱验证码首次进来这三条建号的路会一起被拦下，提示「本站点禁止注册」；
-        已有账号的人照旧能登录。拦截在服务端做，不是把按钮藏起来。
-      </>
-    ),
-  },
+const QA: Array<{ q: MessageKey; a: MessageKey }> = [
+  { q: "landing.qa.q1", a: "landing.qa.a1" },
+  { q: "landing.qa.q2", a: "landing.qa.a2" },
+  { q: "landing.qa.q3", a: "landing.qa.a3" },
+  { q: "landing.qa.q4", a: "landing.qa.a4" },
+  { q: "landing.qa.q5", a: "landing.qa.a5" },
+  { q: "landing.qa.q6", a: "landing.qa.a6" },
+  { q: "landing.qa.q7", a: "landing.qa.a7" },
+  { q: "landing.qa.q8", a: "landing.qa.a8" },
 ];
 
 export default async function HomePage() {
+  const t = await serverT();
+
   // 首页必须在库没配好、连不上的时候也能打开 —— 它正是那种情况下唯一还能读的东西。
   // 所以这里只把「有没有登录」当作装饰信息，取不到就按未登录渲染。
   const user = await currentUser().catch(() => null);
   const entryHref = user ? "/dashboard" : "/login";
-  const entryLabel = user ? "进入控制台" : "登录 / 注册";
+  const entryLabel = user ? t("landing.entry.console") : t("landing.entry.login");
 
   return (
     <div className="mx-land">
       <header className="mx-land__bar mx-acrylic">
-        <div className="mx-land__measure mx-land__bar-inner">
+        {/* 顶栏的「装不下就砍次要项」由 LandingBarFit 量着办，见那个组件的注释 */}
+        <LandingBarFit>
           <Link href="/" className="mx-land__brand">
             <BrandMark size={28} />
             <span className="mx-land__brand-name">{APP_NAME}</span>
           </Link>
 
-          <nav className="mx-land__nav" aria-label="页内导航">
+          <nav className="mx-land__nav" aria-label={t("landing.nav.label")}>
             {NAV.map((item) => (
               <a key={item.href} href={item.href} className="mx-land__nav-link">
-                {item.label}
+                {t(item.key)}
               </a>
             ))}
           </nav>
 
           <div className="mx-land__bar-actions">
-            <ThemeToggle />
+            {/* 语言在主题左边（手机端整个隐藏，见 landing.css） */}
+            <LanguageSwitcher />
+
+            {/* GitHub 图标必须活到最后，所以它不在 .mx-land__secondary 里 */}
+            <span className="mx-land__secondary">
+              <ThemeToggle />
+            </span>
+
             <a
               className="mx-icon-button"
               href={REPO}
               target="_blank"
               rel="noreferrer noopener"
-              aria-label="在 GitHub 上查看源码"
-              title="在 GitHub 上查看源码"
+              aria-label={t("landing.bar.github")}
+              title={t("landing.bar.github")}
             >
               <Icon name="github" size={18} />
             </a>
-            <LinkButton href={entryHref} variant="primary" size="sm">
-              {entryLabel}
-            </LinkButton>
+
+            <span className="mx-land__secondary">
+              <LinkButton href={entryHref} variant="primary" size="sm">
+                {entryLabel}
+              </LinkButton>
+            </span>
           </div>
-        </div>
+        </LandingBarFit>
       </header>
 
       <main>
@@ -326,31 +179,23 @@ export default async function HomePage() {
             <div className="mx-land__hero-copy">
               <span className="mx-land__tag">
                 <BrandMark size={16} />
-                基于 <strong>LiveKit</strong> · 多节点 · 零配置启动
+                <RichText text={t("landing.hero.tag")} />
               </span>
 
               <h1 className="mx-land__h1">
-                一房一节点，
-                <em>一人一推流地址。</em>
+                {t("landing.hero.h1a")}
+                <em>{t("landing.hero.h1b")}</em>
               </h1>
 
-              <p className="mx-land__hero-lead">
-                把屏幕推给房间里的人 —— 用 OBS，或者只用浏览器。每个房间绑定一套自己的 LiveKit
-                凭据，媒体流量和免费额度就烧在那个节点上，谁也不抢谁的。
-              </p>
+              <p className="mx-land__hero-lead">{t("landing.hero.lead")}</p>
 
               <div className="mx-land__cta">
                 <LinkButton href={entryHref} variant="primary" size="lg">
                   {entryLabel}
                   <Icon name="chevronRight" size={16} />
                 </LinkButton>
-                <LinkButton
-                  href={DOC_DEPLOY}
-                  size="lg"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  部署到 Vercel
+                <LinkButton href={DOC_DEPLOY} size="lg" target="_blank" rel="noreferrer noopener">
+                  {t("landing.hero.deploy")}
                   <Icon name="external" size={15} />
                 </LinkButton>
               </div>
@@ -358,15 +203,15 @@ export default async function HomePage() {
               <ul className="mx-land__facts">
                 <li>
                   <Icon name="check" size={14} />
-                  两个环境变量就能跑
+                  {t("landing.hero.fact1")}
                 </li>
                 <li>
                   <Icon name="check" size={14} />
-                  WHIP 直通，不吃转码额度
+                  {t("landing.hero.fact2")}
                 </li>
                 <li>
                   <Icon name="check" size={14} />
-                  鉴权在协议层
+                  {t("landing.hero.fact3")}
                 </li>
               </ul>
             </div>
@@ -374,18 +219,18 @@ export default async function HomePage() {
             {/* 首屏配图就是这套架构本身：节点在外层，房间挂在它下面。 */}
             <div className="mx-land__topo">
               <div className="mx-land__topo-bar">
-                <span className="mx-land__topo-title">LiveKit 节点</span>
-                <span className="mx-land__topo-hint">额度各烧各的</span>
+                <span className="mx-land__topo-title">{t("landing.topo.title")}</span>
+                <span className="mx-land__topo-hint">{t("landing.topo.hint")}</span>
               </div>
 
               {TOPOLOGY.map((node) => (
-                <article className="mx-land__node" key={node.name}>
+                <article className="mx-land__node" key={node.nameKey}>
                   <div className="mx-land__node-top">
                     <span className="mx-land__node-icon">
                       <Icon name="node" size={15} />
                     </span>
-                    <span className="mx-land__node-name">{node.name}</span>
-                    <span className="mx-land__node-tag">{node.tag}</span>
+                    <span className="mx-land__node-name">{t(node.nameKey)}</span>
+                    <span className="mx-land__node-tag">{t(node.tagKey)}</span>
                   </div>
                   <span className="mx-land__node-url">{node.url}</span>
                   <div className="mx-land__rooms">
@@ -393,20 +238,20 @@ export default async function HomePage() {
                       <span
                         className="mx-land__room"
                         key={room.code}
-                        data-live={room.live ? "true" : undefined}
+                        data-live={room.online ? "true" : undefined}
                       >
                         <span className="mx-land__room-dot" />
                         <code>{room.code}</code>
-                        {room.state}
+                        {room.online
+                          ? t("landing.topo.online", { count: room.online })
+                          : t("landing.topo.idle")}
                       </span>
                     ))}
                   </div>
                 </article>
               ))}
 
-              <p className="mx-land__topo-foot">
-                一个房间只落在一个节点上 —— 流量和免费额度都记在它头上。
-              </p>
+              <p className="mx-land__topo-foot">{t("landing.topo.foot")}</p>
             </div>
           </div>
         </section>
@@ -415,22 +260,19 @@ export default async function HomePage() {
         <section className="mx-land__section" id="paths">
           <div className="mx-land__measure">
             <div className="mx-land__head">
-              <span className="mx-land__eyebrow">01 · 推流路线</span>
-              <h2 className="mx-land__h2">推流有两条路，它们是分开的</h2>
-              <p className="mx-land__lead">
-                浏览器那条只经过本站一次 —— 拿 token；之后画面直连 LiveKit。OBS 那条要先在服务端建
-                一条 ingress。所以关掉「OBS 直播」，浏览器共享照旧能用。
-              </p>
+              <span className="mx-land__eyebrow">{t("landing.paths.eyebrow")}</span>
+              <h2 className="mx-land__h2">{t("landing.paths.h2")}</h2>
+              <p className="mx-land__lead">{t("landing.paths.lead")}</p>
             </div>
 
             <div className="mx-land__paths">
               <article className="mx-land__path">
                 <div className="mx-land__path-top">
                   <Icon name="share" size={18} />
-                  <h3 className="mx-land__path-title">从浏览器共享</h3>
+                  <h3 className="mx-land__path-title">{t("landing.paths.browser.title")}</h3>
                 </div>
                 <div className="mx-land__hops">
-                  <span className="mx-land__hop">浏览器</span>
+                  <span className="mx-land__hop">{t("landing.paths.hopBrowser")}</span>
                   <span className="mx-land__hop-sep">
                     <Icon name="chevronRight" size={13} />
                   </span>
@@ -439,26 +281,23 @@ export default async function HomePage() {
                     <Icon name="chevronRight" size={13} />
                   </span>
                   <span className="mx-land__hop" data-strong="true">
-                    LiveKit 节点
+                    {t("landing.paths.hopNode")}
                   </span>
                 </div>
-                <p className="mx-land__path-body">
-                  点一下就开始，不用装任何东西。1920×1080@15fps —— 桌面共享优先给分辨率，
-                  不给帧率。画面既不过 Vercel，也不过 Ingress。
-                </p>
+                <p className="mx-land__path-body">{t("landing.paths.browser.body")}</p>
               </article>
 
               <article className="mx-land__path">
                 <div className="mx-land__path-top">
                   <Icon name="broadcast" size={18} />
-                  <h3 className="mx-land__path-title">用 OBS 推（WHIP）</h3>
+                  <h3 className="mx-land__path-title">{t("landing.paths.obs.title")}</h3>
                 </div>
                 <div className="mx-land__hops">
                   <span className="mx-land__hop">OBS</span>
                   <span className="mx-land__hop-sep">
                     <Icon name="chevronRight" size={13} />
                   </span>
-                  <span className="mx-land__hop">WHIP 直通</span>
+                  <span className="mx-land__hop">{t("landing.paths.hopWhip")}</span>
                   <span className="mx-land__hop-sep">
                     <Icon name="chevronRight" size={13} />
                   </span>
@@ -467,13 +306,10 @@ export default async function HomePage() {
                     <Icon name="chevronRight" size={13} />
                   </span>
                   <span className="mx-land__hop" data-strong="true">
-                    LiveKit 节点
+                    {t("landing.paths.hopNode")}
                   </span>
                 </div>
-                <p className="mx-land__path-body">
-                  房间里点「生成推流地址」，拿 Server 和 Bearer Token 填进 OBS
-                  的直播设置（服务选 WHIP）。直通不转码，所以几乎不吃机器，也不动那 60 分钟额度。
-                </p>
+                <p className="mx-land__path-body">{t("landing.paths.obs.body")}</p>
               </article>
             </div>
           </div>
@@ -483,33 +319,28 @@ export default async function HomePage() {
         <section className="mx-land__section" id="quota" data-tint="true">
           <div className="mx-land__measure">
             <div className="mx-land__head">
-              <span className="mx-land__eyebrow">02 · 为什么要自带节点</span>
-              <h2 className="mx-land__h2">免费额度是试点额度，不是产品额度</h2>
+              <span className="mx-land__eyebrow">{t("landing.quota.eyebrow")}</span>
+              <h2 className="mx-land__h2">{t("landing.quota.h2")}</h2>
             </div>
 
             <div className="mx-land__quota">
               <div>
-                <p className="mx-land__lead">
-                  LiveKit Cloud 的免费 Build 计划按 project 计额度，超出后请求直接失败、不计费，
-                  而且同一账号下多个免费项目共享同一份额度。
-                </p>
+                <p className="mx-land__lead">{t("landing.quota.lead")}</p>
 
                 <div className="mx-land__tiles">
                   <div className="mx-land__tile">
                     <span className="mx-land__tile-value">5,000</span>
-                    <span className="mx-land__tile-label">
-                      WebRTC 参与者分钟。推流端不计分钟，烧的只有观众
-                    </span>
+                    <span className="mx-land__tile-label">{t("landing.quota.tile1Label")}</span>
                   </div>
                   <div className="mx-land__tile">
                     <span className="mx-land__tile-value">50 GB</span>
-                    <span className="mx-land__tile-label">下行带宽。多数场景下是先撞的那面墙</span>
+                    <span className="mx-land__tile-label">{t("landing.quota.tile2Label")}</span>
                   </div>
                   <div className="mx-land__tile">
-                    <span className="mx-land__tile-value">60 分钟</span>
-                    <span className="mx-land__tile-label">
-                      转码额度。RTMP 输入必定转码，一个月只够推 1 小时
+                    <span className="mx-land__tile-value">
+                      {t("landing.quota.tile3Value")}
                     </span>
+                    <span className="mx-land__tile-label">{t("landing.quota.tile3Label")}</span>
                   </div>
                 </div>
               </div>
@@ -519,9 +350,9 @@ export default async function HomePage() {
                   <table className="mx-table">
                     <thead>
                       <tr>
-                        <th>推流码率</th>
-                        <th data-align="right">50 GB 能撑的观众分钟</th>
-                        <th data-align="right">折合观众小时</th>
+                        <th>{t("landing.quota.colRate")}</th>
+                        <th data-align="right">{t("landing.quota.colMinutes")}</th>
+                        <th data-align="right">{t("landing.quota.colHours")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -530,7 +361,7 @@ export default async function HomePage() {
                           <td>
                             <div className="mx-cell">
                               <span className="mx-cell__label">{row.rate}</span>
-                              <span className="mx-cell__hint">{row.note}</span>
+                              <span className="mx-cell__hint">{t(row.note)}</span>
                             </div>
                           </td>
                           <td data-align="right">{row.minutes}</td>
@@ -540,16 +371,11 @@ export default async function HomePage() {
                     </tbody>
                   </table>
                 </div>
-                <p className="mx-land__table-note">
-                  约 1.33 Mbps 是分水岭：高于它，50 GB 带宽先撞墙；低于它，5,000
-                  分钟先撞墙。观众小时还要除以人数 —— 1 人分享 3 人看 1080p，一个月约 15 小时。
-                </p>
+                <p className="mx-land__table-note">{t("landing.quota.tableNote")}</p>
 
                 <p className="mx-land__punch">
                   <span>
-                    所以本项目把节点做成一等公民：<strong>每个人接自己的 project</strong>
-                    ，额度就从「站长的一份」变成「每人一份」。内置节点只用来兜底体验，
-                    记得给它设上房间数上限。
+                    <RichText text={t("landing.quota.punch")} />
                   </span>
                 </p>
               </div>
@@ -561,12 +387,9 @@ export default async function HomePage() {
         <section className="mx-land__section" id="features">
           <div className="mx-land__measure">
             <div className="mx-land__head">
-              <span className="mx-land__eyebrow">03 · 功能</span>
-              <h2 className="mx-land__h2">该守住的地方都收在服务端</h2>
-              <p className="mx-land__lead">
-                能在客户端绕开的检查等于没检查。下面这些都是在签 token、建 ingress
-                那一层做掉的。
-              </p>
+              <span className="mx-land__eyebrow">{t("landing.features.eyebrow")}</span>
+              <h2 className="mx-land__h2">{t("landing.features.h2")}</h2>
+              <p className="mx-land__lead">{t("landing.features.lead")}</p>
             </div>
 
             <div className="mx-land__features">
@@ -575,8 +398,10 @@ export default async function HomePage() {
                   <span className="mx-land__feature-icon">
                     <Icon name={feature.icon} size={18} />
                   </span>
-                  <h3 className="mx-land__feature-title">{feature.title}</h3>
-                  <p className="mx-land__feature-body">{feature.body}</p>
+                  <h3 className="mx-land__feature-title">{t(feature.title)}</h3>
+                  <p className="mx-land__feature-body">
+                    <RichText text={t(feature.body)} />
+                  </p>
                 </article>
               ))}
             </div>
@@ -587,26 +412,22 @@ export default async function HomePage() {
         <section className="mx-land__section" id="start">
           <div className="mx-land__measure">
             <div className="mx-land__head">
-              <span className="mx-land__eyebrow">04 · 快速开始</span>
-              <h2 className="mx-land__h2">三步就能自己跑一套</h2>
-              <p className="mx-land__lead">
-                本站不自带媒体服务器，所以真正要准备的只有一个数据库和一套 LiveKit 凭据。
-              </p>
+              <span className="mx-land__eyebrow">{t("landing.start.eyebrow")}</span>
+              <h2 className="mx-land__h2">{t("landing.start.h2")}</h2>
+              <p className="mx-land__lead">{t("landing.start.lead")}</p>
             </div>
 
             <div className="mx-land__steps">
               <article className="mx-land__step">
                 <span className="mx-land__step-num">1</span>
                 <div className="mx-land__step-body">
-                  <h3 className="mx-land__step-title">填两个环境变量</h3>
+                  <h3 className="mx-land__step-title">{t("landing.start.step1Title")}</h3>
                   <p>
-                    复制 <code className="mx-code">.env.example</code> 为{" "}
-                    <code className="mx-code">.env.local</code> —— Next 不读前者，
-                    改错了文件不会有任何反应。
+                    <RichText text={t("landing.start.step1Body")} codeClassName="mx-code" />
                   </p>
                   <pre className="mx-land__pre">
                     <b>DATABASE_URL</b>=postgresql://…@ep-xxx-pooler…/neondb?sslmode=require{"\n"}
-                    <b>ADMIN_PASSWORD</b>=换成你自己的密码
+                    <b>ADMIN_PASSWORD</b>={t("landing.start.passwordPlaceholder")}
                   </pre>
                 </div>
               </article>
@@ -614,17 +435,15 @@ export default async function HomePage() {
               <article className="mx-land__step">
                 <span className="mx-land__step-num">2</span>
                 <div className="mx-land__step-body">
-                  <h3 className="mx-land__step-title">建表，启动</h3>
+                  <h3 className="mx-land__step-title">{t("landing.start.step2Title")}</h3>
                   <pre className="mx-land__pre">
                     npm install{"\n"}
-                    npm run db:migrate <i># 建出 12 张表</i>
+                    npm run db:migrate <i>{t("landing.start.step2Comment")}</i>
                     {"\n"}
                     npm run dev
                   </pre>
                   <p>
-                    然后用 <code className="mx-code">admin@localhost</code>{" "}
-                    加上面那个密码登录：管理员账户在首次启动时自动创建，没有安装向导。部署到 Vercel
-                    的话迁移已经挂在构建流程里，不用手动跑这条。
+                    <RichText text={t("landing.start.step2Body")} codeClassName="mx-code" />
                   </p>
                 </div>
               </article>
@@ -632,15 +451,12 @@ export default async function HomePage() {
               <article className="mx-land__step">
                 <span className="mx-land__step-num">3</span>
                 <div className="mx-land__step-body">
-                  <h3 className="mx-land__step-title">接入一个 LiveKit 节点</h3>
+                  <h3 className="mx-land__step-title">{t("landing.start.step3Title")}</h3>
                   <p>
-                    侧栏「LiveKit 节点」→「接入节点」，填 <code className="mx-code">wss://</code>{" "}
-                    地址和 API Key / Secret。LiveKit Cloud 的免费 Build 计划不用绑卡，大约三分钟
-                    就能拿到这三个值；保存前本站会拿它们实地体检一次，填错的不入库。
+                    <RichText text={t("landing.start.step3Body1")} codeClassName="mx-code" />
                   </p>
                   <p>
-                    自建 LiveKit 也可以（地址支持 <code className="mx-code">ws://</code>），
-                    但要用 OBS 推流就得额外部署 Ingress 和 Redis。
+                    <RichText text={t("landing.start.step3Body2")} codeClassName="mx-code" />
                   </p>
                 </div>
               </article>
@@ -652,25 +468,22 @@ export default async function HomePage() {
         <section className="mx-land__section" id="app" data-tint="true">
           <div className="mx-land__measure">
             <div className="mx-land__head">
-              <span className="mx-land__eyebrow">05 · 预告</span>
+              <span className="mx-land__eyebrow">{t("landing.app.eyebrow")}</span>
               <h2 className="mx-land__h2">
-                我们在考虑做一个桌面端：<em>{APP_PRODUCT}</em>
+                {t("landing.app.h2a")}
+                <em>{APP_PRODUCT}</em>
               </h2>
-              <p className="mx-land__lead">
-                自部署的、端到端加密的聊天，并且能分享屏幕 —— 本站有的只是屏幕这一半，
-                聊天那一半在浏览器里做不干净。
-              </p>
+              <p className="mx-land__lead">{t("landing.app.lead")}</p>
             </div>
 
             <div className="mx-land__teaser">
               <div className="mx-land__teaser-note">
                 <span className="mx-land__teaser-badge">
                   <Icon name="sparkle" size={13} />
-                  构想阶段
+                  {t("landing.app.badge")}
                 </span>
                 <p>
-                  还<strong>没有开始开发</strong>，也没有时间表，这一节就是一份预告。
-                  放在这里是想先听听有没有人真的需要它 —— 有人要，才值得做。
+                  <RichText text={t("landing.app.note")} />
                 </p>
               </div>
 
@@ -680,16 +493,15 @@ export default async function HomePage() {
                     <span className="mx-land__teaser-icon">
                       <Icon name={idea.icon} size={17} />
                     </span>
-                    <h3 className="mx-land__teaser-title">{idea.title}</h3>
-                    <p className="mx-land__teaser-body">{idea.body}</p>
+                    <h3 className="mx-land__teaser-title">{t(idea.title)}</h3>
+                    <p className="mx-land__teaser-body">{t(idea.body)}</p>
                   </article>
                 ))}
               </div>
 
               <div className="mx-land__teaser-foot">
                 <p>
-                  感兴趣、或者觉得哪里想错了，都欢迎说一声。最有用的一句反馈是
-                  <strong>「你会用它替掉现在的什么」</strong> —— 比「支持一下」有价值得多。
+                  <RichText text={t("landing.app.footNote")} />
                 </p>
                 <div className="mx-land__cta">
                   <LinkButton
@@ -699,11 +511,11 @@ export default async function HomePage() {
                     rel="noreferrer noopener"
                   >
                     <Icon name="logs" size={15} />
-                    提出问题
+                    {t("landing.app.issues")}
                   </LinkButton>
                   <LinkButton href={DISCUSSIONS} target="_blank" rel="noreferrer noopener">
                     <Icon name="mail" size={15} />
-                    联系我们
+                    {t("landing.app.contact")}
                     <Icon name="external" size={14} />
                   </LinkButton>
                 </div>
@@ -716,12 +528,9 @@ export default async function HomePage() {
         <section className="mx-land__section" id="qa">
           <div className="mx-land__measure">
             <div className="mx-land__head">
-              <span className="mx-land__eyebrow">06 · Q&amp;A</span>
-              <h2 className="mx-land__h2">常见问题</h2>
-              <p className="mx-land__lead">
-                下面每一条的答案都能在代码或 README 里对上。没被回答到的问题，
-                往上一节那两个入口提。
-              </p>
+              <span className="mx-land__eyebrow">{t("landing.qa.eyebrow")}</span>
+              <h2 className="mx-land__h2">{t("landing.qa.h2")}</h2>
+              <p className="mx-land__lead">{t("landing.qa.lead")}</p>
             </div>
 
             {/*
@@ -735,9 +544,11 @@ export default async function HomePage() {
                     <span className="mx-land__qa-chevron">
                       <Icon name="chevronRight" size={15} />
                     </span>
-                    {item.q}
+                    {t(item.q)}
                   </summary>
-                  <div className="mx-land__qa-a">{item.a}</div>
+                  <div className="mx-land__qa-a">
+                    <RichText text={t(item.a)} codeClassName="mx-code" />
+                  </div>
                 </details>
               ))}
             </div>
@@ -749,11 +560,8 @@ export default async function HomePage() {
           <div className="mx-land__measure">
             <div className="mx-land__closing">
               <BrandMark size={48} />
-              <h2>建个房间，把屏幕推过去</h2>
-              <p>
-                注册就有自己的工作区，可以接入你自己的 LiveKit
-                节点。收到邀请链接的话，直接打开链接登录就会自动入房。
-              </p>
+              <h2>{t("landing.closing.h2")}</h2>
+              <p>{t("landing.closing.body")}</p>
               <div className="mx-land__cta">
                 <LinkButton href={entryHref} variant="primary" size="lg">
                   {entryLabel}
@@ -761,7 +569,7 @@ export default async function HomePage() {
                 </LinkButton>
                 <LinkButton href={REPO} size="lg" target="_blank" rel="noreferrer noopener">
                   <Icon name="github" size={16} />
-                  看源码
+                  {t("landing.closing.source")}
                 </LinkButton>
               </div>
             </div>
@@ -776,13 +584,13 @@ export default async function HomePage() {
             {APP_NAME}
           </span>
 
-          <nav className="mx-land__footer-links" aria-label="相关链接">
+          <nav className="mx-land__footer-links" aria-label={t("landing.footer.links")}>
             <a href={DOC_README} target="_blank" rel="noreferrer noopener">
-              文档
+              {t("landing.footer.docs")}
               <Icon name="external" size={13} />
             </a>
             <a href={DOC_DEPLOY} target="_blank" rel="noreferrer noopener">
-              部署说明
+              {t("landing.footer.deploy")}
               <Icon name="external" size={13} />
             </a>
             <a href={REPO} target="_blank" rel="noreferrer noopener">
@@ -790,16 +598,13 @@ export default async function HomePage() {
               <Icon name="external" size={13} />
             </a>
             <a href="https://docs.livekit.io" target="_blank" rel="noreferrer noopener">
-              LiveKit 文档
+              {t("landing.footer.livekit")}
               <Icon name="external" size={13} />
             </a>
           </nav>
 
           <div className="mx-land__footer-note">
-            <p className="mx-land__stack">
-              Next.js 15 · React 19 · Drizzle + Neon Postgres · LiveKit ——
-              界面自成一套设计系统，没有 UI 框架，也没有 Tailwind。
-            </p>
+            <p className="mx-land__stack">{t("landing.footer.stack")}</p>
             <p className="mx-land__copyright">{COPYRIGHT}</p>
           </div>
         </div>

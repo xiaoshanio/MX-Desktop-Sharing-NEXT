@@ -1,54 +1,57 @@
 /**
- * 把各种来源的报错翻成一句用户能看懂的中文。
+ * 把各种来源的报错翻成一句用户能看懂的话。
  *
- * 界面全是中文，但错误消息有三个来源是英文的：
+ * 界面是多语言的，但错误消息有三个来源是**英文原文**：
  *   - livekit-client（"could not establish signal connection" 之类）
  *   - 浏览器原生（"Failed to fetch"、"NotAllowedError"）
  *   - 第三方服务的响应
- * 直接把原文弹给用户，等于让他自己去猜。所以这里按模式匹配翻一遍，
- * 认不出来的保留原文（比让人看一句「未知错误」有用）。
+ * 直接把原文弹给用户，等于让他自己去猜。所以这里按模式匹配成一个**消息键**，
+ * 由调用方用当前语言渲染；认不出来的保留原文（比让人看一句「未知错误」有用）。
  */
 
+import type { MessageKey, TFunction } from "@/i18n";
+
+/**
+ * 「服务端回了非 2xx 但没给消息」的判定。
+ *
+ * 刻意用鸭子类型而不是 `instanceof HttpError`：那需要在运行时 import api-client，
+ * 而这个模块的价值之一就是零依赖（tests/error-text.test.mts 直接 import 它来测
+ * 一百多条模式匹配，不该为此拖进一个 fetch 封装）。
+ */
+function isEmptyHttpError(err: unknown): err is { status: number } {
+  return (
+    err instanceof Error &&
+    err.name === "HttpError" &&
+    typeof (err as { status?: unknown }).status === "number" &&
+    err.message.trim() === ""
+  );
+}
+
 /** 顺序有意义：先匹配更具体的模式。 */
-const PATTERNS: Array<{ test: RegExp; text: string }> = [
+const PATTERNS: Array<{ test: RegExp; key: MessageKey }> = [
   /* ---- LiveKit 连接 ---- */
-  {
-    test: /could not establish (a )?(signal|pc) connection/i,
-    text: "连不上房间的媒体服务器。检查网络，或确认这个 LiveKit 节点还可用。",
-  },
-  {
-    test: /(signal|websocket).*(closed|disconnect)/i,
-    text: "和房间的连接断开了，正在重连…",
-  },
-  { test: /room is full|maximum number of participants/i, text: "房间人数已满。" },
-  {
-    test: /invalid (access )?token|token (is )?expired|jwt/i,
-    text: "访问凭据无效或已过期。刷新页面会重新签发一张。",
-  },
-  { test: /permission denied|insufficient permissions|unauthorized/i, text: "你没有做这个操作的权限。" },
-  { test: /server is (full|unavailable)|503/i, text: "媒体服务器暂时不可用，稍后再试。" },
-  { test: /quota|limit exceeded/i, text: "这个 LiveKit 节点的额度用完了。" },
+  { test: /could not establish (a )?(signal|pc) connection/i, key: "err.signalConnection" },
+  { test: /(signal|websocket).*(closed|disconnect)/i, key: "err.disconnected" },
+  { test: /room is full|maximum number of participants/i, key: "err.roomFull" },
+  { test: /invalid (access )?token|token (is )?expired|jwt/i, key: "err.badToken" },
+  { test: /permission denied|insufficient permissions|unauthorized/i, key: "err.permissionDenied" },
+  { test: /server is (full|unavailable)|503/i, key: "err.serverUnavailable" },
+  { test: /quota|limit exceeded/i, key: "err.quota" },
 
   /* ---- 屏幕共享 / 设备 ---- */
-  {
-    test: /NotAllowedError|permission.*(denied|dismissed)/i,
-    text: "浏览器拒绝了屏幕共享请求。需要在地址栏的站点权限里放开。",
-  },
-  { test: /NotFoundError|NotReadableError/i, text: "找不到可用的采集设备，或它被别的程序占用了。" },
-  { test: /NotSupportedError/i, text: "当前浏览器不支持这个功能，换 Chrome/Edge 试试。" },
+  { test: /NotAllowedError|permission.*(denied|dismissed)/i, key: "err.screenShareDenied" },
+  { test: /NotFoundError|NotReadableError/i, key: "err.noCaptureDevice" },
+  { test: /NotSupportedError/i, key: "err.unsupportedBrowser" },
 
   /* ---- 网络 ---- */
-  { test: /failed to fetch|network ?error|load failed/i, text: "网络请求失败。检查一下网络连接。" },
-  { test: /aborted|AbortError/i, text: "请求被中断了。" },
-  { test: /timed? ?out/i, text: "请求超时，稍后再试。" },
+  { test: /failed to fetch|network ?error|load failed/i, key: "err.network" },
+  { test: /aborted|AbortError/i, key: "err.aborted" },
+  { test: /timed? ?out/i, key: "err.timeout" },
 
   /* ---- 播放器 / 片源 ---- */
-  {
-    test: /CORS|cross-origin|Access-Control-Allow-Origin/i,
-    text: "片源不允许本站跨域读取（CORS）。需要在存放视频的服务器上放开。",
-  },
-  { test: /range|206|partial content/i, text: "片源不支持 Range 请求，没法边下边播。" },
-  { test: /WebCodecs|decoder|codec/i, text: "浏览器解不了这个编码。视频需要是 H.264/HEVC，音频 AAC/FLAC/Opus。" },
+  { test: /CORS|cross-origin|Access-Control-Allow-Origin/i, key: "err.cors" },
+  { test: /range|206|partial content/i, key: "err.range" },
+  { test: /WebCodecs|decoder|codec/i, key: "err.codec" },
 ];
 
 /**
@@ -87,15 +90,24 @@ function rawMessage(err: unknown): string {
   return String(err);
 }
 
-/** 报错 → 一句中文。认不出来时保留原文。 */
-export function humanizeError(err: unknown): string {
+/**
+ * 报错 → 当前语言的一句话。认不出来时保留原文。
+ *
+ * 我们自己的 API 抛的 Error 已经被服务端按调用者的语言翻好了（见 lib/http.ts 的
+ * `route()`），所以走到最后那一步原样返回就是对的。
+ */
+export function humanizeError(t: TFunction, err: unknown): string {
   const raw = rawMessage(err);
 
-  for (const { test, text } of PATTERNS) {
-    if (test.test(raw)) return text;
+  for (const { test, key } of PATTERNS) {
+    if (test.test(raw)) return t(key);
   }
 
-  // 我们自己的 API 抛的 Error 已经是中文了（见 lib/http.ts 的错误约定），原样返回
+  // 服务端非 2xx 但连消息都没给（502 网关页、空响应体…）
+  if (isEmptyHttpError(err)) return t("err.httpFailed", { status: err.status });
+
   const message = err instanceof Error ? err.message : String(err);
-  return message.trim() === "" ? "操作失败，原因未知。" : message;
+  if (message.trim() === "") return t("err.unknown");
+  // 万一某处漏了服务端翻译，消息可能还是一个裸键 —— t.raw 认得出来就翻，认不出来原样返回
+  return t.raw(message);
 }

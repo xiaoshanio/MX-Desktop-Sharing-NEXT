@@ -3,7 +3,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { roomPresence, rooms, webhookEvents } from "@/db/schema";
 import { audit } from "@/lib/audit";
-import { json, route } from "@/lib/http";
+import { json } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { webhookReceiver } from "@/lib/livekit";
 import { getNodeById, resolve } from "@/lib/nodes";
 

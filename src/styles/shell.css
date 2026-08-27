@@ -292,6 +292,69 @@
 }
 
 /* ============================================================
+   Language switcher — sits immediately left of the theme toggle, in both the app
+   shell's top bar and the landing bar. Shares `.mx-menu` for the popover so the two
+   dropdowns in the same corner look identical.
+   ============================================================ */
+.mx-lang {
+  position: relative;
+  flex-shrink: 0;
+}
+.mx-lang__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+  height: var(--mx-control-md);
+  padding: 0 var(--mx-space-sm);
+  border: 1px solid transparent;
+  border-radius: var(--mx-radius-md);
+  background: transparent;
+  color: var(--mx-text-secondary);
+  font: inherit;
+  font-size: var(--mx-font-size-caption);
+  cursor: pointer;
+  transition:
+    background var(--mx-duration-fast) var(--mx-ease-standard),
+    border-color var(--mx-duration-fast) var(--mx-ease-standard),
+    color var(--mx-duration-fast) var(--mx-ease-standard);
+}
+.mx-lang__trigger:hover,
+.mx-lang__trigger[aria-expanded="true"] {
+  background: var(--mx-bg-hover);
+  border-color: var(--mx-stroke-subtle);
+  color: var(--mx-text-primary);
+}
+.mx-lang__trigger svg {
+  flex: none;
+}
+.mx-lang__current {
+  white-space: nowrap;
+  max-width: 112px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mx-lang__menu {
+  min-width: 190px;
+}
+.mx-lang__menu[data-align="start"] {
+  right: auto;
+  left: 0;
+}
+.mx-lang__menu .mx-menu__item[data-active="true"] {
+  background: var(--mx-bg-selected);
+  font-weight: var(--mx-weight-semibold);
+}
+/* Fixed-width slot for the tick so every row's label starts at the same x. */
+.mx-lang__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex: none;
+  color: var(--mx-accent-text);
+}
+
+/* ============================================================
    Body: sidebar + main
    ============================================================ */
 .mx-body {
@@ -775,6 +838,11 @@
     display: none;
   }
   .mx-user__label {
+    display: none;
+  }
+  /* Icon only — the language name is the first thing to go when the bar gets tight. */
+  .mx-lang__current,
+  .mx-lang__trigger > svg:last-child {
     display: none;
   }
   .mx-main {

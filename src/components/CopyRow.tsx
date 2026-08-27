@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { useT } from "@/i18n";
 import { Icon, IconButton } from "@/ui";
 
 /**
@@ -18,6 +19,7 @@ export function CopyRow({
   /** Accessible description, e.g. "Bearer Token" — folded into the button labels. */
   label?: string;
 }) {
+  const t = useT();
   const [revealed, setRevealed] = useState(!secret);
   const [copied, setCopied] = useState(false);
 
@@ -38,24 +40,32 @@ export function CopyRow({
     }
   }
 
-  const suffix = label ? ` ${label}` : "";
+  /**
+   * 按钮标签：有 label 时拼成「复制 Bearer Token」，没有就只说「复制」。
+   *
+   * 拼接放在语言包里（`common.copy` = "复制{label}"）而不是这里 —— 中文不加空格、
+   * 英文要加、法语是 "Copier le {label}"，词序和空格都得由译文决定。
+   */
+  const reveal = label ? t("common.reveal", { label }) : t("common.revealPlain");
+  const hide = label ? t("common.hide", { label }) : t("common.hidePlain");
+  const copyLabel = label ? t("common.copy", { label }) : t("common.copyPlain");
 
   return (
     <div className="mx-copy">
       <span className="mx-copy__value" data-masked={!revealed ? "true" : undefined}>
         {revealed ? value : "•".repeat(Math.min(value.length, 44))}
       </span>
-      {copied && <span className="mx-copy__copied">已复制</span>}
+      {copied && <span className="mx-copy__copied">{t("common.copied")}</span>}
       {secret && (
         <IconButton
           size="sm"
-          label={revealed ? `隐藏${suffix}` : `显示${suffix}`}
+          label={revealed ? hide : reveal}
           onClick={() => setRevealed((state) => !state)}
         >
           <Icon name={revealed ? "eyeOff" : "eye"} size={15} />
         </IconButton>
       )}
-      <IconButton size="sm" label={`复制${suffix}`} onClick={() => void copy()}>
+      <IconButton size="sm" label={copyLabel} onClick={() => void copy()}>
         <Icon name={copied ? "check" : "copy"} size={15} />
       </IconButton>
     </div>

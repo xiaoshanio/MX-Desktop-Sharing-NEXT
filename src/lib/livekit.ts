@@ -206,7 +206,9 @@ export async function probeCredentials(node: ResolvedNode): Promise<ProbeResult>
   } catch (err) {
     return {
       ok: false,
-      error: `连不上或凭据无效：${err instanceof Error ? err.message : String(err)}`,
+      // 原始 SDK 报错原文照传：它已经是英文，而这个值会存进 last_check_error，
+      // 存的时候没有请求语言可用。UI 上给它配的说明文案见 api.node.probeFailed。
+      error: err instanceof Error ? err.message : String(err),
       capabilities,
     };
   }

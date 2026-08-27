@@ -45,12 +45,3 @@ export function Banner({
     </div>
   );
 }
-
-/** Shorthand for the very common "an API call failed" strip. */
-export function ErrorBanner({ children }: { children: ReactNode }): ReactNode {
-  return (
-    <Banner tone="error" title="出错了">
-      {children}
-    </Banner>
-  );
-}

@@ -53,7 +53,7 @@ export async function resolve(node: LivekitNode): Promise<ResolvedNode> {
 
 export async function getNodeById(id: string): Promise<LivekitNode> {
   const [node] = await db.select().from(livekitNodes).where(eq(livekitNodes.id, id)).limit(1);
-  if (!node) throw notFound("节点不存在");
+  if (!node) throw notFound("api.node.notFound");
   return node;
 }
 
@@ -94,18 +94,18 @@ export async function listUsableNodes(user: User): Promise<LivekitNode[]> {
  * 这里是配额归属的分水岭：user 节点烧用户自己的免费额度，builtin 烧站长的。
  */
 export async function assertNodeUsable(node: LivekitNode, user: User): Promise<void> {
-  if (!node.isEnabled) throw badRequest(`节点「${node.name}」已被停用`);
+  if (!node.isEnabled) throw badRequest("api.node.disabled", undefined, { name: node.name });
 
   if (node.kind === "user") {
     if (node.ownerId !== user.id && user.role !== "admin") {
-      throw forbidden("不能使用别人接入的节点");
+      throw forbidden("api.node.notYours");
     }
     return;
   }
 
   // builtin
   if (!node.allowPublic && user.role !== "admin") {
-    throw forbidden("内置节点未对普通用户开放，请接入你自己的 LiveKit Cloud 项目");
+    throw forbidden("api.node.builtinNotPublic");
   }
   if (node.maxRooms !== null) {
     const [row] = await db
@@ -113,7 +113,7 @@ export async function assertNodeUsable(node: LivekitNode, user: User): Promise<v
       .from(rooms)
       .where(and(eq(rooms.nodeId, node.id), eq(rooms.isActive, true)));
     if ((row?.n ?? 0) >= node.maxRooms) {
-      throw conflict(`内置节点房间数已达上限（${node.maxRooms}），请接入自己的节点`);
+      throw conflict("api.node.builtinRoomLimit", { max: node.maxRooms });
     }
   }
 }
@@ -140,7 +140,11 @@ export async function createNode(input: CreateNodeInput): Promise<LivekitNode> {
     apiSecret: input.apiSecret,
   });
 
-  if (!probe.ok) throw badRequest(probe.error ?? "凭据校验失败");
+  if (!probe.ok) {
+    throw badRequest("api.node.credsCheckFailed", undefined, {
+      error: probe.error ?? "",
+    });
+  }
 
   const dup = await db
     .select({ id: livekitNodes.id })
@@ -153,7 +157,7 @@ export async function createNode(input: CreateNodeInput): Promise<LivekitNode> {
       ),
     )
     .limit(1);
-  if (dup.length > 0) throw conflict("这套凭据已经接入过了");
+  if (dup.length > 0) throw conflict("api.node.duplicate");
 
   await ensureEncryptionKey();
 

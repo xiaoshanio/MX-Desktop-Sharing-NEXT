@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { roomIngress, roomMembers, rooms, type LivekitNode, type Room } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { json, parseOr400, readJson, route } from "@/lib/http";
+import { json, parseOr400, readJson } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import {
   deleteIngress,
   listParticipantIdentities,

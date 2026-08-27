@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { LOCALE_TURNSTILE, useI18n, type TFunction } from "@/i18n";
+
 /**
  * Cloudflare Turnstile 组件。
  *
@@ -46,30 +48,23 @@ declare global {
  *
  * 码表见 Cloudflare 文档的 Client-side errors 一节。
  */
-function explainCode(code: string | undefined, hostname: string): string {
+function explainCode(t: TFunction, code: string | undefined, hostname: string): string {
   const value = code ?? "";
 
-  if (value.startsWith("110200")) {
-    return `这个 Site Key 不允许在 ${hostname} 上使用（错误 ${value}）。到 Cloudflare → Turnstile → 这个站点的设置里，把 ${hostname} 加进 Domains；本地调试要单独加 localhost。`;
-  }
+  if (value.startsWith("110200")) return t("turnstile.badDomain", { code: value, hostname });
   if (value.startsWith("1101") || value.startsWith("110100") || value.startsWith("110110")) {
-    return `Site Key 无效（错误 ${value}）。确认填的是 Site Key 而不是 Secret Key —— 两者很容易粘反。`;
+    return t("turnstile.badKey", { code: value });
   }
-  if (value.startsWith("110500")) {
-    return `当前浏览器不被支持（错误 ${value}），换 Chrome / Edge / Firefox 的新版本试试。`;
-  }
-  if (value.startsWith("110600")) {
-    return `验证超时（错误 ${value}），点一下重试。`;
-  }
+  if (value.startsWith("110500")) return t("turnstile.badBrowser", { code: value });
+  if (value.startsWith("110600")) return t("turnstile.timeout", { code: value });
   if (value.startsWith("300") || value.startsWith("600")) {
-    return `人机验证执行失败（错误 ${value}），通常刷新页面就好。持续出现的话是 Cloudflare 侧的问题。`;
+    return t("turnstile.execFailed", { code: value });
   }
-  if (value.startsWith("105")) {
-    return `api.js 版本过期（错误 ${value}），清一下浏览器缓存再试。`;
-  }
+  if (value.startsWith("105")) return t("turnstile.staleScript", { code: value });
+
   return value === ""
-    ? "人机验证初始化失败，刷新页面重试。"
-    : `人机验证初始化失败（错误 ${value}）。`;
+    ? t("turnstile.initFailed")
+    : t("turnstile.initFailedCode", { code: value });
 }
 
 function loadScript(): Promise<void> {
@@ -123,6 +118,7 @@ export interface TurnstileProps {
 }
 
 export function Turnstile({ siteKey, onToken, resetKey = 0 }: TurnstileProps) {
+  const { locale, t } = useI18n();
   const holderRef = useRef<HTMLDivElement>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -132,6 +128,13 @@ export function Turnstile({ siteKey, onToken, resetKey = 0 }: TurnstileProps) {
   useEffect(() => {
     callbackRef.current = onToken;
   }, [onToken]);
+
+  // t 同理：makeT 每个语言只建一次，但放进依赖仍然会在语言不变时被 React 拿去比较，
+  // 而我们只想在 locale 真的变了的时候重画 widget（那才需要换 language 参数）。
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   useEffect(() => {
     let widgetId: string | null = null;
@@ -148,9 +151,7 @@ export function Turnstile({ siteKey, onToken, resetKey = 0 }: TurnstileProps) {
       } catch {
         if (!cancelled) {
           // 只有这一条才是真的网络/拦截问题
-          setProblem(
-            "加载不了 challenges.cloudflare.com 的验证脚本。可能是网络被拦、或者广告拦截插件挡掉了。",
-          );
+          setProblem(tRef.current("turnstile.blocked"));
         }
         return;
       }
@@ -159,7 +160,7 @@ export function Turnstile({ siteKey, onToken, resetKey = 0 }: TurnstileProps) {
       if (cancelled) return;
 
       if (!api) {
-        setProblem("验证脚本加载了但没能初始化。刷新页面重试。");
+        setProblem(tRef.current("turnstile.noInit"));
         return;
       }
       if (!holderRef.current) return;
@@ -171,18 +172,21 @@ export function Turnstile({ siteKey, onToken, resetKey = 0 }: TurnstileProps) {
           // 跟随站点主题：<html data-theme> 由引导脚本在首帧前盖好，这里读得到
           theme:
             document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark",
-          language: "zh-cn",
+          // 跟随站点语言 —— 验证框里的文字不能和它上下的表单是两种语言
+          language: LOCALE_TURNSTILE[locale],
           callback: (token) => callbackRef.current(token),
           // 过期和出错都要把 token 清掉，否则父组件会拿着一枚废 token 去提交
           "expired-callback": () => callbackRef.current(null),
           "error-callback": (code) => {
             callbackRef.current(null);
-            setProblem(explainCode(code, hostname));
+            setProblem(explainCode(tRef.current, code, hostname));
           },
         });
       } catch (error) {
         setProblem(
-          `人机验证渲染失败：${error instanceof Error ? error.message : String(error)}`,
+          tRef.current("turnstile.renderFailed", {
+            message: error instanceof Error ? error.message : String(error),
+          }),
         );
       }
     })();
@@ -197,7 +201,7 @@ export function Turnstile({ siteKey, onToken, resetKey = 0 }: TurnstileProps) {
         }
       }
     };
-  }, [siteKey, resetKey]);
+  }, [siteKey, resetKey, locale]);
 
   return (
     <div className="mx-turnstile">

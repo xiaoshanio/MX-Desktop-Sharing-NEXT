@@ -6,6 +6,7 @@ import { RoomEvent } from "livekit-client";
 
 import { api } from "@/lib/api-client";
 import type { SyncPlayerRow } from "@/lib/api-types";
+import { useT } from "@/i18n";
 import { humanizeError } from "@/lib/error-text";
 import { toast } from "@/lib/toast";
 import {
@@ -96,7 +97,7 @@ function loadSdk(): Promise<MXPlayerConstructor> {
     const mod = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ SDK_JS)) as {
       MXPlayer?: MXPlayerConstructor;
     };
-    if (!mod.MXPlayer) throw new Error("SDK 没有导出 MXPlayer");
+    if (!mod.MXPlayer) throw new Error("sync.sdkNoExport");
     return mod.MXPlayer;
   })().catch((err: unknown) => {
     // 失败不留缓存，让「重试」能真的重来一次
@@ -136,6 +137,7 @@ export function SyncPlayerPanel({
   onClose,
   onSourceChange,
 }: SyncPlayerPanelProps) {
+  const t = useT();
   const room = useRoomContext();
   const isHost = player.isMine;
 
@@ -156,11 +158,14 @@ export function SyncPlayerPanel({
    * 以及在播放器区域内留下一条说明（错误是持续状态，提示卡片会消失，
    * 而「这个播放器现在放不了」得一直看得见）。
    */
-  const fail = useCallback((error: unknown) => {
-    const text = humanizeError(error);
-    setErr(text);
-    toast.error(text);
-  }, []);
+  const fail = useCallback(
+    (error: unknown) => {
+      const text = humanizeError(t, error);
+      setErr(text);
+      toast.error(text);
+    },
+    [t],
+  );
 
   /** 观众端：跟不跟放映端。关掉后停止纠偏，用户可以自己拖进度。 */
   const [following, setFollowing] = useState(true);
@@ -305,7 +310,7 @@ export function SyncPlayerPanel({
           setErr(null);
         });
         instance.on("error", (payload) => {
-          fail(typeof payload.message === "string" ? payload.message : "播放出错");
+          fail(typeof payload.message === "string" ? payload.message : t("sync.playbackError"));
         });
 
         if (isHost) {
@@ -347,7 +352,7 @@ export function SyncPlayerPanel({
       }
     };
     // player.id 变了就是换了一个播放器，整个重建
-  }, [player.id, player.name, isHost, broadcastState, retryKey]);
+  }, [player.id, player.name, isHost, broadcastState, retryKey, fail, t]);
 
   /* ---- 放映端：把库里存的片源加载进来 ---- */
   useEffect(() => {
@@ -478,7 +483,7 @@ export function SyncPlayerPanel({
         await instance.load({ kind: "url", url: res.sourceUrl });
         broadcastState();
       }
-      toast.success(res.sourceUrl ? "片源已切换，房里的人会一起换" : "已清空片源");
+      toast.success(res.sourceUrl ? t("sync.sourceSwitched") : t("sync.sourceCleared"));
     } catch (error) {
       fail(error);
     } finally {
@@ -501,20 +506,22 @@ export function SyncPlayerPanel({
         <Icon name="film" size={15} />
         <span className="mx-syncplayer__name">{player.name}</span>
         <Badge tone={isHost ? "accent" : "neutral"}>
-          {isHost ? "由你放映" : `${player.creatorName} 放映`}
+          {isHost ? t("sync.hostedByYou") : t("sync.hostedBy", { name: player.creatorName })}
         </Badge>
 
         {!syncActive ? (
           // 一个人在房里时明确说清楚，否则观众会以为同步坏了
-          <Badge tone="neutral">等其他人进来后开始同步</Badge>
+          <Badge tone="neutral">{t("sync.waitingForOthers")}</Badge>
         ) : (
           !isHost && (
             <Badge tone={syncTone} dot>
               {drift === null
-                ? "等待放映端"
+                ? t("sync.waitingForHost")
                 : Math.abs(drift) < 0.15
-                  ? "已同步"
-                  : `偏差 ${drift > 0 ? "+" : ""}${drift.toFixed(2)}s`}
+                  ? t("sync.inSync")
+                  : t("sync.drift", {
+                      value: `${drift > 0 ? "+" : ""}${drift.toFixed(2)}`,
+                    })}
             </Badge>
           )
         )}
@@ -522,7 +529,7 @@ export function SyncPlayerPanel({
         <span className="mx-syncplayer__spacer" />
 
         {canControl && (
-          <IconButton size="sm" tone="danger" label="关闭这个播放器" onClick={onClose}>
+          <IconButton size="sm" tone="danger" label={t("sync.close")} onClick={onClose}>
             <Icon name="x" size={15} />
           </IconButton>
         )}
@@ -530,10 +537,10 @@ export function SyncPlayerPanel({
 
       {sdkError ? (
         <div className="mx-syncplayer__fallback">
-          <Banner tone="error" title="播放器加载失败">
-            从 CDN 取 MX Player Pro 时出错：{sdkError}
+          <Banner tone="error" title={t("sync.sdkFailedTitle")}>
+            {t("sync.sdkFailedBody", { message: sdkError })}
             <br />
-            检查一下网络能不能访问 cdn.jsdelivr.net。
+            {t("sync.sdkFailedHint")}
           </Banner>
           <Button
             variant="secondary"
@@ -543,7 +550,7 @@ export function SyncPlayerPanel({
             }}
           >
             <Icon name="refresh" size={15} />
-            重试
+            {t("common.retry")}
           </Button>
         </div>
       ) : (
@@ -556,7 +563,7 @@ export function SyncPlayerPanel({
              */
             <div className="mx-syncplayer__empty" data-tone="error">
               <Icon name="alert" size={22} />
-              <span className="mx-syncplayer__empty-title">这个片源放不了</span>
+              <span className="mx-syncplayer__empty-title">{t("sync.badSourceTitle")}</span>
               <span className="mx-syncplayer__empty-body">{err}</span>
             </div>
           ) : (
@@ -564,11 +571,9 @@ export function SyncPlayerPanel({
               <div className="mx-syncplayer__empty">
                 <Icon name="film" size={22} />
                 <span className="mx-syncplayer__empty-title">
-                  {canControl ? "在下面填一个视频地址" : "放映端还没选片"}
+                  {canControl ? t("sync.noSourceHost") : t("sync.noSourceViewer")}
                 </span>
-                <span className="mx-syncplayer__empty-body">
-                  视频由你的浏览器直连片源按 Range 读取，不经过本站服务器，也不经过 LiveKit。
-                </span>
+                <span className="mx-syncplayer__empty-body">{t("sync.noSourceBody")}</span>
               </div>
             )
           )}
@@ -580,33 +585,32 @@ export function SyncPlayerPanel({
           <form className="mx-syncplayer__form" onSubmit={saveSource}>
             <div className="mx-syncplayer__input">
               <TextField
-                label="视频地址"
+                label={t("sync.urlLabel")}
                 placeholder="https://example.com/video.mkv"
-                hint="片源必须允许本站跨域读取（CORS）并支持 Range 请求。换地址会让房里所有人一起换。"
+                hint={t("sync.urlHint")}
                 value={urlDraft}
                 onChange={(event) => setUrlDraft(event.target.value)}
               />
             </div>
             <Button type="submit" variant="primary" disabled={saving}>
               <Icon name="play" size={13} />
-              {saving ? "切换中…" : "播放并同步"}
+              {saving ? t("sync.switching") : t("sync.play")}
             </Button>
           </form>
         ) : (
           <div className="mx-syncplayer__viewer">
             <Switch
               checked={following}
-              label="跟随放映端"
-              hint={
-                following
-                  ? "自动对齐放映端的进度：偏差大用跳转，偏差小用微调倍速悄悄追上。"
-                  : "已脱离同步，你可以自己拖进度。重新打开会跳回放映端的位置。"
-              }
+              label={t("sync.follow")}
+              hint={following ? t("sync.followOn") : t("sync.followOff")}
               onChange={(event) => setFollowing(event.target.checked)}
             />
             {clockInfo && following && (
               <span className="mx-text-caption mx-text-muted">
-                时钟偏移 {clockInfo.offsetMs}ms · 单程延迟约 {clockInfo.halfRttMs}ms
+                {t("sync.clock", {
+                  offset: clockInfo.offsetMs,
+                  latency: clockInfo.halfRttMs,
+                })}
               </span>
             )}
           </div>

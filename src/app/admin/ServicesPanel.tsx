@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api-client";
+import { RichText, useT, type MessageKey, type TFunction } from "@/i18n";
 import { APP_NAME } from "@/lib/brand";
 import { humanizeError } from "@/lib/error-text";
 import { toast } from "@/lib/toast";
@@ -27,55 +28,55 @@ type ServiceKey = "github" | "google" | "turnstile" | "resend";
  *
  * 抽成一张表而不是写四段几乎一样的表单：它们的形状完全一致
  * （一个可公开的标识 + 一个必须加密的密钥），差别只有文案。
+ * 表里存的是**消息键**，实际文案在语言包里 —— 四种服务 × 六段文案 × 七种语言
+ * 写进组件会彻底不可读。
  */
 const SERVICE_FORMS: Record<
   ServiceKey,
   {
-    title: string;
-    description: string;
-    publicLabel: string;
-    publicHint: string;
-    secretLabel: string;
-    secretHint: string;
+    title: MessageKey;
+    description: MessageKey;
+    publicLabel: MessageKey;
+    publicHint: MessageKey;
+    secretLabel: MessageKey;
+    secretHint: MessageKey;
     icon: "github" | "google" | "shield" | "mail";
   }
 > = {
   github: {
-    title: "GitHub 登录",
-    description: "GitHub → Settings → Developer settings → OAuth Apps → New OAuth App。",
-    publicLabel: "Client ID",
-    publicHint: "OAuth App 页面上的 Client ID。",
-    secretLabel: "Client Secret",
-    secretHint: "只在生成时显示一次，之后 GitHub 自己也看不到 —— 存好再离开那个页面。",
+    title: "svc.github.title",
+    description: "svc.github.desc",
+    publicLabel: "svc.github.publicLabel",
+    publicHint: "svc.github.publicHint",
+    secretLabel: "svc.github.secretLabel",
+    secretHint: "svc.github.secretHint",
     icon: "github",
   },
   google: {
-    title: "Google 登录",
-    description: "Google Cloud Console → API 和服务 → 凭据 → 创建 OAuth 客户端 ID（Web 应用）。",
-    publicLabel: "Client ID",
-    publicHint: "形如 xxxxx.apps.googleusercontent.com。",
-    secretLabel: "Client Secret",
-    secretHint: "凭据详情页里的客户端密钥。",
+    title: "svc.google.title",
+    description: "svc.google.desc",
+    publicLabel: "svc.google.publicLabel",
+    publicHint: "svc.google.publicHint",
+    secretLabel: "svc.google.secretLabel",
+    secretHint: "svc.google.secretHint",
     icon: "google",
   },
   turnstile: {
-    title: "Turnstile 人机验证",
-    description:
-      "Cloudflare 控制台 → Turnstile → 添加站点。配上之后登录、注册、发验证码三处都会要求验证。",
-    publicLabel: "Site Key",
-    publicHint: "会出现在登录页的 HTML 里，本身是公开的。",
-    secretLabel: "Secret Key",
-    secretHint: "服务端校验用，绝不能出现在前端。",
+    title: "svc.turnstile.title",
+    description: "svc.turnstile.desc",
+    publicLabel: "svc.turnstile.publicLabel",
+    publicHint: "svc.turnstile.publicHint",
+    secretLabel: "svc.turnstile.secretLabel",
+    secretHint: "svc.turnstile.secretHint",
     icon: "shield",
   },
   resend: {
-    title: "Resend 邮件服务",
-    description:
-      "resend.com → API Keys。发件域名必须在 Resend 里验证过，否则发信会被拒。配上之后登录页才会出现「邮箱验证码」。",
-    publicLabel: "发件地址",
-    publicHint: "必须属于已在 Resend 验证过的域名，例如 no-reply@your-domain.com。",
-    secretLabel: "API Key",
-    secretHint: "形如 re_xxxxxxxx。",
+    title: "svc.resend.title",
+    description: "svc.resend.desc",
+    publicLabel: "svc.resend.publicLabel",
+    publicHint: "svc.resend.publicHint",
+    secretLabel: "svc.resend.secretLabel",
+    secretHint: "svc.resend.secretHint",
     icon: "mail",
   },
 };
@@ -84,6 +85,7 @@ const SERVICE_ORDER: ServiceKey[] = ["github", "google", "turnstile", "resend"];
 
 /** 管理后台的「第三方服务」分区。 */
 export function ServicesPanel() {
+  const t = useT();
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [callbacks, setCallbacks] = useState<{ github: string; google: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,11 +100,11 @@ export function ServicesPanel() {
       setServices(res.services);
       setCallbacks(res.callbacks);
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -112,15 +114,12 @@ export function ServicesPanel() {
 
   return (
     <>
-
-      <Banner tone="info" title="密钥加密后存在数据库里，不走环境变量">
-        这些密钥用 AES-256-GCM 加密后写进 <code>service_credentials</code>，主密钥可以放在库外
-        （<code>CREDENTIAL_ENCRYPTION_KEY</code>）—— 拿到整个数据库 dump 也解不开。
-        任何接口都不回传密钥明文，下面显示的是掩码。改完立刻生效，不用重新部署。
+      <Banner tone="info" title={t("svc.bannerTitle")}>
+        <RichText text={t("svc.bannerBody")} />
       </Banner>
 
       {loading ? (
-        <PageLoader>正在加载第三方服务配置…</PageLoader>
+        <PageLoader>{t("svc.loading")}</PageLoader>
       ) : (
         SERVICE_ORDER.map((service) => (
           <ServiceForm
@@ -152,7 +151,9 @@ function ServiceForm({
   callbackUrl: string | undefined;
   onSaved: (rows: ServiceRow[], message: string) => void;
 }) {
+  const t = useT();
   const form = SERVICE_FORMS[service];
+  const title = t(form.title);
 
   const [publicValue, setPublicValue] = useState(current?.publicValue ?? "");
   const [secret, setSecret] = useState("");
@@ -179,9 +180,9 @@ function ServiceForm({
         },
       });
       setSecret("");
-      onSaved(res.services, `${form.title}已保存。`);
+      onSaved(res.services, t("svc.savedToast", { title }));
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
@@ -196,9 +197,9 @@ function ServiceForm({
       setPublicValue("");
       setSecret("");
       setRemoving(false);
-      onSaved(res.services, `${form.title}已删除。`);
+      onSaved(res.services, t("svc.removedToast", { title }));
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
@@ -209,60 +210,63 @@ function ServiceForm({
       title={
         <span className="mx-inline">
           <Icon name={form.icon} size={16} />
-          {form.title}
+          {title}
         </span>
       }
-      description={form.description}
+      description={t(form.description)}
       actions={
         !configured ? (
-          <Badge tone="neutral">未配置</Badge>
+          <Badge tone="neutral">{t("svc.notConfigured")}</Badge>
         ) : current.isEnabled ? (
           <Badge tone="success" dot>
-            已启用
+            {t("svc.enabled")}
           </Badge>
         ) : (
-          <Badge tone="neutral">已停用</Badge>
+          <Badge tone="neutral">{t("svc.disabled")}</Badge>
         )
       }
     >
       {callbackUrl && (
         <div className="mx-field">
-          <span className="mx-field__label">回调地址（一字不差地填到对方控制台）</span>
-          <CopyRow value={callbackUrl} label="回调地址" />
-          <span className="mx-field__hint">
-            填错这一项是接第三方登录最常见的失败原因 —— 对方会直接拒绝授权请求。
-          </span>
+          <span className="mx-field__label">{t("svc.callbackLabel")}</span>
+          <CopyRow value={callbackUrl} label={t("svc.callbackShort")} />
+          <span className="mx-field__hint">{t("svc.callbackHint")}</span>
         </div>
       )}
 
       <form className="mx-form" onSubmit={submit}>
         <TextField
-          label={form.publicLabel}
-          hint={form.publicHint}
+          label={t(form.publicLabel)}
+          hint={t(form.publicHint)}
           required
           value={publicValue}
           onChange={(event) => setPublicValue(event.target.value)}
         />
 
         <TextField
-          label={form.secretLabel}
+          label={t(form.secretLabel)}
           type="password"
           hint={
             configured
-              ? `${form.secretHint} 当前：${current.secretMask}。留空表示不修改。`
-              : form.secretHint
+              ? t("svc.secretCurrent", {
+                  hint: t(form.secretHint),
+                  // 掩码通常是真实字符串（"re_xx…xx"），但密文解不开时服务端会回一个
+                  // 消息键 —— t.raw 认得出来就翻，认不出来原样显示
+                  mask: t.raw(current.secretMask),
+                })
+              : t(form.secretHint)
           }
           required={!configured}
           autoComplete="new-password"
-          placeholder={configured ? "留空 = 不修改" : ""}
+          placeholder={configured ? t("svc.secretKeepPlaceholder") : ""}
           value={secret}
           onChange={(event) => setSecret(event.target.value)}
         />
 
         {service === "resend" && (
           <TextField
-            label="发件人显示名（可选）"
-            hint={`收件人看到的名字，例如「${APP_NAME}」。`}
+            label={t("svc.fromName")}
+            hint={t("svc.fromNameHint", { app: APP_NAME })}
             value={fromName}
             onChange={(event) => setFromName(event.target.value)}
           />
@@ -270,20 +274,14 @@ function ServiceForm({
 
         <Switch
           checked={isEnabled}
-          label="启用"
-          hint={
-            service === "turnstile"
-              ? "停用后登录页不再要求人机验证。"
-              : service === "resend"
-                ? "停用后登录页不再显示「邮箱验证码」。"
-                : "停用后登录页不再显示这个按钮。"
-          }
+          label={t("svc.enableLabel")}
+          hint={enableHint(t, service)}
           onChange={(event) => setIsEnabled(event.target.checked)}
         />
 
         <div className="mx-card__actions">
           <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? "保存中…" : configured ? "保存修改" : "保存"}
+            {busy ? t("common.saving") : configured ? t("svc.saveChanges") : t("common.save")}
           </Button>
           {configured && (
             <Button
@@ -293,7 +291,7 @@ function ServiceForm({
               onClick={() => setRemoving(true)}
             >
               <Icon name="trash" size={15} />
-              删除配置
+              {t("svc.removeConfig")}
             </Button>
           )}
         </div>
@@ -303,18 +301,24 @@ function ServiceForm({
         open={removing}
         danger
         busy={busy}
-        title={`删除 ${form.title} 配置`}
-        confirmLabel="删除"
-        body={
-          service === "turnstile"
-            ? "删除后登录、注册、发验证码都不再要求人机验证。确定？"
-            : service === "resend"
-              ? "删除后邮箱验证码登录会失效，已发出的验证码也验不了。确定？"
-              : "删除后这个第三方登录按钮会消失。已经用它绑定过、且没有设过密码的用户将再也登不进来 —— 先确认他们有别的登录方式。"
-        }
+        title={t("svc.removeTitle", { title })}
+        confirmLabel={t("common.delete")}
+        body={removeBody(t, service)}
         onConfirm={() => void remove()}
         onClose={() => setRemoving(false)}
       />
     </Card>
   );
+}
+
+function enableHint(t: TFunction, service: ServiceKey): string {
+  if (service === "turnstile") return t("svc.enableHintTurnstile");
+  if (service === "resend") return t("svc.enableHintResend");
+  return t("svc.enableHintOauth");
+}
+
+function removeBody(t: TFunction, service: ServiceKey): string {
+  if (service === "turnstile") return t("svc.removeBodyTurnstile");
+  if (service === "resend") return t("svc.removeBodyResend");
+  return t("svc.removeBodyOauth");
 }

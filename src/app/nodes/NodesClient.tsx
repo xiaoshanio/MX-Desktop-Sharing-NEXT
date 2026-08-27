@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api-client";
+import { useT } from "@/i18n";
 import { humanizeError } from "@/lib/error-text";
 import { toast } from "@/lib/toast";
 import type { NodeSummary } from "@/lib/api-types";
@@ -28,6 +29,7 @@ import {
 } from "@/ui";
 
 export function NodesClient({ user }: { user: ShellUser }) {
+  const t = useT();
   const [nodes, setNodes] = useState<NodeSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,11 +44,11 @@ export function NodesClient({ user }: { user: ShellUser }) {
       const res = await api<{ nodes: NodeSummary[] }>("/api/nodes");
       setNodes(res.nodes);
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void refresh();
@@ -58,7 +60,7 @@ export function NodesClient({ user }: { user: ShellUser }) {
       await api(`/api/nodes/${node.id}`, { method: "POST" });
       await refresh();
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setCheckingId(null);
     }
@@ -72,7 +74,7 @@ export function NodesClient({ user }: { user: ShellUser }) {
       setDeleting(null);
       await refresh();
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
       setDeleting(null);
     } finally {
       setDeleteBusy(false);
@@ -86,53 +88,53 @@ export function NodesClient({ user }: { user: ShellUser }) {
     <AppShell
       user={user}
       loading={loading}
-      loadingLabel="正在加载节点…"
-      heading={<span>LiveKit 节点</span>}
+      loadingLabel={t("nodes.loading")}
+      heading={<span>{t("nodes.heading")}</span>}
       status={
         <>
-          <span className="mx-statusbar__item">节点 {nodes.length}</span>
+          <span className="mx-statusbar__item">
+            {t("nodes.stat.total", { count: nodes.length })}
+          </span>
           <span className="mx-statusbar__divider" />
-          <span className="mx-statusbar__item">我的 {mine}</span>
+          <span className="mx-statusbar__item">{t("nodes.stat.mine", { count: mine })}</span>
           <span className="mx-statusbar__divider" />
-          <span className="mx-statusbar__item">体检正常 {healthy}</span>
+          <span className="mx-statusbar__item">
+            {t("nodes.stat.healthy", { count: healthy })}
+          </span>
         </>
       }
     >
       <section className="mx-section">
         <header className="mx-section__header">
           <div className="mx-section__heading">
-            <h1 className="mx-section__title">LiveKit 节点</h1>
-            <p className="mx-section__subtitle">
-              接入你自己的 LiveKit 凭据，房间就烧你自己的免费额度，不跟别人抢。
-            </p>
+            <h1 className="mx-section__title">{t("nodes.heading")}</h1>
+            <p className="mx-section__subtitle">{t("nodes.subtitle")}</p>
           </div>
           <span className="mx-section__spacer" />
           <div className="mx-section__actions">
             <Button variant="secondary" size="sm" onClick={() => void refresh()}>
               <Icon name="refresh" size={14} />
-              刷新
+              {t("common.refresh")}
             </Button>
             <Button variant="primary" size="sm" onClick={() => setAdding(true)}>
               <Icon name="plus" size={14} />
-              接入节点
+              {t("nodes.add")}
             </Button>
           </div>
         </header>
 
-
         {nodes.length === 0 ? (
           <EmptyState
             icon="node"
-            title="还没有任何节点"
+            title={t("nodes.empty.title")}
             actions={
               <Button variant="primary" onClick={() => setAdding(true)}>
                 <Icon name="plus" size={16} />
-                接入我的第一个节点
+                {t("nodes.empty.action")}
               </Button>
             }
           >
-            LiveKit Cloud 的免费 Build 计划不用绑卡，三分钟就能开一个。添加时本站会实地打一次
-            API 验证，凭据填错不会存进去。
+            {t("nodes.empty.body")}
           </EmptyState>
         ) : (
           <div className="mx-list">
@@ -155,7 +157,7 @@ export function NodesClient({ user }: { user: ShellUser }) {
         onClose={() => setAdding(false)}
         onSaved={async () => {
           setAdding(false);
-          toast.success("节点已保存，凭据体检通过。");
+          toast.success(t("nodes.saved"));
           await refresh();
         }}
       />
@@ -165,7 +167,7 @@ export function NodesClient({ user }: { user: ShellUser }) {
         onClose={() => setRotating(null)}
         onSaved={async (name) => {
           setRotating(null);
-          toast.success(`「${name}」的密钥已更新，新凭据体检通过。`);
+          toast.success(t("nodes.rotated", { name }));
           await refresh();
         }}
       />
@@ -174,13 +176,9 @@ export function NodesClient({ user }: { user: ShellUser }) {
         open={deleting !== null}
         danger
         busy={deleteBusy}
-        title="删除节点"
-        confirmLabel="删除"
-        body={
-          <>
-            确定删除「{deleting?.name}」？它下面的活跃房间必须先关闭，否则删除会被拒绝。
-          </>
-        }
+        title={t("nodes.deleteTitle")}
+        confirmLabel={t("common.delete")}
+        body={t("nodes.deleteBody", { name: deleting?.name ?? "" })}
         onConfirm={() => void confirmDelete()}
         onClose={() => setDeleting(null)}
       />
@@ -201,8 +199,9 @@ function NodeListRow({
   onRotate: () => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const [showWebhook, setShowWebhook] = useState(false);
-  const health = healthLabel(node.lastCheckOk);
+  const health = healthLabel(t, node.lastCheckOk);
   const editable = node.isMine && node.kind === "user";
 
   return (
@@ -216,19 +215,21 @@ function NodeListRow({
           <div className="mx-row__title">
             <span className="mx-row__name">{node.name}</span>
             {node.kind === "builtin" ? (
-              <Badge tone="accent">内置</Badge>
+              <Badge tone="accent">{t("nodes.badge.builtin")}</Badge>
             ) : (
-              <Badge tone="neutral">{node.isMine ? "我的" : "他人"}</Badge>
+              <Badge tone="neutral">
+                {node.isMine ? t("nodes.badge.mine") : t("nodes.badge.theirs")}
+              </Badge>
             )}
             <Badge tone={health.tone} dot={node.lastCheckOk !== null}>
               {health.text}
             </Badge>
-            {!node.isEnabled && <Badge tone="warning">已停用</Badge>}
+            {!node.isEnabled && <Badge tone="warning">{t("nodes.badge.disabled")}</Badge>}
           </div>
           <div className="mx-row__meta">
             <code>{node.wsUrl}</code>
             <span>·</span>
-            <span>Ingress {node.capabilities?.ingress ? "可用" : "不可用"}</span>
+            <span>{node.capabilities?.ingress ? t("nodes.ingressOk") : t("nodes.ingressBad")}</span>
           </div>
         </div>
 
@@ -245,14 +246,14 @@ function NodeListRow({
             </Button>
           )}
           <Button variant="secondary" size="sm" disabled={checking} onClick={onRecheck}>
-            {checking ? "检测中…" : "检测"}
+            {checking ? t("nodes.checking") : t("nodes.check")}
           </Button>
           {editable && (
             <>
-              <IconButton size="sm" label="换密钥" onClick={onRotate}>
+              <IconButton size="sm" label={t("nodes.rotate")} onClick={onRotate}>
                 <Icon name="key" size={15} />
               </IconButton>
-              <IconButton size="sm" tone="danger" label="删除节点" onClick={onDelete}>
+              <IconButton size="sm" tone="danger" label={t("nodes.delete")} onClick={onDelete}>
                 <Icon name="trash" size={15} />
               </IconButton>
             </>
@@ -262,10 +263,8 @@ function NodeListRow({
 
       {showWebhook && node.isMine && (
         <div className="mx-row__extra">
-          <span className="mx-text-caption">
-            去 LiveKit 控制台 Settings → Webhooks，把下面这个地址填进去。房间成员的在线状态靠它更新。
-          </span>
-          <CopyRow value={node.webhookUrl} label="Webhook 地址" />
+          <span className="mx-text-caption">{t("nodes.webhookHint")}</span>
+          <CopyRow value={node.webhookUrl} label={t("nodes.webhookLabel")} />
         </div>
       )}
     </div>
@@ -281,6 +280,7 @@ function AddNodeDialog({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState<NodeDraft>(emptyNodeDraft());
   const [busy, setBusy] = useState(false);
 
@@ -296,7 +296,7 @@ function AddNodeDialog({
       await api("/api/nodes", { method: "POST", json: draft });
       await onSaved();
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
@@ -305,16 +305,16 @@ function AddNodeDialog({
   return (
     <Modal
       open={open}
-      title="接入我的 LiveKit 节点"
+      title={t("nodes.add.title")}
       onClose={onClose}
       size="lg"
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={busy}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button variant="primary" type="submit" form="mx-add-node" disabled={busy}>
-            {busy ? "校验并保存…" : "保存节点"}
+            {busy ? t("nodes.add.busy") : t("nodes.add.submit")}
           </Button>
         </>
       }
@@ -339,6 +339,7 @@ function RotateKeyDialog({
   onClose: () => void;
   onSaved: (name: string) => Promise<void>;
 }) {
+  const t = useT();
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
   const [busy, setBusy] = useState(false);
@@ -360,7 +361,7 @@ function RotateKeyDialog({
       });
       await onSaved(node.name);
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
@@ -369,26 +370,24 @@ function RotateKeyDialog({
   return (
     <Modal
       open={node !== null}
-      title={`更新「${node?.name ?? ""}」的密钥`}
+      title={t("nodes.rotate.title", { name: node?.name ?? "" })}
       onClose={onClose}
       size="sm"
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={busy}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button variant="primary" type="submit" form="mx-rotate-key" disabled={busy}>
-            {busy ? "校验并更新…" : "更新密钥"}
+            {busy ? t("nodes.rotate.busy") : t("nodes.rotate.submit")}
           </Button>
         </>
       }
     >
       <form id="mx-rotate-key" className="mx-form" onSubmit={submit}>
-        <p className="mx-text-caption">
-          写入前会先拿新凭据打一次 LiveKit API。校验不过就不改动，旧密钥继续有效。
-        </p>
+        <p className="mx-text-caption">{t("nodes.rotate.note")}</p>
         <TextField
-          label="新 API Key"
+          label={t("nodes.rotate.newKey")}
           required
           mono
           autoFocus
@@ -397,7 +396,7 @@ function RotateKeyDialog({
           onChange={(event) => setApiKey(event.target.value)}
         />
         <TextField
-          label="新 API Secret"
+          label={t("nodes.rotate.newSecret")}
           required
           type="password"
           autoComplete="new-password"

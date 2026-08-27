@@ -53,6 +53,19 @@
   width: min(100%, 520px);
 }
 
+/* Language + theme controls, pinned to the corner of the auth screen. The sign-in page
+   is the only place an anonymous visitor stays for long, so it needs its own way to
+   switch language — the landing bar hides the picker on phones. */
+.mx-auth__chrome {
+  position: absolute;
+  top: var(--mx-space-lg);
+  inset-inline-end: var(--mx-space-lg);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-xs);
+}
+
 .mx-auth__brand {
   display: flex;
   flex-direction: column;

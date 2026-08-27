@@ -12,6 +12,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { useT } from "@/i18n";
+
 export type ModalSize = "sm" | "md" | "lg" | "xl";
 
 export interface ModalProps {
@@ -38,6 +40,7 @@ export function Modal({
   footer,
   size = "md",
 }: ModalProps): ReactNode {
+  const t = useT();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const [rendered, setRendered] = useState(open);
@@ -106,7 +109,12 @@ export function Modal({
           <h2 id={titleId} className="mx-modal__title">
             {title}
           </h2>
-          <button type="button" className="mx-modal__close" aria-label="关闭" onClick={onClose}>
+          <button
+            type="button"
+            className="mx-modal__close"
+            aria-label={t("common.close")}
+            onClick={onClose}
+          >
             ×
           </button>
         </header>

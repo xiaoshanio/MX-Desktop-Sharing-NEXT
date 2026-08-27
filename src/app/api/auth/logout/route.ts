@@ -1,5 +1,6 @@
 import { destroySession } from "@/lib/auth";
-import { json, route } from "@/lib/http";
+import { json } from "@/lib/http";
+import { route } from "@/lib/api-route";
 
 export const runtime = "nodejs";
 

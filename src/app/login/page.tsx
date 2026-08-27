@@ -6,10 +6,13 @@ import Link from "next/link";
 
 import { api } from "@/lib/api-client";
 import type { AuthProviders } from "@/lib/api-types";
+import { useT } from "@/i18n";
 import { APP_NAME, COPYRIGHT } from "@/lib/brand";
 import { humanizeError } from "@/lib/error-text";
 import { toast } from "@/lib/toast";
 import { BrandMark } from "@/components/BrandMark";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Turnstile } from "@/components/Turnstile";
 import { Button, Icon, TextField } from "@/ui";
 
@@ -34,6 +37,7 @@ type Mode = "login" | "register";
 type Method = "password" | "code";
 
 function LoginScreen() {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
@@ -61,8 +65,8 @@ function LoginScreen() {
    */
   const oauthError = params.get("error");
   useEffect(() => {
-    if (oauthError) toast.error(oauthError, { title: "第三方登录没成功" });
-  }, [oauthError]);
+    if (oauthError) toast.error(oauthError, { title: t("auth.oauthFailedTitle") });
+  }, [oauthError, t]);
 
   useEffect(() => {
     api<AuthProviders>("/api/auth/providers")
@@ -101,11 +105,14 @@ function LoginScreen() {
   }, [providers]);
 
   /** 提交失败后重置人机验证：token 是一次性的，不换的话下一次必然失败。 */
-  const failed = useCallback((error: unknown) => {
-    toast.error(humanizeError(error));
-    setCaptchaToken(null);
-    setCaptchaNonce((nonce) => nonce + 1);
-  }, []);
+  const failed = useCallback(
+    (error: unknown) => {
+      toast.error(humanizeError(t, error));
+      setCaptchaToken(null);
+      setCaptchaNonce((nonce) => nonce + 1);
+    },
+    [t],
+  );
 
   function switchMode(target: Mode) {
     setMode(target);
@@ -124,7 +131,7 @@ function LoginScreen() {
       await api("/api/auth/email/code", { method: "POST", json: { email, captchaToken } });
       setCodeSent(true);
       setCooldown(60);
-      toast.success(`验证码已发到 ${email}，10 分钟内有效。`);
+      toast.success(t("auth.codeSent", { email }));
       // 这枚 token 已经被服务端消费掉了，换一枚给后面的操作用
       setCaptchaToken(null);
       setCaptchaNonce((nonce) => nonce + 1);
@@ -166,14 +173,14 @@ function LoginScreen() {
   }
 
   const submitLabel = busy
-    ? "处理中…"
+    ? t("auth.submitBusy")
     : registering
-      ? "注册并进入"
+      ? t("auth.submitRegister")
       : method === "code"
         ? codeSent
-          ? "验证并登录"
-          : "发送验证码"
-        : "登录";
+          ? t("auth.submitVerify")
+          : t("auth.submitSendCode")
+        : t("auth.submitLogin");
 
   /**
    * 人机验证只在「会真的消费一枚 token」的那些提交上要求。
@@ -185,20 +192,28 @@ function LoginScreen() {
 
   return (
     <div className="mx-auth">
+      {/*
+        登录页也要能换语言：它是未登录用户唯一停留够久的页面，而首页顶栏在手机上
+        不显示语言下拉（见 landing.css）—— 两处都没有的话，系统语言没被认出来的人
+        就完全没有出路了。
+      */}
+      <div className="mx-auth__chrome">
+        <LanguageSwitcher />
+        <ThemeToggle />
+      </div>
+
       <div className="mx-auth__inner">
         <div className="mx-auth__brand">
-          <Link href="/" className="mx-auth__home" aria-label="回首页">
+          <Link href="/" className="mx-auth__home" aria-label={t("auth.home")}>
             <BrandMark size={64} className="mx-auth__mark" />
             <h1 className="mx-auth__title">{APP_NAME}</h1>
           </Link>
-          <p className="mx-auth__subtitle">
-            一房一节点，一人一推流地址。用 OBS 或浏览器直接把屏幕推给房间里的人。
-          </p>
+          <p className="mx-auth__subtitle">{t("auth.subtitle")}</p>
         </div>
 
         <form className="mx-auth__panel" onSubmit={submit}>
           {registrationOpen ? (
-            <div className="mx-auth__switcher" role="tablist" aria-label="登录或注册">
+            <div className="mx-auth__switcher" role="tablist" aria-label={t("auth.tabs")}>
               <button
                 type="button"
                 role="tab"
@@ -206,7 +221,7 @@ function LoginScreen() {
                 aria-selected={!registering}
                 onClick={() => switchMode("login")}
               >
-                登录
+                {t("auth.signIn")}
               </button>
               <button
                 type="button"
@@ -215,13 +230,13 @@ function LoginScreen() {
                 aria-selected={registering}
                 onClick={() => switchMode("register")}
               >
-                注册
+                {t("auth.signUp")}
               </button>
             </div>
           ) : (
             <p className="mx-auth__closed">
               <Icon name="ban" size={14} />
-              本站点禁止注册，只有已有账号可以登录。
+              {t("auth.closed")}
             </p>
           )}
 
@@ -237,19 +252,21 @@ function LoginScreen() {
                     href={`/api/auth/oauth/${provider}/start?next=${encodeURIComponent(next)}`}
                   >
                     <Icon name={provider} size={18} />
-                    用 {provider === "github" ? "GitHub" : "Google"} 继续
+                    {t("auth.oauthContinue", {
+                      provider: provider === "github" ? "GitHub" : "Google",
+                    })}
                   </a>
                 ))}
               </div>
               <div className="mx-auth__divider">
-                <span>或用邮箱</span>
+                <span>{t("auth.orEmail")}</span>
               </div>
             </>
           )}
 
           {/* 登录方式：密码 / 验证码。只有配了 Resend 才给验证码这条路。 */}
           {!registering && providers?.emailCodeEnabled && (
-            <div className="mx-auth__methods" role="tablist" aria-label="登录方式">
+            <div className="mx-auth__methods" role="tablist" aria-label={t("auth.methods")}>
               <button
                 type="button"
                 role="tab"
@@ -258,7 +275,7 @@ function LoginScreen() {
                 onClick={() => switchMethod("password")}
               >
                 <Icon name="key" size={14} />
-                密码
+                {t("auth.methodPassword")}
               </button>
               <button
                 type="button"
@@ -268,14 +285,14 @@ function LoginScreen() {
                 onClick={() => switchMethod("code")}
               >
                 <Icon name="mail" size={14} />
-                邮箱验证码
+                {t("auth.methodCode")}
               </button>
             </div>
           )}
 
           <div className="mx-form">
             <TextField
-              label="邮箱"
+              label={t("auth.email")}
               type="email"
               required
               autoComplete="email"
@@ -288,11 +305,11 @@ function LoginScreen() {
 
             {registering && (
               <TextField
-                label="显示名"
+                label={t("auth.displayName")}
                 type="text"
                 required
                 autoComplete="nickname"
-                hint="房间成员列表里显示的名字。"
+                hint={t("auth.displayNameHint")}
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
               />
@@ -300,7 +317,7 @@ function LoginScreen() {
 
             {method === "password" && (
               <TextField
-                label="密码"
+                label={t("auth.password")}
                 type="password"
                 required
                 autoComplete={registering ? "new-password" : "current-password"}
@@ -312,12 +329,12 @@ function LoginScreen() {
             {method === "code" && codeSent && (
               <>
                 <TextField
-                  label="邮箱验证码"
+                  label={t("auth.code")}
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   required
                   maxLength={6}
-                  placeholder="6 位数字"
+                  placeholder={t("auth.codePlaceholder")}
                   value={code}
                   onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
                 />
@@ -327,7 +344,7 @@ function LoginScreen() {
                   disabled={busy || cooldown > 0}
                   onClick={() => void sendCode()}
                 >
-                  {cooldown > 0 ? `重新发送（${cooldown}s）` : "没收到？重新发送"}
+                  {cooldown > 0 ? t("auth.resendIn", { seconds: cooldown }) : t("auth.resend")}
                 </button>
               </>
             )}
@@ -349,9 +366,7 @@ function LoginScreen() {
 
         <div className="mx-auth__foot">
           <p className="mx-auth__footnote">
-            {registering
-              ? "注册即拥有自己的工作区，可接入你自己的 LiveKit 节点。"
-              : "收到邀请链接的话，直接打开链接登录就会自动入房。"}
+            {registering ? t("auth.footRegister") : t("auth.footLogin")}
           </p>
           <p className="mx-auth__copyright">{COPYRIGHT}</p>
         </div>

@@ -1,7 +1,10 @@
 import { requireBootstrapped } from "@/lib/bootstrap";
+import { localeFromRequest } from "@/i18n/request";
+import { getT } from "@/i18n/translate";
 import { CODE_TTL_MINUTES, issueCode } from "@/lib/email-codes";
 import { codeMailHtml, codeMailSubject, codeMailText } from "@/lib/email-template";
-import { json, parseOr400, readJson, route } from "@/lib/http";
+import { json, parseOr400, readJson } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { sendMail } from "@/lib/mailer";
 import { assertHuman } from "@/lib/turnstile";
 import { appUrl, clientIp } from "@/lib/url";
@@ -29,11 +32,16 @@ export const POST = route(async (req) => {
 
   const { code } = await issueCode(input.email);
 
+  // 邮件跟着「点发送时界面的语言」走，见 email-template 里 locale 那个字段的注释
+  const locale = localeFromRequest(req);
+  const t = getT(locale);
+  const mail = { code, minutes: CODE_TTL_MINUTES, appUrl: appUrl(req), locale, t };
+
   await sendMail({
     to: input.email,
-    subject: codeMailSubject(code),
-    html: codeMailHtml({ code, minutes: CODE_TTL_MINUTES, appUrl: appUrl(req) }),
-    text: codeMailText({ code, minutes: CODE_TTL_MINUTES, appUrl: appUrl(req) }),
+    subject: codeMailSubject(code, t),
+    html: codeMailHtml(mail),
+    text: codeMailText(mail),
   });
 
   // 发信失败会由 sendMail 抛 502，所以走到这里就是真的投出去了。

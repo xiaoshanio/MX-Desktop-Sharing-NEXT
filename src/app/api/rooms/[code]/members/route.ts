@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { roomBans, roomIngress, roomMembers, roomPresence, users } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { badRequest, conflict, json, notFound, readJson, route, parseOr400 } from "@/lib/http";
+import { badRequest, conflict, json, notFound, readJson, parseOr400 } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { accentFor } from "@/lib/identity";
 import { deleteIngress, removeParticipant, setParticipantPublish } from "@/lib/livekit";
 import { resolve } from "@/lib/nodes";
@@ -69,8 +70,8 @@ export const POST = route(async (req, ctx: { params: Promise<{ code: string }> }
     .from(users)
     .where(sql`lower(${users.email}) = ${input.email}`)
     .limit(1);
-  if (!target) throw notFound("该邮箱还没有注册本站账号");
-  if (target.isDisabled) throw badRequest("该账号已被停用");
+  if (!target) throw notFound("api.members.emailNotRegistered");
+  if (target.isDisabled) throw badRequest("api.members.accountDisabled");
 
   // 拉黑过的人不能靠「加成员」绕回来 —— 房主得先显式解除拉黑
   await assertNotBanned(roomCtx.room.id, target.id);
@@ -80,7 +81,7 @@ export const POST = route(async (req, ctx: { params: Promise<{ code: string }> }
     .values({ roomId: roomCtx.room.id, userId: target.id, role: input.role })
     .onConflictDoNothing()
     .returning();
-  if (inserted.length === 0) throw conflict("该用户已经是房间成员");
+  if (inserted.length === 0) throw conflict("api.members.alreadyMember");
 
   audit({
     actorId: user.id,
@@ -121,14 +122,14 @@ export const PATCH = route(async (req, ctx: { params: Promise<{ code: string }> 
   const roomCtx = await requireRoomOwner(code, user);
   const input = await readJson(req, (raw) => parseOr400(updateMemberSchema, raw));
 
-  if (input.userId === roomCtx.room.ownerId) throw badRequest("不能修改房主的权限");
+  if (input.userId === roomCtx.room.ownerId) throw badRequest("api.members.cantChangeOwner");
 
   const updated = await db
     .update(roomMembers)
     .set({ role: input.role })
     .where(and(eq(roomMembers.roomId, roomCtx.room.id), eq(roomMembers.userId, input.userId)))
     .returning();
-  if (updated.length === 0) throw notFound("该用户不是房间成员");
+  if (updated.length === 0) throw notFound("api.members.notMember");
 
   const canPublish = input.role === "publisher";
   const node = await resolve(roomCtx.node);
@@ -169,14 +170,14 @@ export const DELETE = route(async (req, ctx: { params: Promise<{ code: string }>
   const ban = url.searchParams.get("ban") === "1";
   const reason = url.searchParams.get("reason")?.slice(0, 200) ?? null;
 
-  if (!targetId) throw badRequest("缺少 userId");
-  if (targetId === roomCtx.room.ownerId) throw badRequest("不能移除房主");
+  if (!targetId) throw badRequest("api.members.missingUserId");
+  if (targetId === roomCtx.room.ownerId) throw badRequest("api.members.cantRemoveOwner");
 
   const removed = await db
     .delete(roomMembers)
     .where(and(eq(roomMembers.roomId, roomCtx.room.id), eq(roomMembers.userId, targetId)))
     .returning();
-  if (removed.length === 0) throw notFound("该用户不是房间成员");
+  if (removed.length === 0) throw notFound("api.members.notMember");
 
   if (ban) {
     // 先写黑名单再断连接：万一后面几步失败，至少他回不来

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { RichText, useT } from "@/i18n";
 import { Button, Icon, TextField } from "@/ui";
 
 export type NodeDraft = {
@@ -29,6 +30,7 @@ export function NodeCredentialFields({
   value: NodeDraft;
   onChange: (next: NodeDraft) => void;
 }) {
+  const t = useT();
   const [showGuide, setShowGuide] = useState(false);
   const set = <K extends keyof NodeDraft>(key: K, next: NodeDraft[K]) =>
     onChange({ ...value, [key]: next });
@@ -36,56 +38,52 @@ export function NodeCredentialFields({
   return (
     <div className="mx-form">
       <div className="mx-inline">
-        <span className="mx-text-caption">需要一套 LiveKit 的地址 / API Key / API Secret</span>
+        <span className="mx-text-caption">{t("node.needCreds")}</span>
         <span style={{ flex: 1 }} />
         <Button variant="subtle" size="sm" onClick={() => setShowGuide((state) => !state)}>
           <Icon name="info" size={15} />
-          {showGuide ? "收起指引" : "我还没有，怎么弄？"}
+          {showGuide ? t("node.guideHide") : t("node.guideShow")}
         </Button>
       </div>
 
       {showGuide && (
         <div className="mx-guide">
-          <h3 className="mx-guide__title">三分钟开一个免费 LiveKit Cloud 节点</h3>
+          <h3 className="mx-guide__title">{t("node.guide.title")}</h3>
           <ol className="mx-steps">
             <li>
-              打开{" "}
+              {t("node.guide.step1a")}{" "}
               <a href="https://cloud.livekit.io" target="_blank" rel="noreferrer">
                 cloud.livekit.io
               </a>{" "}
-              注册，免费的 Build 计划不需要绑卡。
+              {t("node.guide.step1b")}
             </li>
             <li>
-              建一个 project，名字随意。创建完会给你一个 <code>wss://xxx.livekit.cloud</code> 地址。
+              <RichText text={t("node.guide.step2")} />
             </li>
             <li>
-              进 Settings → Keys → 新建一个 API Key，会得到 <code>API Key</code> 和{" "}
-              <code>API Secret</code>。Secret 只显示一次，先复制出来。
+              <RichText text={t("node.guide.step3")} />
             </li>
-            <li>把这三个值填到下面。保存前本站会实地打一次 LiveKit API 验证，填错了不会存进去。</li>
+            <li>{t("node.guide.step4")}</li>
           </ol>
-          <p className="mx-guide__note">
-            为什么建议你用自己的节点：免费额度是按 project 算的（约 5,000 WebRTC
-            参与者分钟 + 50 GB 下行/月，超了直接失败不扣费）。你自己接一个，烧的就是你自己的额度，不跟别人抢。
-          </p>
+          <p className="mx-guide__note">{t("node.guide.note")}</p>
         </div>
       )}
 
       <TextField
-        label="节点名称"
+        label={t("node.field.name")}
         required
-        placeholder="我的 LiveKit"
-        hint="只是给你自己看的，随便起。"
+        placeholder={t("node.field.namePlaceholder")}
+        hint={t("node.field.nameHint")}
         value={value.name}
         onChange={(event) => set("name", event.target.value)}
       />
 
       <TextField
-        label="LiveKit 地址"
+        label={t("node.field.url")}
         required
         mono
         placeholder="wss://your-project.livekit.cloud"
-        hint="复制成 https:// 开头也行，会自动改成 wss://。"
+        hint={t("node.field.urlHint")}
         value={value.wsUrl}
         onChange={(event) => set("wsUrl", event.target.value)}
       />
@@ -104,7 +102,7 @@ export function NodeCredentialFields({
           required
           type="password"
           autoComplete="new-password"
-          hint="加密后落库，任何接口都不会再把它回传出来。"
+          hint={t("node.field.secretHint")}
           value={value.apiSecret}
           onChange={(event) => set("apiSecret", event.target.value)}
         />

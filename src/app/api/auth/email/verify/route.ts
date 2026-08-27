@@ -3,7 +3,8 @@ import { resolveEmailCodeLogin } from "@/lib/accounts";
 import { createSession } from "@/lib/auth";
 import { requireBootstrapped } from "@/lib/bootstrap";
 import { consumeCode } from "@/lib/email-codes";
-import { json, parseOr400, readJson, route } from "@/lib/http";
+import { json, parseOr400, readJson } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { clearLoginFailures } from "@/lib/rate-limit";
 import { verifyEmailCodeSchema } from "@/lib/validation";
 

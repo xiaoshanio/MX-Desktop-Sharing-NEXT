@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+import { useT } from "@/i18n";
 import { Button, Icon } from "@/ui";
 
 export interface CoachMarkProps {
@@ -10,7 +11,7 @@ export interface CoachMarkProps {
   anchor: HTMLElement | null;
   title: ReactNode;
   children: ReactNode;
-  confirmLabel?: string;
+  confirmLabel?: ReactNode;
   onDismiss: () => void;
 }
 
@@ -27,9 +28,10 @@ export function CoachMark({
   anchor,
   title,
   children,
-  confirmLabel = "知道了",
+  confirmLabel,
   onDismiss,
 }: CoachMarkProps): ReactNode {
+  const t = useT();
   const [box, setBox] = useState<{ top: number; left: number; width: number } | null>(null);
 
   /**
@@ -99,7 +101,7 @@ export function CoachMark({
         <div className="mx-coach__body">{children}</div>
         <div className="mx-coach__foot">
           <Button size="sm" variant="primary" onClick={onDismiss}>
-            {confirmLabel}
+            {confirmLabel ?? t("common.gotIt")}
           </Button>
         </div>
       </div>

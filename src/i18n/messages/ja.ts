@@ -1,0 +1,1090 @@
+/**
+ * 日本語。
+ *
+ * キーの集合は ./en（`Messages` 型）が定義する。抜けやタイプミスは
+ * `npm run typecheck` で落ちるので、UI に生のキーが出ることはない。
+ * `{name}` は t(key, vars) が差し込み、`**太字**`・`*斜体*`・`` `コード` `` は
+ * <RichText> が描画する。
+ */
+
+import type { Messages } from "./types";
+
+const ja: Messages = {
+  /* ============================================================
+     Brand
+     ============================================================ */
+  "brand.tagline": "ルームごとに 1 ノード、人ごとに 1 配信 URL",
+  "brand.subtitle": "LiveKit マルチノード",
+
+  /* ============================================================
+     Shared verbs and labels
+     ============================================================ */
+  "common.cancel": "キャンセル",
+  "common.confirm": "OK",
+  "common.save": "保存",
+  "common.saving": "保存中…",
+  "common.delete": "削除",
+  "common.refresh": "更新",
+  "common.working": "処理中…",
+  "common.loading": "読み込み中",
+  "common.loadingEllipsis": "読み込み中…",
+  "common.close": "閉じる",
+  "common.gotIt": "了解",
+  "common.errorTitle": "エラーが発生しました",
+  "common.copied": "コピーしました",
+  "common.copy": "{label}をコピー",
+  "common.reveal": "{label}を表示",
+  "common.hide": "{label}を隠す",
+  "common.copyPlain": "コピー",
+  "common.revealPlain": "表示",
+  "common.hidePlain": "隠す",
+  "common.notifications": "通知",
+  "common.dismissNotification": "通知を閉じる",
+  "common.retry": "再試行",
+  "common.unlimited": "無制限",
+  "common.never": "なし",
+  "common.system": "システム",
+  "common.dash": "—",
+
+  /* ============================================================
+     Theme + language switchers
+     ============================================================ */
+  "theme.label": "テーマ",
+  "theme.system": "システムに合わせる",
+  "theme.light": "ライト",
+  "theme.dark": "ダーク",
+  "theme.nextSystem": "現在ダークテーマ — システムに合わせる",
+  "theme.nextLight": "現在システムに合わせています — ライトテーマにする",
+  "theme.nextDark": "現在ライトテーマ — ダークテーマにする",
+  "lang.label": "言語",
+  "lang.change": "言語を切り替える",
+
+  /* ============================================================
+     App shell
+     ============================================================ */
+  "shell.openNav": "ナビゲーションを開く",
+  "shell.closeNav": "ナビゲーションを閉じる",
+  "shell.mainNav": "メインナビゲーション",
+  "shell.workspace": "ワークスペース",
+  "shell.expandSidebar": "サイドバーを開く",
+  "shell.collapseSidebar": "サイドバーを畳む",
+  "shell.back": "戻る",
+  "shell.online": "接続中",
+  "shell.offline": "オフライン",
+  "shell.nav.rooms": "ルーム",
+  "shell.nav.nodes": "LiveKit ノード",
+  "shell.nav.me": "プロフィール",
+  "shell.nav.admin": "管理",
+  "shell.role.admin": "管理者",
+  "shell.role.user": "ユーザー",
+  "shell.menu.profile": "プロフィール",
+  "shell.menu.admin": "管理",
+  "shell.menu.logout": "ログアウト",
+  "shell.menu.loggingOut": "ログアウト中…",
+  /* ============================================================
+     Role / health labels (lib/labels.ts)
+     ============================================================ */
+  "label.role.owner": "オーナー",
+  "label.role.publisher": "配信可",
+  "label.role.viewer": "閲覧のみ",
+  "label.health.unknown": "未チェック",
+  "label.health.ok": "正常",
+  "label.health.bad": "異常",
+
+  /* ============================================================
+     Sign in / sign up
+     ============================================================ */
+  "auth.subtitle": "ルームごとに 1 ノード、人ごとに 1 配信 URL。OBS でも、ブラウザだけでも、ルームの全員に画面を送れます。",
+  "auth.home": "ホームに戻る",
+  "auth.tabs": "ログインまたは登録",
+  "auth.signIn": "ログイン",
+  "auth.signUp": "新規登録",
+  "auth.closed": "このサイトは新規登録を受け付けていません。既存アカウントはこれまで通りログインできます。",
+  "auth.oauthContinue": "{provider} で続ける",
+  "auth.orEmail": "またはメールで",
+  "auth.methods": "ログイン方法",
+  "auth.methodPassword": "パスワード",
+  "auth.methodCode": "メール確認コード",
+  "auth.email": "メールアドレス",
+  "auth.displayName": "表示名",
+  "auth.displayNameHint": "ルームのメンバー一覧に表示される名前です。",
+  "auth.password": "パスワード",
+  "auth.code": "メール確認コード",
+  "auth.codePlaceholder": "6 桁の数字",
+  "auth.resendIn": "再送信（{seconds} 秒）",
+  "auth.resend": "届かない場合は再送信",
+  "auth.submitBusy": "処理中…",
+  "auth.submitRegister": "登録して入る",
+  "auth.submitVerify": "確認してログイン",
+  "auth.submitSendCode": "コードを送信",
+  "auth.submitLogin": "ログイン",
+  "auth.codeSent": "{email} に確認コードを送信しました。10 分間有効です。",
+  "auth.oauthFailedTitle": "外部サービスでのログインに失敗しました",
+  "auth.footRegister": "登録すると自分専用のワークスペースと自分の LiveKit ノードが持てます。",
+  "auth.footLogin": "招待リンクを受け取った場合は、そのまま開いてログインすれば自動でルームに入ります。",
+  /* ============================================================
+     Invite landing page
+     ============================================================ */
+  "join.working": "ルームに入っています",
+  "join.workingBody": "招待リンクを確認しています。すぐ終わります。",
+  "join.failed": "参加できません",
+  "join.failedBody": "この招待リンクは使用できませんでした。",
+  "join.checking": "招待リンクを確認中…",
+  "join.failedHint": "期限切れ、取り消し済み、または使用回数の上限に達している可能性があります。ルームのオーナーに新しいものを頼んでください。",
+  "join.backToConsole": "コンソールに戻る",
+
+  /* ============================================================
+     Turnstile (human verification)
+     ============================================================ */
+  "turnstile.blocked":
+    "challenges.cloudflare.com から認証スクリプトを読み込めませんでした。ネットワークで遮断されている、または広告ブロッカーが邪魔している可能性があります。",
+  "turnstile.noInit": "認証スクリプトは読み込めましたが初期化できませんでした。ページを再読み込みしてください。",
+  "turnstile.renderFailed": "人間確認の描画に失敗しました：{message}",
+  "turnstile.initFailed": "人間確認の初期化に失敗しました。ページを再読み込みしてください。",
+  "turnstile.initFailedCode": "人間確認の初期化に失敗しました（エラー {code}）。",
+  "turnstile.badDomain":
+    "この Site Key は {hostname} では使用できません（エラー {code}）。Cloudflare → Turnstile → このサイトの設定で {hostname} を Domains に追加してください。ローカル開発では localhost を別途追加します。",
+  "turnstile.badKey":
+    "Site Key が無効です（エラー {code}）。Secret Key ではなく Site Key を貼り付けているか確認してください。取り違えやすい箇所です。",
+  "turnstile.badBrowser": "このブラウザは対応していません（エラー {code}）。最近の Chrome / Edge / Firefox を試してください。",
+  "turnstile.timeout": "確認がタイムアウトしました（エラー {code}）。もう一度お試しください。",
+  "turnstile.execFailed":
+    "人間確認の実行に失敗しました（エラー {code}）。通常はページの再読み込みで解決します。続く場合は Cloudflare 側の問題です。",
+  "turnstile.staleScript": "api.js が古くなっています（エラー {code}）。ブラウザのキャッシュを消してから再試行してください。",
+  /* ============================================================
+     Client-side error humanising (lib/error-text.ts)
+     ============================================================ */
+  "err.signalConnection": "ルームのメディアサーバーに到達できません。ネットワークを確認するか、この LiveKit ノードがまだ動いているか確かめてください。",
+  "err.disconnected": "ルームとの接続が切れました。再接続しています…",
+  "err.roomFull": "ルームが満員です。",
+  "err.badToken": "アクセストークンが無効か期限切れです。ページを再読み込みすると新しく発行されます。",
+  "err.permissionDenied": "この操作を行う権限がありません。",
+  "err.serverUnavailable": "メディアサーバーが一時的に利用できません。少し待って再試行してください。",
+  "err.quota": "この LiveKit ノードの割り当てを使い切りました。",
+  "err.screenShareDenied": "ブラウザが画面共有の要求を拒否しました。アドレスバー横のサイト権限で許可してください。",
+  "err.noCaptureDevice": "使用できるキャプチャデバイスがない、または他のプログラムが占有しています。",
+  "err.unsupportedBrowser": "このブラウザでは利用できません。Chrome または Edge をお試しください。",
+  "err.network": "ネットワーク要求が失敗しました。接続を確認してください。",
+  "err.aborted": "要求が中断されました。",
+  "err.timeout": "要求がタイムアウトしました。少し待って再試行してください。",
+  "err.cors": "この動画ソースは当サイトからのクロスオリジン読み取りを許可していません（CORS）。動画を置いているサーバー側で許可してください。",
+  "err.range": "この動画ソースは Range リクエストに対応していないため、ダウンロードしながらの再生ができません。",
+  "err.codec": "このブラウザはこの形式をデコードできません。映像は H.264/HEVC、音声は AAC/FLAC/Opus が必要です。",
+  "err.unknown": "原因不明のエラーで操作に失敗しました。",
+  "err.httpFailed": "リクエストに失敗しました（HTTP {status}）",
+  /* ============================================================
+     Dashboard (room list)
+     ============================================================ */
+  "dash.loading": "ルームを読み込み中…",
+  "dash.heading": "ルーム",
+  "dash.refreshed": "更新しました",
+  "dash.stat.rooms": "ルーム {count}",
+  "dash.stat.active": "アクティブ {count}",
+  "dash.stat.online": "オンライン {count}",
+  "dash.stat.nodes": "使えるノード {count}",
+  "dash.title": "参加しているルーム",
+  "dash.subtitle": "カードをクリックすると入室します。各ルームは 1 つの LiveKit ノードに紐づき、メディアはそのノードだけを通ります。",
+  "dash.create": "ルームを作成",
+  "dash.empty.title": "まだルームがありません",
+  "dash.empty.action": "最初のルームを作る",
+  "dash.empty.body":
+    "ルームを作れば自分専用の OBS 配信 URL が手に入ります。ブラウザからそのまま画面共有もできます。ルームコードをもらっている場合は上の検索欄から入ってください。",
+  "dash.created": "ルームを作成しました",
+  "dash.find.placeholder": "ルームコードを入力、または自分のルームを検索",
+  "dash.find.label": "ルームコードを入力またはルームを検索",
+  "dash.find.clear": "クリア",
+  "dash.find.noMatch": "一致するルームがありません。ルームコードは小文字と数字の 10 文字です。入力を確認してください。",
+  "dash.find.node": "ノード {name}",
+  "dash.find.closed": "終了",
+  "dash.find.direct": "直接入る",
+  "dash.find.directHint": "これは参加済みのルームではありません。招待されていないと入れません。",
+  "dash.card.active": "アクティブ",
+  "dash.card.closed": "終了",
+  "dash.card.copyCode": "ルームコードをコピー",
+  "dash.card.codeCopied": "ルームコードをコピーしました",
+  "dash.card.clipboardBlocked": "ブラウザがクリップボードへの書き込みを拒否しました。手動で選択してコピーしてください。",
+  "dash.card.online": "{online}/{total} オンライン",
+  "dash.card.node": "ノード {name}",
+  "dash.card.nodeBuiltin": "（内蔵）",
+  "dash.card.enter": "入る",
+  "dash.new.title": "ルームを作成",
+  "dash.new.busy": "作成中…",
+  "dash.new.name": "ルーム名",
+  "dash.new.namePlaceholder": "週次デモ",
+  "dash.new.node": "使用するノード",
+  "dash.new.nodeBuiltin": "{name}（内蔵・割り当て共有）",
+  "dash.new.nodeMine": "{name}（自分の）",
+  "dash.new.nodeNoIngress": " · OBS 配信なし",
+  "dash.new.nodeNew": "＋ 新しい LiveKit 認証情報を接続…",
+  "dash.new.hintNoIngress": "このノードの Ingress が使えないため、ルームでは OBS 配信 URL を発行できません。ブラウザからの共有は使えます。",
+  "dash.new.hintFixed": "ルームを作成した後にノードは変更できません。",
+  "dash.new.noNodesTitle": "使えるノードがありません",
+  "dash.new.noNodesBody": "上の「新しい LiveKit 認証情報を接続」を選ぶか、先に「LiveKit ノード」ページで追加してください。",
+  /* ============================================================
+     LiveKit credential fields (shared by "add node" and "create room")
+     ============================================================ */
+  "node.needCreds": "LiveKit の URL / API Key / API Secret が必要です",
+  "node.guideHide": "ガイドを閉じる",
+  "node.guideShow": "持っていません。どうすれば？",
+  "node.guide.title": "3 分で無料の LiveKit Cloud ノードを用意する",
+  "node.guide.step1a": "こちらを開いて",
+  "node.guide.step1b": "登録します。無料の Build プランはカード登録不要です。",
+  "node.guide.step2": "project を 1 つ作成します（名前は自由）。`wss://xxx.livekit.cloud` の URL が発行されます。",
+  "node.guide.step3":
+    "Settings → Keys で API Key を作成すると `API Key` と `API Secret` が得られます。Secret は一度だけ表示されるので、その場でコピーしてください。",
+  "node.guide.step4": "この 3 つを下に入力します。保存前に当サイトが実際に LiveKit API を叩いて検証し、誤った値は保存しません。",
+  "node.guide.note":
+    "自分のノードを勧める理由：無料の割り当ては project 単位です（月あたり WebRTC 参加者分 約 5,000 分 + 下り 50 GB。超えるとリクエストが失敗するだけで課金はされません）。自分のノードなら自分の割り当てを使うので、誰とも取り合いになりません。",
+  "node.field.name": "ノード名",
+  "node.field.namePlaceholder": "自分の LiveKit",
+  "node.field.nameHint": "自分用の名前です。自由に付けてください。",
+  "node.field.url": "LiveKit の URL",
+  "node.field.urlHint": "https:// で貼っても大丈夫です。自動で wss:// に変換します。",
+  "node.field.secretHint": "暗号化して保存します。どの API からも二度と返しません。",
+
+  /* ============================================================
+     LiveKit nodes page
+     ============================================================ */
+  "nodes.loading": "ノードを読み込み中…",
+  "nodes.heading": "LiveKit ノード",
+  "nodes.stat.total": "ノード {count}",
+  "nodes.stat.mine": "自分の {count}",
+  "nodes.stat.healthy": "正常 {count}",
+  "nodes.subtitle": "自分の LiveKit 認証情報を接続すれば、ルームは自分の無料枠を使います。他人と取り合う必要はありません。",
+  "nodes.add": "ノードを接続",
+  "nodes.empty.title": "まだノードがありません",
+  "nodes.empty.action": "最初のノードを接続する",
+  "nodes.empty.body":
+    "LiveKit Cloud の無料 Build プランはカード登録不要で、3 分で用意できます。保存時に当サイトが実際に API を叩いて検証するので、誤った認証情報は保存されません。",
+  "nodes.badge.builtin": "内蔵",
+  "nodes.badge.mine": "自分の",
+  "nodes.badge.theirs": "他の人の",
+  "nodes.badge.disabled": "無効",
+  "nodes.ingressOk": "Ingress 利用可",
+  "nodes.ingressBad": "Ingress 利用不可",
+  "nodes.check": "チェック",
+  "nodes.checking": "チェック中…",
+  "nodes.rotate": "キーを差し替え",
+  "nodes.delete": "ノードを削除",
+  "nodes.webhookHint":
+    "LiveKit のコンソールで Settings → Webhooks を開き、下の URL を貼り付けてください。メンバーのオンライン状態はこれで更新されます。",
+  "nodes.webhookLabel": "Webhook URL",
+  "nodes.saved": "ノードを保存しました。認証情報の検証も通りました。",
+  "nodes.rotated": "「{name}」のキーを更新しました。新しい認証情報も検証を通りました。",
+  "nodes.deleteTitle": "ノードを削除",
+  "nodes.deleteBody": "「{name}」を削除しますか？配下のアクティブなルームを先に閉じないと削除は拒否されます。",
+  "nodes.add.title": "自分の LiveKit ノードを接続",
+  "nodes.add.busy": "検証して保存中…",
+  "nodes.add.submit": "ノードを保存",
+  "nodes.rotate.title": "「{name}」のキーを更新",
+  "nodes.rotate.busy": "検証して更新中…",
+  "nodes.rotate.submit": "キーを更新",
+  "nodes.rotate.note": "書き込む前に新しい認証情報で LiveKit API を 1 回叩きます。検証に失敗した場合は何も変更されず、古いキーがそのまま有効です。",
+  "nodes.rotate.newKey": "新しい API Key",
+  "nodes.rotate.newSecret": "新しい API Secret",
+  /* ============================================================
+     Profile page
+     ============================================================ */
+  "me.loading": "プロフィールを読み込み中…",
+  "me.heading": "プロフィール",
+  "me.subtitle": "ここで編集するのは、映像の左側に他の人から見えるメンバーカードです。",
+  "me.preview.title": "カードのプレビュー",
+  "me.preview.desc": "ルームに入ると他の人からはこう見えます。バナー未設定の場合はアカウントに割り当てられた色を使います。",
+  "me.preview.you": "あなた",
+  "me.avatar.title": "アイコン",
+  "me.avatar.desc": "正方形で表示し、円形に切り抜きます。アップロード前にブラウザ側で 256px に縮小します。",
+  "me.avatar.current": "現在のアイコン",
+  "me.banner.title": "カードの背景",
+  "me.banner.desc": "カード上部の帯です。960×540 に縮小し中央でトリミングします。",
+  "me.pick": "画像を選択",
+  "me.uploading": "アップロード中…",
+  "me.reset": "既定に戻す",
+  "me.avatarSaved": "アイコンを更新しました",
+  "me.bannerSaved": "カードの背景を更新しました",
+  "me.avatarReset": "アイコンを既定に戻しました。",
+  "me.bannerReset": "背景を既定の色に戻しました。",
+  "me.accent.title": "カードの色",
+  "me.accent.desc": "背景画像がないときに使う色です。既定ではアカウントごとに割り当てられます。",
+  "me.accent.saved": "色を更新しました。",
+  "me.accent.iris": "アイリス",
+  "me.accent.azure": "アジュール",
+  "me.accent.teal": "ティール",
+  "me.accent.lime": "ライム",
+  "me.accent.amber": "アンバー",
+  "me.accent.rose": "ローズ",
+  "me.accent.magenta": "マゼンタ",
+  "me.accent.slate": "スレート",
+  "me.account.title": "アカウント",
+  "me.account.desc": "表示名はメンバー一覧とカードに出ます。",
+  "me.account.nameSaved": "表示名を更新しました。",
+  "me.account.emailVerified": "メール確認済み",
+  "me.account.emailUnverified": "メール未確認",
+  "me.account.hasPassword": "パスワード設定済み",
+  "me.account.noPassword": "外部ログイン / 確認コードのみ",
+  "me.tour.title": "はじめてのヒント",
+  "me.tour.desc": "初めてルームに入ったときに出る「配信 URL はどこ？」のヒントです。",
+  "me.tour.reset": "ヒントをもう一度見る",
+  "me.tour.done": "リセットしました。次にルームへ入るときにもう一度表示されます",
+  /* ============================================================
+     Admin — shell, nodes, users
+     ============================================================ */
+  "admin.loading": "サイト全体のデータを読み込み中…",
+  "admin.heading": "管理",
+  "admin.stat.nodes": "ノード {count}",
+  "admin.stat.users": "ユーザー {count}",
+  "admin.stat.admins": "管理者 {count}",
+  "admin.subtitle": "サイト全体のノードとユーザー。管理者だけが見られます。",
+  "admin.tabs": "管理セクション",
+  "admin.tab.nodes": "ノード",
+  "admin.tab.users": "ユーザー",
+  "admin.tab.services": "外部サービス",
+  "admin.tab.site": "サイト設定",
+  "admin.promote.title": "サイト内蔵ノードにする",
+  "admin.promote.confirm": "内蔵にする",
+  "admin.promote.body": "「{name}」をサイト内蔵ノードにしますか？現在の内蔵ノードは通常のノードに降格し、自分の認証情報を持たないユーザーは今後こちらを使います。",
+  "admin.nodes.emptyTitle": "まだノードがありません",
+  "admin.nodes.emptyBody": "先に「LiveKit ノード」ページの「ノードを接続」で 1 つ追加し、戻ってからサイト内蔵ノードに設定してください。",
+  "admin.nodes.title": "ノード",
+  "admin.nodes.desc":
+    "内蔵ノードはサイト全体で共有される 1 つです。ユーザーは自分の認証情報なしでもルームを作れますが、その分の割り当てはこのノードが負担します。どのノードでも昇格できますが、常に 1 つだけです。",
+  "admin.nodes.col.node": "ノード",
+  "admin.nodes.col.kind": "種別",
+  "admin.nodes.col.activeRooms": "アクティブなルーム",
+  "admin.nodes.col.enabled": "有効",
+  "admin.nodes.col.public": "公開",
+  "admin.nodes.col.maxRooms": "ルーム上限",
+  "admin.nodes.checkFailed": "チェック失敗",
+  "admin.nodes.kindBuiltin": "内蔵",
+  "admin.nodes.kindUser": "ユーザー",
+  "admin.nodes.enableAria": "{name} を有効化",
+  "admin.nodes.publicAria": "{name} を公開",
+  "admin.nodes.maxRoomsAria": "{name} のルーム上限",
+  "admin.nodes.maxRoomsPlaceholder": "無制限",
+  "admin.nodes.makeBuiltin": "内蔵にする",
+  "admin.users.title": "ユーザー",
+  "admin.users.desc": "無効にしたアカウントにはトークンが発行されなくなるため、どのルームにも入れません。",
+  "admin.users.col.user": "ユーザー",
+  "admin.users.col.role": "ロール",
+  "admin.users.col.status": "状態",
+  "admin.users.me": "自分",
+  "admin.users.admin": "管理者",
+  "admin.users.user": "ユーザー",
+  "admin.users.disabled": "無効",
+  "admin.users.ok": "正常",
+  "admin.users.demote": "ユーザーに降格",
+  "admin.users.promote": "管理者にする",
+  "admin.users.enable": "有効化",
+  "admin.users.disable": "無効化",
+  /* ============================================================
+     Admin — site settings
+     ============================================================ */
+  "site.loading": "サイト設定を読み込み中…",
+  "site.openTitle": "現在、新規登録を受け付けています",
+  "site.closedTitle": "現在、新規登録は受け付けていません（既存アカウントはログイン可）",
+  "site.openBody":
+    "誰でもアカウントを作れます。メールとパスワードでの登録、GitHub / Google の初回ログイン、メール確認コードの初回ログイン。この 3 つはいずれもその場でアカウントを作ります。",
+  "site.closedBody":
+    "アカウント作成の 3 経路すべてが塞がれ、「このサイトは新規登録を受け付けていません」と返します。既存アカウントには影響せず、パスワード・外部ログイン・メール確認コードはこれまで通り使えます。招待リンクも先にアカウントが必要な点に注意してください。新しい人を入れるにはこのスイッチを戻します。",
+  "site.card.title": "新規登録",
+  "site.card.desc": "知らない人がここでアカウントを作れるかを決めます。ボタンを隠すのではなく、サーバー側（セッション発行前）で止めています。",
+  "site.switch.label": "新規登録を許可",
+  "site.switch.hint":
+    "オフにすると：登録 API はその場で拒否。外部ログインは既に紐づいたアカウントだけ受け付け、それ以外は即拒否。メール確認コードも同様で、既存アカウントは通し、新しいアドレスではアカウントを作りません。",
+  "site.opened": "新規登録を許可しました。",
+  "site.closed": "新規登録を停止しました。",
+
+  /* ============================================================
+     Admin — third-party services
+     ============================================================ */
+  "svc.loading": "外部サービスの設定を読み込み中…",
+  "svc.bannerTitle": "秘密鍵は環境変数ではなくデータベースに暗号化して保存します",
+  "svc.bannerBody":
+    "これらの秘密鍵は AES-256-GCM で暗号化して `service_credentials` に書き込みます。マスターキーはデータベースの外（`CREDENTIAL_ENCRYPTION_KEY`）に置けるので、データベースを丸ごと持ち出されても復号できません。どの API も平文の秘密鍵を返さず、下に出ているのはマスクです。変更は再デプロイなしで即時反映されます。",
+  "svc.notConfigured": "未設定",
+  "svc.enabled": "有効",
+  "svc.disabled": "無効",
+  "svc.callbackLabel": "コールバック URL（提供元のコンソールに一字も違えず貼り付けてください）",
+  "svc.callbackShort": "コールバック URL",
+  "svc.callbackHint": "ここを間違えるのが外部ログイン失敗の最も多い原因です。提供元が認可リクエストをその場で拒否します。",
+  "svc.secretCurrent": "{hint} 現在：{mask}。変更しない場合は空のままにしてください。",
+  "svc.secretKeepPlaceholder": "空 = 変更しない",
+  "svc.fromName": "差出人の表示名（任意）",
+  "svc.fromNameHint": "受信者に見える名前です。例：「{app}」。",
+  "svc.enableLabel": "有効",
+  "svc.enableHintTurnstile": "無効にするとログインページで人間確認を求めなくなります。",
+  "svc.enableHintResend": "無効にするとログインページに「メール確認コード」が出なくなります。",
+  "svc.enableHintOauth": "無効にするとログインページにこのボタンが出なくなります。",
+  "svc.saveChanges": "変更を保存",
+  "svc.removeConfig": "設定を削除",
+  "svc.savedToast": "{title} を保存しました。",
+  "svc.removedToast": "{title} を削除しました。",
+  "svc.removeTitle": "{title} の設定を削除",
+  "svc.removeBodyTurnstile": "削除するとログイン・登録・コード送信で人間確認を求めなくなります。よろしいですか？",
+  "svc.removeBodyResend": "削除するとメール確認コードでのログインが使えなくなり、既に送ったコードも検証できません。よろしいですか？",
+  "svc.removeBodyOauth":
+    "削除するとこの外部ログインのボタンが消えます。これで紐づけただけでパスワードを設定していないユーザーは入れなくなります。別のログイン手段があるか先に確認してください。",
+  /* ============================================================
+     Admin — the four service forms
+     ============================================================ */
+  "svc.github.title": "GitHub ログイン",
+  "svc.github.desc": "GitHub → Settings → Developer settings → OAuth Apps → New OAuth App。",
+  "svc.github.publicLabel": "Client ID",
+  "svc.github.publicHint": "OAuth App のページに表示される Client ID です。",
+  "svc.github.secretLabel": "Client Secret",
+  "svc.github.secretHint": "作成時に一度しか表示されません。以後は GitHub 自身も表示できないので、そのページを離れる前に保存してください。",
+  "svc.google.title": "Google ログイン",
+  "svc.google.desc":
+    "Google Cloud Console → API とサービス → 認証情報 → OAuth クライアント ID を作成（ウェブアプリケーション）。",
+  "svc.google.publicLabel": "Client ID",
+  "svc.google.publicHint": "xxxxx.apps.googleusercontent.com のような形式です。",
+  "svc.google.secretLabel": "Client Secret",
+  "svc.google.secretHint": "認証情報の詳細ページにあるクライアントシークレットです。",
+  "svc.turnstile.title": "Turnstile 人間確認",
+  "svc.turnstile.desc":
+    "Cloudflare ダッシュボード → Turnstile → Add site。設定するとログイン・登録・コード送信の 3 か所で確認を求めます。",
+  "svc.turnstile.publicLabel": "Site Key",
+  "svc.turnstile.publicHint": "ログインページの HTML に入ります。設計上、公開される値です。",
+  "svc.turnstile.secretLabel": "Secret Key",
+  "svc.turnstile.secretHint": "サーバー側の検証に使います。フロントに出してはいけません。",
+  "svc.resend.title": "Resend メールサービス",
+  "svc.resend.desc":
+    "resend.com → API Keys。送信ドメインは Resend で検証済みでないとメールが拒否されます。設定するとログインページに「メール確認コード」が出ます。",
+  "svc.resend.publicLabel": "差出人アドレス",
+  "svc.resend.publicHint": "Resend で検証済みのドメインに属していなければなりません。例：no-reply@your-domain.com。",
+  "svc.resend.secretLabel": "API Key",
+  "svc.resend.secretHint": "re_xxxxxxxx のような形式です。",
+  /* ============================================================
+     Room — chrome, status bar, stage
+     ============================================================ */
+  "room.heading": "ルーム {code}",
+  "room.entering": "ルームに入っています…",
+  "room.fatalTitle": "このルームを開けません",
+  "room.fatal.emptyTitle": "アクセス権がありません",
+  "room.fatal.back": "ルーム一覧に戻る",
+  "room.fatal.body": "メンバー以外には「ルームが存在しない」と返します。ルームコードを 1 つずつ試して探れないようにするための意図的な挙動です。",
+  "room.backLabel": "ルーム一覧に戻る",
+  "room.action.share": "このルームを共有（招待リンク）",
+  "room.action.members": "メンバー",
+  "room.action.settings": "ルーム設定と配信情報",
+  "room.action.newPlayer": "同期プレイヤーを新規作成",
+  "room.stat.code": "ルームコード {code}",
+  "room.stat.node": "ノード {name}",
+  "room.stat.nodeBuiltin": "（内蔵）",
+  "room.stat.active": "アクティブ",
+  "room.stat.closed": "終了",
+  "room.stat.members": "メンバー {count}",
+  "room.closedTitle": "ルームは終了しています",
+  "room.closedBody": "これ以上トークンは発行されません。映像も配信も利用できません。",
+  "room.stage.live": "配信中",
+  "room.stage.noSignal": "信号なし",
+  "room.stage.inRoom": "ルーム内 {count} 人",
+  "room.stage.onlySelected": "選んだ人だけ表示中",
+  "room.stage.gettingPermission": "配信権限を取得中…",
+  "room.stage.viewerOnly": "あなたは「閲覧のみ」です。オーナーに権限を変えてもらうか、「全員が共有できる」を有効にしてもらってください",
+  "room.stage.tagObs": "OBS",
+  "room.stage.tagScreen": "画面共有",
+  "room.stage.tagCamera": "カメラ",
+  "room.stage.idleSelectedTitle": "この人は何も共有していません",
+  "room.stage.idleTitle": "まだ誰も配信していません",
+  "room.stage.idleSelectedBody": "左の「全員を表示」を押すと、ルームの他の人の映像も見られます。",
+  "room.stage.idleBody": "配信側が接続すると、ここに自動で映像が出ます。ページの再読み込みは不要です。",
+  "room.offline.notConnected": "未接続",
+  "room.offline.connecting": "ルームに接続中…",
+  "room.offline.closed": "ルームは終了しています",
+  "room.offline.connectingBody": "アクセストークンを発行しています。",
+  "room.offline.closedBody": "終了したルームはトークンを発行せず、配信も受け付けません。",
+  "room.share.busy": "処理中…",
+  "room.share.stop": "共有を停止",
+  "room.share.start": "画面を共有",
+  /* ============================================================
+     Room — participant rail + context menu
+     ============================================================ */
+  "rail.label": "オンラインのメンバー",
+  "rail.online": "オンライン {count}",
+  "rail.showAll": "全員を表示",
+  "rail.empty": "まだ誰もいません。",
+  "rail.obs": "OBS",
+  "rail.you": "あなた",
+  "rail.onlineTag": "オンライン",
+  "rail.hasVideo": " · 共有中",
+  "rail.sharing": "画面を共有中",
+  "rail.menu.ownerLocked": "ルームのオーナーです。変更も退出させることもできません",
+  "rail.menu.permission": "権限",
+  "rail.menu.current": "（現在）",
+  "rail.menu.kick": "ルームから退出させる",
+  "rail.menu.kickBan": "退出させてブロック",
+  "room.roleChanged": "「{name}」を{role}に変更しました",
+  "room.kicked": "「{name}」を退出させました",
+  "room.kickedBanned": "「{name}」を退出させ、ブロックリストに追加しました",
+  "room.kick.titleBan": "退出させてブロック",
+  "room.kick.title": "メンバーを退出させる",
+  "room.kick.confirmBan": "退出させてブロック",
+  "room.kick.confirm": "退出させる",
+  "room.kick.bodyBan":
+    "「{name}」をルームから退出させ、ブロックリストに追加しますか？接続はすぐ切れ、配信 URL は無効になり、その後は**招待リンクを持っていても入れません**。解除するまで続きます。",
+  "room.kick.body":
+    "「{name}」を退出させますか？接続も切れ、配信 URL も削除されます。注意：まだ有効な招待リンクを持っていれば自分で戻ってこられます。完全に防ぐには「退出させてブロック」を使ってください。",
+
+  /* ============================================================
+     Room — coach mark + first-visit tip
+     ============================================================ */
+  "room.coach.title": "配信情報はここです",
+  "room.coach.body": "後で OBS の配信 URL を見たり作り直したいときは、上部バーのこの歯車 →「配信情報」を開いてください。",
+  "room.tip.title": "ようこそ。まず配信 URL を確認しましょう",
+  "room.tip.intro":
+    "このルームに映像を送る方法は 2 つあります。映像の上にある**「画面を共有」**（ブラウザから直結、ワンクリック）と、下の **OBS 配信 URL** です。",
+  "room.tip.noneTitle": "このルームにはまだあなたの配信 URL がありません",
+  "room.tip.noneViewer": "オーナーがあなたを「閲覧のみ」に設定しています。",
+  "room.tip.noneGate": "オーナーがこのルームの OBS 経路を閉じています。",
+  "room.tip.noneIngress": "このノードの Ingress が利用できません。",
+  "room.tip.noneFoot": "それでも「画面を共有」でブラウザから配信できます。",
+  "room.tip.serverLabel": "Server（OBS → 設定 → 配信 → サービスは WHIP）",
+  "room.tip.notGenerated": "まだ配信 URL を作っていません。「あなた＋このルーム」に紐づくので、他の人は取得も利用もできません。",
+  "room.tip.generateNow": "今すぐ作成",
+  /* ============================================================
+     Room — modals, tabs, OBS panel
+     ============================================================ */
+  "room.people.title": "ルームのメンバー",
+  "room.people.tabs": "メンバーと招待",
+  "room.people.tabMembers": "メンバー",
+  "room.people.tabInvites": "招待",
+  "room.settings.title": "ルーム設定",
+  "room.settings.tabs": "ルーム設定",
+  "room.settings.tabPublish": "配信情報",
+  "room.settings.tabRoom": "ルーム",
+  "room.settings.tabLogs": "操作ログ",
+  "room.settings.tabBans": "ブロックリスト",
+  "obs.title": "OBS 配信",
+  "obs.noIngressTitle": "このノードの Ingress が利用できません",
+  "obs.noIngressBody": "OBS 配信 URL は発行できません。映像の上にある「画面を共有」を使えば、ブラウザからそのまま配信できます。",
+  "obs.viewerTitle": "あなたは「閲覧のみ」です",
+  "obs.viewerBody": "オーナーがあなたを閲覧のみに設定しているため、配信 URL はありません。配信が必要ならオーナーに権限変更を頼んでください。",
+  "obs.gateTitle": "オーナーが OBS 配信を無効にしています",
+  "obs.gateBody": "このルームは OBS の配信を受け付けておらず、配信 URL も発行できません。映像の上の「画面を共有」なら、ブラウザからそのまま配信できます。",
+  "obs.myUrl": "自分の OBS 配信 URL",
+  "obs.myUrlDesc": "「あなた＋このルーム」に紐づくので、他の人は取得も利用もできません。WHIP 直通なのでトランスコード枠を消費しません。",
+  "obs.generated": "作成済み",
+  "obs.notGenerated": "未作成",
+  "obs.generate": "配信 URL を作成",
+  "obs.generating": "作成中…",
+  "obs.step1": "OBS → 設定 → 配信 → サービスは **WHIP**",
+  "obs.step2": "下の 2 つの値を Server と Bearer Token に入れます",
+  "obs.step3": "WHIP 直通にサーバー側 simulcast はありません。画質を複数用意するなら OBS 32.1.0 以降で自分で有効にしてください（1〜4 層）。",
+  "obs.serverLabel": "Server",
+  "obs.serverShort": "Server の URL",
+  "obs.tokenLabel": "Bearer Token（これがストリームキーです）",
+  "obs.tokenShort": "Bearer Token",
+  "obs.regenerate": "作り直す",
+  "obs.revoke": "無効化",
+  "obs.regenNote": "作り直すと古い URL はその場で使えなくなります。",
+  "obs.revokeTitle": "配信 URL を無効化",
+  "obs.revokeBody": "無効化すると OBS はもう接続できません。新しい URL を作成して OBS 側も直す必要があります。よろしいですか？",
+  "obs.ownerHint": "このルームの OBS 経路を完全に閉じたい場合は「ルーム」タブにあります。",
+  /* ============================================================
+     Room — owner settings
+     ============================================================ */
+  "rset.share.title": "誰が画面を共有できるか",
+  "rset.share.desc":
+    "新しく入った人は既定で「閲覧のみ」なので、映像の上の「画面を共有」ボタンが見えません。全員に許可するなら下のスイッチを入れてください。特定の人だけに許可するなら、映像左側のメンバーカードを右クリックして「配信可」に変えます。",
+  "rset.share.everyone": "全員",
+  "rset.share.restricted": "オーナーと配信可のメンバーのみ",
+  "rset.share.label": "全メンバーの画面共有を許可",
+  "rset.share.hint": "すでにルームにいる人にも即時反映され、再読み込みは不要です。影響するのはブラウザ共有だけで、OBS は下のゲートが管理します。",
+  "rset.share.onToast": "これでルームの全員が画面を共有できます",
+  "rset.share.offToast": "配信可のメンバーのみに戻しました",
+  "rset.gate.title": "OBS 配信ゲート",
+  "rset.gate.desc": "OBS/WHIP の経路だけを管理します。ブラウザの「画面を共有」は別経路（WebRTC 直結）なので影響しません。",
+  "rset.gate.on": "オン",
+  "rset.gate.off": "オフ",
+  "rset.gate.label": "OBS からこのルームへの配信を許可",
+  "rset.gate.hint": "オフにすると進行中の OBS 配信はその場で切れ、このルームで発行済みの配信 URL はすべて無効になります。",
+  "rset.gate.onToast": "OBS 配信を許可しました",
+  "rset.gate.offToast": "OBS 経路を閉じ、配信 URL を {count} 件無効にしました",
+  "rset.gate.closeTitle": "OBS 配信をオフにする",
+  "rset.gate.closeConfirm": "オフにする",
+  "rset.gate.closeBody":
+    "進行中の OBS 配信はその場で切れ、このルームの配信 URL はすべて無効になります。再度オンにした後は各自で作り直し、OBS の Bearer Token も差し替える必要があります。オフにしますか？",
+
+  /* ============================================================
+     Room — members panel
+     ============================================================ */
+  "members.title": "メンバー",
+  "members.desc":
+    "この表にいない人にはトークンが発行されないので、どのトラックも購読できません。フロント側のフィルタではなくプロトコル層の制約です。権限変更と退出は、映像左側のメンバーカードを右クリックして行います。",
+  "members.count": "メンバー {count}",
+  "members.col.member": "メンバー",
+  "members.col.permission": "権限",
+  "members.col.status": "状態",
+  "members.onlineTag": "オンライン",
+  "members.offlineTag": "オフライン",
+  "members.invite": "登録済みユーザーを招待",
+  "members.inviteHint": "相手には先にこのサイトのアカウントが必要です。アカウントがない人には「招待」タブからリンクを送ってください。",
+  "members.permission": "権限",
+  "members.add": "追加",
+  /* ============================================================
+     Room — invites, bans, logs
+     ============================================================ */
+  "invite.title": "招待リンク",
+  "invite.desc": "相手がリンクを開いてログイン（または登録）すると自動で入室します。リンクは作成時に一度だけ表示され、以後はハッシュだけが保存されます。",
+  "invite.activeCount": "有効 {count}",
+  "invite.freshTitle": "新しいリンクを作成しました。今すぐコピーしてください",
+  "invite.freshBody": "表示されるのはこの一度だけです。",
+  "invite.linkLabel": "招待リンク",
+  "invite.hours": "有効時間（時間）",
+  "invite.hoursPlaceholder": "空 = 無期限",
+  "invite.uses": "使用回数の上限",
+  "invite.usesPlaceholder": "空 = 無制限",
+  "invite.create": "リンクを作成",
+  "invite.creating": "作成中…",
+  "invite.col.permission": "権限",
+  "invite.col.used": "使用",
+  "invite.col.expires": "期限",
+  "invite.unlimitedSuffix": " / ∞",
+  "invite.forever": "なし",
+  "invite.revoke": "取り消す",
+  "invite.revokeTitle": "招待リンクを取り消す",
+  "invite.revokeBody": "取り消すとリンクはその場で無効になります。すでにそのリンクで入室した人には影響しません。",
+  "bans.title": "ブロックリスト",
+  "bans.desc": "この表にいる人はこのルームに入れません。招待リンクも効きません。ブロックを解除してもメンバーには戻らないので、改めて招待する必要があります。",
+  "bans.count": "ブロック {count}",
+  "bans.emptyTitle": "ブロックリストは空です",
+  "bans.emptyBody": "映像左側のメンバーカードを右クリックし、「退出させてブロック」を選ぶとここに追加されます。",
+  "bans.col.user": "ユーザー",
+  "bans.col.at": "ブロック日時",
+  "bans.unban": "ブロック解除",
+  "logs.title": "操作ログ",
+  "logs.desc": "このルームで起きたことを新しい順に表示します。",
+  "logs.emptyTitle": "まだ記録がありません",
+  "logs.emptyBody": "ルームの作成、配信 URL の発行、メンバーの入退室などがここに記録されます。",
+  "logs.system": "システム",
+  /* ============================================================
+     Sync player
+     ============================================================ */
+  "sync.new.title": "同期プレイヤーを新規作成",
+  "sync.new.intro":
+    "作成すると映像の横に出ます。作成者であるあなたが上映側です。あなたの再生位置が基準になり、他の人は自動でそこに合わせます。動画は各視聴者のブラウザがソースから直接読み込むので、**当サイトのサーバーも LiveKit も通りません**。",
+  "sync.new.name": "プレイヤー名",
+  "sync.new.namePlaceholder": "例：金曜の映画",
+  "sync.new.create": "作成",
+  "sync.new.creating": "作成中…",
+  "sync.closed": "同期プレイヤーを閉じました",
+  "sync.hostedByYou": "あなたが上映中",
+  "sync.hostedBy": "{name} が上映中",
+  "sync.waitingForOthers": "他の人が入ったら同期を始めます",
+  "sync.waitingForHost": "上映側を待っています",
+  "sync.inSync": "同期済み",
+  "sync.drift": "ずれ {value} 秒",
+  "sync.close": "このプレイヤーを閉じる",
+  "sync.sdkFailedTitle": "プレイヤーの読み込みに失敗しました",
+  "sync.sdkFailedBody": "CDN から MX Player Pro を取得中にエラー：{message}",
+  "sync.sdkFailedHint": "cdn.jsdelivr.net にアクセスできるか確認してください。",
+  "sync.playbackError": "再生エラー",
+  "sync.badSourceTitle": "このソースは再生できません",
+  "sync.noSourceHost": "下に動画の URL を入力してください",
+  "sync.noSourceViewer": "上映側がまだ選んでいません",
+  "sync.noSourceBody": "動画はあなたのブラウザが Range リクエストでソースから直接読み込みます。当サイトのサーバーも LiveKit も通りません。",
+  "sync.urlLabel": "動画の URL",
+  "sync.urlHint":
+    "ソースは当サイトからのクロスオリジン読み取り（CORS）を許可し、Range リクエストに対応している必要があります。変更するとルーム全員のソースが切り替わります。",
+  "sync.play": "再生して同期",
+  "sync.switching": "切り替え中…",
+  "sync.sourceSwitched": "ソースを切り替えました。ルーム全員が追随します",
+  "sync.sourceCleared": "ソースをクリアしました",
+  "sync.follow": "上映側に追随する",
+  "sync.followOn": "上映側の位置に自動で合わせます。大きなずれはシーク、小さなずれは再生速度の微調整で吸収します。",
+  "sync.followOff": "同期から外れています。自由にシークできます。オンに戻すと上映側の位置に飛びます。",
+  "sync.clock": "時計のずれ {offset}ms · 片道遅延 約 {latency}ms",
+  "sync.sdkNoExport": "SDK が MXPlayer をエクスポートしていません",
+  /* ============================================================
+     Browser-side image preparation (lib/client-image.ts)
+     ============================================================ */
+  "img.notDecodable": "このファイルはブラウザが画像としてデコードできません",
+  "img.notImage": "画像ファイルを選んでください",
+  "img.tooBig": "画像が大きすぎます（25MB 超）。圧縮してからアップロードしてください",
+  "img.noCanvas": "このブラウザは canvas に対応していません。別のブラウザをお試しください",
+  "img.encodeFailed": "画像のエンコードに失敗しました",
+  /* ============================================================
+     Landing page — chrome, hero, topology
+     ============================================================ */
+  "landing.meta.description":
+    "LiveKit を使ったデスクトップ共有。各ルームは自分専用の LiveKit 認証情報に紐づき、OBS でもブラウザだけでもルームに画面を送れます。認可はプロトコル層で行い、起動に必要な環境変数は 2 つだけです。",
+  "landing.nav.label": "ページ内ナビゲーション",
+  "landing.nav.paths": "配信経路",
+  "landing.nav.quota": "無料枠",
+  "landing.nav.features": "機能",
+  "landing.nav.start": "クイックスタート",
+  "landing.nav.app": "デスクトップ版",
+  "landing.nav.qa": "Q&A",
+  "landing.bar.github": "GitHub でソースを見る",
+  "landing.entry.console": "コンソールを開く",
+  "landing.entry.login": "ログイン / 登録",
+  "landing.hero.tag": "**LiveKit** ベース · マルチノード · 設定なしで起動",
+  "landing.hero.h1a": "ルームごとに 1 ノード、",
+  "landing.hero.h1b": "人ごとに 1 配信 URL。",
+  "landing.hero.lead":
+    "ルームの全員に画面を送れます。OBS でも、ブラウザだけでも。各ルームは自分専用の LiveKit 認証情報に紐づくので、メディアのトラフィックと無料枠はそのノードで消費され、誰かと取り合うことがありません。",
+  "landing.hero.deploy": "Vercel にデプロイ",
+  "landing.hero.fact1": "環境変数 2 つで動く",
+  "landing.hero.fact2": "WHIP 直通、トランスコード枠を使わない",
+  "landing.hero.fact3": "認可はプロトコル層",
+  "landing.topo.title": "LiveKit ノード",
+  "landing.topo.hint": "枠は別々",
+  "landing.topo.nodeA": "ノード A",
+  "landing.topo.nodeATag": "あなたの",
+  "landing.topo.nodeB": "ノード B",
+  "landing.topo.nodeBTag": "同僚の",
+  "landing.topo.builtin": "内蔵ノード",
+  "landing.topo.builtinTag": "管理者が共有 · 最大 20 ルーム",
+  "landing.topo.online": "{count} 人オンライン",
+  "landing.topo.idle": "待機中",
+  "landing.topo.foot": "ルームはちょうど 1 つのノードに載ります。トラフィックも無料枠もそこに計上されます。",
+  /* ============================================================
+     Landing page — publish routes
+     ============================================================ */
+  "landing.paths.eyebrow": "01 · 配信経路",
+  "landing.paths.h2": "配信経路は 2 つあり、互いに独立している",
+  "landing.paths.lead":
+    "ブラウザ経路が当サイトに触れるのは 1 回だけ（トークンの取得）。その後、映像は LiveKit に直結します。OBS 経路はサーバー側で先に ingress を作る必要があります。だから「OBS 配信」をオフにしてもブラウザ共有は動き続けます。",
+  "landing.paths.browser.title": "ブラウザから共有",
+  "landing.paths.browser.body":
+    "ワンクリックで開始、インストール不要。1920×1080@15fps — デスクトップ共有ではフレームレートより解像度を優先します。映像は Vercel も Ingress も通りません。",
+  "landing.paths.obs.title": "OBS で配信（WHIP）",
+  "landing.paths.obs.body":
+    "ルームで「配信 URL を作成」を押し、Server と Bearer Token を OBS の配信設定に入れます（サービスは WHIP）。直通なのでトランスコードせず、マシンにほとんど負荷がかからず、あの 60 分の枠も減りません。",
+  "landing.paths.hopBrowser": "ブラウザ",
+  "landing.paths.hopNode": "LiveKit ノード",
+  "landing.paths.hopWhip": "WHIP 直通",
+
+  /* ============================================================
+     Landing page — free tier
+     ============================================================ */
+  "landing.quota.eyebrow": "02 · なぜ自分のノードを持つのか",
+  "landing.quota.h2": "無料枠は試用のための枠であって、製品を運用するための枠ではない",
+  "landing.quota.lead":
+    "LiveKit Cloud の無料 Build プランは project 単位で計量され、上限を超えるとリクエストが失敗するだけで課金はされません。しかも同じアカウントの複数の無料 project は同じ枠を共有します。",
+  "landing.quota.tile1Label": "WebRTC 参加者分。配信側は数えず、消費するのは視聴者だけ",
+  "landing.quota.tile2Label": "下り帯域。ほとんどの場合、最初にぶつかる壁はこちら",
+  "landing.quota.tile3Value": "60 分",
+  "landing.quota.tile3Label": "トランスコード枠。RTMP 入力は必ずトランスコードされ、月に 1 時間しか持たない",
+  "landing.quota.colRate": "配信ビットレート",
+  "landing.quota.colMinutes": "50 GB で持つ視聴者分",
+  "landing.quota.colHours": "視聴者時間に換算",
+  "landing.quota.note4": "1080p 高ビットレート",
+  "landing.quota.note25": "1080p 標準",
+  "landing.quota.note15": "720p",
+  "landing.quota.note08": "低ビットレート",
+  "landing.quota.tableNote":
+    "分水嶺はおよそ 1.33 Mbps です。これより高いと 50 GB の帯域が先に尽き、低いと 5,000 分が先に尽きます。視聴者時間はさらに人数で割ります。1 人が 3 人に 1080p で共有すると月あたり約 15 時間です。",
+  "landing.quota.punch":
+    "だからこのプロジェクトはノードを一級の存在として扱います。**各自が自分の project を接続する**ことで、枠は「サイト管理者の 1 人分」から「めいめい 1 人分」に変わります。内蔵ノードはあくまで受け皿なので、ルーム数の上限を必ず設定してください。",
+  /* ============================================================
+     Landing page — features
+     ============================================================ */
+  "landing.features.eyebrow": "03 · 機能",
+  "landing.features.h2": "守るべきところはすべてサーバー側で守る",
+  "landing.features.lead": "クライアントで回避できるチェックはチェックではありません。以下はすべて、トークンに署名し ingress を作るその層で行われます。",
+  "landing.feat.auth.title": "認可はプロトコル層、フロントのフィルタではない",
+  "landing.feat.auth.body":
+    "メンバー表にいない → トークンが出ない → 接続できない → どのトラックも購読できない。発行する grant の `room` にはルーム名が 1 つしか入らないので、そのトークンで別のルームを開くことは物理的に不可能です。メンバー以外には常に 404 を返すので、ルームコードから何も分かりません。",
+  "landing.feat.nodes.title": "ノードは自分持ち、枠もそれぞれ",
+  "landing.feat.nodes.body":
+    "自分の LiveKit Cloud project を接続し、ルームごとにどれを使うか選びます。保存前に当サイトがその認証情報で実際に API を叩いて健全性を確認し、誤った値は保存しません。Ingress が使えるかも同時に調べてノードに印を付けます。",
+  "landing.feat.whip.title": "OBS は WHIP 直通",
+  "landing.feat.whip.body":
+    "`enableTranscoding: false` — 月 60 分のトランスコード枠を消費しません。配信 URL は 1 人 1 本で、差し替えも取り消しも可能。ストリームキーは暗号化して保存し、本人にだけ復号して見せます。",
+  "landing.feat.gate.title": "「OBS 配信」は本物のスイッチ",
+  "landing.feat.gate.body":
+    "オーナーがオフにすると、配信中のものはその場で切れます。ingress を削除して古いキーで二度と接続できなくし、同時に `obs:` の参加者をルームから外します。「オフ」と表示しつつ実は流れ続ける、そういうフラグではありません。",
+  "landing.feat.sync.title": "同期再生",
+  "landing.feat.sync.body":
+    "オーナーがプレイヤーを開くと、ルーム全員が同じソースを見ます。再生位置は LiveKit の data channel で配り、ping/pong で 2 台の時計のずれを推定してから合わせます。動画のバイト列はこのサービスを一切通りません。",
+  "landing.feat.invite.title": "招待リンク",
+  "landing.feat.invite.body":
+    "トークンはハッシュだけを保存。有効期限、使用回数の上限、いつでも取り消しが可能です。引き換えは条件付き UPDATE で枠を原子的に確保するので、同時アクセスでも `max_uses` を突破できません。未ログインで開いた場合はログインを経て自動で入室します。",
+  "landing.feat.env.title": "環境変数 2 つで動く",
+  "landing.feat.env.body":
+    "`DATABASE_URL` と `ADMIN_PASSWORD`。管理者アカウントは初回起動時に自動作成、認証情報の暗号鍵は未設定なら自分で生成してデータベースに保存、LiveKit は環境変数ではなく Web 画面で設定します。インストーラーはありません。",
+  "landing.feat.health.title": "壊れたときに見る場所がある",
+  "landing.feat.health.body":
+    "ルームには展開できる監査ログがあります（秘密情報は一切記録しません）。`/api/health` はログイン不要で、データベースに繋がるか、12 個のテーブルが揃っているか、初期化が通ったかを 1 項目ずつ報告します。足りないテーブルは名前を列挙するので、スタックトレースから推測する必要はありません。",
+  /* ============================================================
+     Landing page — quick start
+     ============================================================ */
+  "landing.start.eyebrow": "04 · クイックスタート",
+  "landing.start.h2": "3 ステップで自分の環境を動かす",
+  "landing.start.lead": "当サイトはメディアサーバーを内蔵しないので、本当に必要なのはデータベース 1 つと LiveKit 認証情報 1 組だけです。",
+  "landing.start.step1Title": "環境変数を 2 つ書く",
+  "landing.start.step1Body":
+    "`.env.example` を `.env.local` にコピーします。Next は前者を読まないので、間違ったファイルを編集しても何も起きません。",
+  "landing.start.passwordPlaceholder": "自分のパスワードに変更",
+  "landing.start.step2Title": "テーブルを作って起動",
+  "landing.start.step2Comment": "# 12 個のテーブルを作成",
+  "landing.start.step2Body":
+    "その後 `admin@localhost` と上のパスワードでログインします。管理者アカウントは初回起動時に自動作成され、インストーラーはありません。Vercel ではマイグレーションがビルドに組み込まれているので、手動で実行する必要はありません。",
+  "landing.start.step3Title": "LiveKit ノードを接続",
+  "landing.start.step3Body1":
+    "サイドバーの「LiveKit ノード」→「ノードを接続」で、`wss://` の URL と API Key / Secret を入力します。LiveKit Cloud の無料 Build プランはカード登録不要で、この 3 つを得るのに約 3 分。保存前に当サイトが実際に検証し、誤った値は保存しません。",
+  "landing.start.step3Body2":
+    "自前で立てた LiveKit も使えます（URL 欄は `ws://` を受け付けます）。ただし OBS から配信するには Ingress と Redis を自分でデプロイする必要があります。",
+
+  /* ============================================================
+     Landing page — desktop app teaser
+     ============================================================ */
+  "landing.app.eyebrow": "05 · 予告",
+  "landing.app.h2a": "デスクトップアプリを検討しています：",
+  "landing.app.lead":
+    "自前でホストでき、エンドツーエンド暗号化されたチャットで、画面共有もできるもの。当サイトは「画面」の半分だけで、「チャット」の半分はブラウザでは綺麗に作れません。",
+  "landing.app.badge": "構想段階",
+  "landing.app.note":
+    "開発は**まだ始めていません**。スケジュールもなく、この節は予告です。本当に必要とする人がいるかを先に知りたくて置いています。必要とされることが、作る価値そのものだからです。",
+  "landing.app.idea1.title": "エンドツーエンド暗号化",
+  "landing.app.idea1.body": "メッセージと共有する内容は両端で暗号化・復号し、サーバーは暗号文を中継するだけ。サーバーを手に入れても会話は読めません。",
+  "landing.app.idea2.title": "自前ホスティング",
+  "landing.app.idea2.body":
+    "サーバーを自分で動かせば、アカウント・メッセージ・鍵を第三者に渡す必要はありません。当サイトと同じで、オンライン認証を強制するような仕組みも入れません。",
+  "landing.app.idea3.title": "チャットと画面が同じ場所に",
+  "landing.app.idea3.body": "テキスト、ファイル、画面共有が 1 つのクライアントに。会議アプリとチャットアプリを並べて開く必要はありません。",
+  "landing.app.idea4.title": "デスクトップネイティブ",
+  "landing.app.idea4.body":
+    "ブラウザのタブではなく Windows / macOS / Linux のクライアント。デスクトップ全体のキャプチャ、常駐、起動時の自動実行はブラウザでは実現できません。",
+  "landing.app.footNote":
+    "興味がある方、あるいはどこか筋が通っていないと思う方は、ぜひ教えてください。いちばん役に立つ意見は**「これで何を置き換えるか」**です。「応援しています」よりずっと価値があります。",
+  "landing.app.issues": "issue を立てる",
+  "landing.app.contact": "問い合わせる",
+  /* ============================================================
+     Landing page — Q&A
+     ============================================================ */
+  "landing.qa.eyebrow": "06 · Q&A",
+  "landing.qa.h2": "よくある質問",
+  "landing.qa.lead": "以下の回答はすべてコードか README で裏が取れます。ここに無い質問は前節の 2 つの窓口へ。",
+  "landing.qa.q1": "サーバーを自分で用意する必要はありますか？",
+  "landing.qa.a1":
+    "メディアサーバーは不要です。当サイトは Vercel + Neon（どちらも無料枠あり）にデプロイし、映像は LiveKit Cloud を通ります。必要なのは LiveKit 認証情報 1 組だけで、無料の Build プランはカード登録も不要です。完全に自前で立てることもできます。URL 欄は `ws://` を受け付けますが、OBS から配信するなら Ingress と Redis を自分でデプロイする必要があります。",
+  "landing.qa.q2": "無料枠は実際どれくらい持ちますか？",
+  "landing.qa.a2":
+    "ほとんどの場合、5,000 参加者分より先に下り 50 GB に達します。1 人が 3 人に 1080p で共有すると月あたり約 15 時間です。だからこのプロジェクトは各自が自分の LiveKit project を接続できるようにしています。枠が「サイト管理者の 1 人分」から「めいめい 1 人分」に変わります。",
+  "landing.qa.q3": "画面の映像はあなたたちのサーバーを通りますか？",
+  "landing.qa.a3":
+    "通りません。ブラウザ共有では当サイトに触れるのは 1 回だけ（トークン取得）で、その後は LiveKit ノードに直結します。同期プレイヤーはさらに徹底しており、動画のバイト列はあなたのブラウザが Range リクエストでソースから直接取得します。このサービスも LiveKit も通りません。",
+  "landing.qa.q4": "OBS を入れないといけませんか？",
+  "landing.qa.a4":
+    "いりません。ブラウザからワンクリックで共有できます（`getDisplayMedia`、1920×1080@15fps。デスクトップ共有ではフレームレートより解像度を優先します）。OBS 経路は複数シーンやトランジション、オーバーレイを使いたい人向けです。WHIP 直通なのでトランスコード枠も消費しません。",
+  "landing.qa.q5": "ルームコードを知っていれば誰でも入れますか？",
+  "landing.qa.a5":
+    "入れません。認可が見るのはメンバー表だけです。表に無ければトークンが出ず、どのトラックも購読できません。署名したトークンにはルーム名が 1 つしか入らないので、物理的に別のルームは開けません。メンバー以外のリクエストは常に 404 なので、そのルームが存在するかどうかさえ分かりません。",
+  "landing.qa.q6": "「OBS 配信」をオフにすると、配信中のものは切れますか？",
+  "landing.qa.a6":
+    "はい、その場で切れます。オフにした瞬間にサーバーが ingress を削除し（古いストリームキーで二度と接続できません）、`obs:` の参加者をルームから外します。表示だけ「オフ」にして実は流れ続ける、というフラグではありません。ブラウザ共有は別経路なので影響しません。",
+  "landing.qa.q7": "データベースを盗まれたら、外部サービスの秘密鍵も一緒に漏れますか？",
+  "landing.qa.a7":
+    "漏れません。GitHub / Google / Turnstile / Resend の秘密鍵は AES-256-GCM で暗号化してから保存し、マスターキーは `CREDENTIAL_ENCRYPTION_KEY` でデータベースの外に置けます。どの API も平文の秘密鍵を返さず、管理画面に出るのはマスクです。",
+  "landing.qa.q8": "自分だけで使い、他人の登録を止められますか？",
+  "landing.qa.a8":
+    "できます。管理 →「サイト設定」で「新規登録を許可」をオフにすると、メールとパスワードでの登録、外部ログインの初回、メール確認コードの初回の 3 経路がまとめて止まり、「このサイトは新規登録を受け付けていません」と返します。既存アカウントはこれまで通りログインできます。ボタンを隠すのではなくサーバー側で止めています。",
+
+  /* ============================================================
+     Landing page — closing + footer
+     ============================================================ */
+  "landing.closing.h2": "ルームを作って、画面を送ろう",
+  "landing.closing.body":
+    "登録すると自分専用のワークスペースができ、自分の LiveKit ノードを接続できます。招待リンクを受け取った場合は、開いてログインすれば自動でルームに入ります。",
+  "landing.closing.source": "ソースを読む",
+  "landing.footer.links": "関連リンク",
+  "landing.footer.docs": "ドキュメント",
+  "landing.footer.deploy": "デプロイ手順",
+  "landing.footer.livekit": "LiveKit ドキュメント",
+  "landing.footer.stack":
+    "Next.js 15 · React 19 · Drizzle + Neon Postgres · LiveKit —— UI は独自のデザインシステムで、UI フレームワークも Tailwind も使っていません。",
+  /* ============================================================
+     Server-side API messages.
+
+     Route handlers throw `ApiError`s whose `message` is one of these keys; the
+     `route()` wrapper translates it once, using the locale of the request that
+     caused it. See lib/http.ts.
+     ============================================================ */
+  "api.unauthorized": "まずログインしてください",
+  "api.forbidden": "権限がありません",
+  "api.notFound": "見つかりません",
+  "api.internal": "サーバーエラー",
+  "api.badJson": "リクエストボディが正しい JSON ではありません",
+  "api.badParams": "パラメータが不正です",
+  "api.needAdmin": "管理者権限が必要です",
+  "api.notReady": "サーバーの準備ができていません。データベースに繋がらない、または必須の環境変数が未設定です。/api/health を開くと、どれが足りないか分かります。",
+  "api.registrationClosed": "このサイトは新規登録を受け付けていません。アカウントが必要な場合は管理者にご連絡ください。",
+
+  "api.admin.missingNodeId": "nodeId がありません",
+  "api.admin.noFields": "更新する項目がありません",
+  "api.admin.nodeNotFound": "そのノードはありません",
+  "api.adminUser.selfEdit": "自分のロールや状態は変更できません",
+  "api.adminUser.noFields": "更新する項目がありません",
+  "api.adminUser.lastAdmin": "サイトには有効な管理者が少なくとも 1 人必要です",
+  "api.adminUser.notFound": "そのユーザーはいません",
+  "api.cron.noSecret": "CRON_SECRET が未設定のため、外部からの呼び出しを拒否します",
+  "api.cron.badSecret": "認証情報が正しくありません",
+  "api.services.badService": "service パラメータが不正です",
+
+  "api.node.notFound": "そのノードはありません",
+  "api.node.rotateBothRequired": "キーの差し替えには API Key と API Secret の両方が必要です",
+  "api.node.rotateFailed": "新しい認証情報の検証に失敗しました：{error}",
+  "api.node.noFields": "更新する項目がありません",
+  "api.node.builtinNoDelete": "内蔵ノードは削除できません。管理ページで無効にしてください",
+  "api.node.hasActiveRooms": "このノードにはまだアクティブなルームがあります。先に閉じてから削除してください",
+  "api.node.disabled": "ノード「{name}」は無効になっています",
+  "api.node.notYours": "他の人が接続したノードは使えません",
+  "api.node.builtinNotPublic": "内蔵ノードは一般ユーザーに開放されていません。自分の LiveKit Cloud project を接続してください",
+  "api.node.builtinRoomLimit": "内蔵ノードのルーム数が上限（{max}）に達しました。自分のノードを接続してください",
+  "api.node.credsCheckFailed": "認証情報の検証に失敗しました：{error}",
+  "api.node.probeFailed": "接続できない、または認証情報が無効です",
+  "api.node.duplicate": "この認証情報はすでに接続済みです",
+  "api.auth.emailTaken": "このメールアドレスはすでに登録されています",
+  "api.login.badCredentials": "メールアドレスまたはパスワードが違います",
+  "api.login.adminNotConfigured":
+    "管理者アカウントが作成されていません。環境変数 ADMIN_PASSWORD が空です。空でない値を設定して再起動し、{email} でログインしてください。",
+  "api.account.disabled": "このアカウントは無効になっています。",
+  "api.account.unverifiedLink":
+    "{email} はすでにこのサイトにアカウントがありますが、{provider} がこのアドレスの所有を確認していないため自動では紐づけできません。まずパスワードかメール確認コードでログインし、プロフィールから紐づけてください。",
+
+  "api.code.tooFast": "送信が頻繁すぎます。{seconds} 秒後にもう一度お試しください。",
+  "api.code.tooManyToday": "このアドレスへの確認コード送信が本日多すぎます。1 時間後にお試しください。",
+  "api.code.noPending": "確認待ちのコードがありません。まず「コードを送信」を押してください。",
+  "api.code.expired": "この確認コードは期限切れです。新しいコードを取得してください。",
+  "api.code.wrongLeft": "確認コードが違います。残り {left} 回です。",
+  "api.code.tooManyWrong": "確認コードの誤りが多すぎます。新しいコードを取得してください。",
+  "api.captcha.required": "先に人間確認を完了してください",
+  "api.captcha.unreachable": "人間確認サービスに繋がりません。少し待って再試行してください",
+  "api.captcha.expired": "人間確認の有効期限が切れました。もう一度確認してください",
+  "api.captcha.badSecret": "人間確認の設定が誤っています：Secret Key が違います。管理者にご連絡ください",
+  "api.captcha.failed": "人間確認を通過できませんでした。もう一度お試しください",
+
+  "api.oauth.unsupported": "このログイン方法には対応していません",
+  "api.oauth.userCancelled": "外部サービスでのログインをキャンセルしました。",
+  "api.oauth.providerReturned": "提供元からの応答：{error}",
+  "api.oauth.missingCode": "コールバックに code パラメータがありません",
+  "api.oauth.failed": "外部サービスでのログインに失敗しました。もう一度お試しか、メールでログインしてください。",
+  "api.oauth.missingState": "コールバックに state パラメータがありません",
+  "api.oauth.staleState": "このログイン要求はもう有効ではありません。外部ログインをもう一度開始してください。",
+  "api.oauth.stateTimeout": "ログイン要求がタイムアウトしました（10 分超）。もう一度やり直してください。",
+  "api.oauth.unreachable": "外部ログインサービスに繋がりません。少し待って再試行してください。",
+  "api.oauth.providerStatus": "提供元の API が {status} を返しました",
+  "api.oauth.noAccessToken": "提供元が access_token を返しませんでした",
+  "api.oauth.loginFailed": "外部サービスでのログインに失敗しました：{reason}",
+  "api.oauth.githubNoId": "GitHub がアカウント id を返しませんでした",
+  "api.oauth.googleNoSub": "Google がアカウント sub を返しませんでした",
+
+  "api.rate.emailTooMany": "ログイン試行が多すぎます。15 分後にお試しください",
+  "api.rate.ipTooMany": "このネットワークからのログイン試行が多すぎます。しばらくしてからお試しください",
+  "api.mail.unreachable": "メールサービスに繋がりません。少し待って再試行してください。",
+  "api.mail.failed": "メールを送信できませんでした：{detail}",
+  "api.svc.notConfigured": "{name} はまだ設定されていません。管理者に「管理 → 外部サービス」で設定してもらってください。",
+  "api.svc.firstSecretRequired": "初回設定では秘密鍵が必須です",
+  "api.svc.maskUndecryptable": "（復号できません。再入力してください）",
+  "api.room.notFound": "そのルームはありません",
+  "api.room.ownerOnly": "この操作はルームのオーナーだけができます",
+  "api.room.userBanned": "このユーザーはこのルームのブロックリストに入っています。先にブロックを解除してください。",
+  "api.rooms.noNode": "ノードが指定されておらず、このサイトに使える内蔵ノードもありません",
+  "api.rooms.codeConflict": "ルームコードが衝突しました。もう一度お試しください",
+  "api.token.roomClosed": "ルームは終了しています",
+  "api.token.nodeDisabled": "このルームが載っているノードは無効になっています",
+  "api.token.removed": "あなたはこのルームから退出させられました。",
+
+  "api.members.emailNotRegistered": "このメールアドレスにはまだこのサイトのアカウントがありません",
+  "api.members.accountDisabled": "このアカウントは無効になっています",
+  "api.members.alreadyMember": "このユーザーはすでにルームのメンバーです",
+  "api.members.cantChangeOwner": "ルームのオーナーの権限は変更できません",
+  "api.members.notMember": "このユーザーはルームのメンバーではありません",
+  "api.members.missingUserId": "userId がありません",
+  "api.members.cantRemoveOwner": "ルームのオーナーは退出させられません",
+  "api.bans.missingUserId": "userId がありません",
+  "api.bans.notBanned": "この人はブロックリストに入っていません",
+  "api.invites.missingId": "id がありません",
+  "api.invite.banned": "あなたはこのルームから退出させられているため、招待リンクは無効です。",
+  "api.invite.invalid": "この招待リンクは無効か、すでに使えなくなっています",
+  "api.invite.notFound": "その招待はありません",
+
+  "api.ingress.notGenerated": "あなた用の配信 URL はまだ作成されていません",
+  "api.ingress.roomClosed": "ルームは終了しています",
+  "api.ingress.gateClosed": "このルームの「OBS 配信」ゲートが閉じています。配信 URL を作る前にオーナーに開けてもらってください",
+  "api.ingress.noPermission": "あなたにはこのルームで配信する権限がありません",
+  "api.ingress.nodeNoIngress": "このノードの Ingress が利用できません（未有効化または枠切れ）。OBS 配信 URL は作成できません",
+  "api.ingress.noWhipUrl": "LiveKit が WHIP の URL を返しませんでした。その project で Ingress が使えるか確認してください",
+  "api.ingress.nothingToRevoke": "無効化できる配信 URL がありません",
+  "api.sync.roomClosed": "ルームは終了しています",
+  "api.sync.tooMany": "1 つのルームで同時に開ける同期プレイヤーは最大 {max} 個です。先に 1 つ閉じてください。",
+  "api.sync.notFound": "この同期プレイヤーは存在しないか、すでに閉じられています",
+  "api.sync.notAllowed": "このプレイヤーを操作できるのは作成者かルームのオーナーだけです",
+  "api.image.badKind": "kind は avatar か banner のみです",
+  "api.image.notFound": "その画像はありません",
+  "api.image.badFormat": "画像の形式が違います。base64 の data URL が必要です",
+  "api.image.unsupportedType": "この画像形式には対応していません（{mimeType}）。PNG / JPEG / WebP を使ってください",
+  "api.image.tooBigEstimated": "画像が大きすぎます（約 {size} KB）。上限は {limit} KB です",
+  "api.image.empty": "画像が空です",
+  "api.image.tooBig": "画像が大きすぎます（{size} KB）。上限は {limit} KB です",
+  "api.image.contentMismatch": "ファイルの中身が宣言された画像形式と一致しません",
+  /* ============================================================
+     Diagnostics: /api/health and database error hints
+     ============================================================ */
+  "api.health.set": "設定済み",
+  "api.health.dbUrlMissing": "DATABASE_URL がありません。これだけが必須の設定です",
+  "api.health.dbOk": "接続できています",
+  "api.health.dbFail": "接続できません：{message}",
+  "api.health.tablesOk": "{count} 個のテーブルが揃っています",
+  "api.health.tablesMissing":
+    "テーブルが {count} 個足りません（{list}）。マイグレーションが未実行か途中までです。このデータベースに対して npm run db:migrate を実行してください。",
+  "api.health.tablesFail": "テーブル一覧を取得できません：{message}",
+  "api.health.adminPasswordMissing": "ADMIN_PASSWORD がありません（空文字も同様）。管理者アカウントは作成されません",
+  "api.health.bootReady": "準備完了。管理者メール {email}",
+  "api.health.bootReadyNoAdmin": "準備完了ですが、管理者アカウントは作成されていません（ADMIN_PASSWORD が空）",
+  "api.health.bootFailed": "起動時の初期化に失敗しました",
+  "api.health.keyFromEnv": "CREDENTIAL_ENCRYPTION_KEY から取得",
+  "api.health.keyAuto": "自動生成してデータベースに保存（より強く分離したい場合は環境変数を明示的に設定してください）",
+  "api.health.keyPending": "まだ読み込まれていません。先に上の失敗項目を直してください",
+  "api.db.rawPrefix": " 元のエラー：",
+  "api.db.unknown": "原因不明でデータベースのクエリが失敗しました。",
+  "api.db.42P01": "テーブルがありません。マイグレーションが未実行です。このデータベースに対して npm run db:migrate を実行してください。",
+  "api.db.42703": "カラムがありません。マイグレーションが途中までです。npm run db:migrate をもう一度実行してください。",
+  "api.db.3F000": "スキーマがありません。接続文字列のデータベース名を確認してください。",
+  "api.db.3D000": "データベースがありません。接続文字列のデータベース名が誤っています。",
+  "api.db.28P01": "パスワード認証に失敗しました。接続文字列のパスワードが誤っています。",
+  "api.db.28000": "認証を拒否されました。接続文字列のユーザー名または権限が誤っています。",
+  "api.db.53300": "接続数が上限を超えました。Neon の Pooled connection の接続文字列に切り替えてください。",
+  "api.db.08006": "接続が切れました。ネットワークと、Neon のインスタンスが休止または削除されていないかを確認してください。",
+  "api.db.57P03": "データベースが起動中です。Neon のコールドスタートなので、数秒待って再試行してください。",
+  /* ============================================================
+     Validation messages.
+
+     These live in the zod schemas as *keys* (lib/validation.ts stays a pure,
+     dependency-free data module) and are translated by parseOr400.
+     ============================================================ */
+  "valid.wsUrlRequired": "LiveKit の URL は空にできません",
+  "valid.wsUrlInvalid": "LiveKit の URL として正しくありません",
+  "valid.emailFormat": "メールアドレスの形式が正しくありません",
+  "valid.emailTooLong": "メールアドレスが長すぎます",
+  "valid.apiKeyShort": "API Key が短すぎます",
+  "valid.apiSecretShort": "API Secret が短すぎます",
+  "valid.nodeName": "ノードに名前を付けてください",
+  "valid.passwordRequired": "パスワードを入力してください",
+  "valid.passwordShort": "パスワードは 8 文字以上にしてください",
+  "valid.codeSixDigits": "確認コードは 6 桁の数字です",
+  "valid.roomName": "ルーム名は空にできません",
+  "valid.atLeastOneSetting": "少なくとも 1 項目を変更してください",
+  "valid.displayName": "表示名は空にできません",
+  "valid.playerName": "プレイヤーに名前を付けてください",
+  "valid.sourceUrlScheme": "URL は http:// または https:// で始めてください",
+  "valid.fieldRequired": "この項目は空にできません",
+
+  /* ============================================================
+     Verification-code email
+     ============================================================ */
+  "mail.subject": "{code} は {app} の確認コードです",
+  "mail.title": "{app} の確認コード",
+  "mail.preview": "確認コード {code}、{minutes} 分間有効です。",
+  "mail.lead": "下の確認コードでログインを続けてください：",
+  "mail.validity": "{minutes} 分間有効で、1 回だけ使えます。",
+  "mail.textLead": "ログイン用の確認コード：{code}",
+  "mail.textSafety": "心当たりがない場合は、このメールを無視してください。コードがなければ誰も入れません。",
+  "mail.safety":
+    "心当たりがありませんか？このメールは無視してかまいません。このコードがなければ誰も入れません。当サイトがこのコードをお尋ねすることは、いかなる手段でもありません。",
+  "mail.autoSent": "このメールは {host} から自動送信されました。",
+};
+
+export default ja;

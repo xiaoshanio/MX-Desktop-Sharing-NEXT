@@ -3,7 +3,8 @@ import { lt } from "drizzle-orm";
 
 import { db } from "@/db";
 import { emailCodes, loginAttempts, oauthStates, sessions, webhookEvents } from "@/db/schema";
-import { forbidden, json, route } from "@/lib/http";
+import { forbidden, json } from "@/lib/http";
+import { route } from "@/lib/api-route";
 
 export const runtime = "nodejs";
 
@@ -16,13 +17,13 @@ function assertCron(req: Request): void {
   if (!secret) {
     // 没配密钥时，只信任 Vercel 注入的 cron 标记
     if (req.headers.get("x-vercel-cron")) return;
-    throw forbidden("未配置 CRON_SECRET，拒绝外部调用");
+    throw forbidden("api.cron.noSecret");
   }
   const provided = req.headers.get("authorization") ?? "";
   const expected = `Bearer ${secret}`;
   const a = Buffer.from(provided);
   const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) throw forbidden("凭据不正确");
+  if (a.length !== b.length || !timingSafeEqual(a, b)) throw forbidden("api.cron.badSecret");
 }
 
 /** 清理过期会话、旧的登录失败记录、旧的 webhook 去重记录、用完的验证码和 OAuth state。 */

@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { syncPlayers, users } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { badRequest, json, parseOr400, readJson, route } from "@/lib/http";
+import { badRequest, json, parseOr400, readJson } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { requireMember, requireRoomOwner } from "@/lib/rooms";
 import { createSyncPlayerSchema } from "@/lib/validation";
 
@@ -59,14 +60,14 @@ export const POST = route(async (req, ctx: { params: Promise<{ code: string }> }
   const roomCtx = await requireRoomOwner(code, user);
   const input = await readJson(req, (raw) => parseOr400(createSyncPlayerSchema, raw));
 
-  if (!roomCtx.room.isActive) throw badRequest("房间已关闭");
+  if (!roomCtx.room.isActive) throw badRequest("api.sync.roomClosed");
 
   const open = await db
     .select({ id: syncPlayers.id })
     .from(syncPlayers)
     .where(and(eq(syncPlayers.roomId, roomCtx.room.id), isNull(syncPlayers.closedAt)));
   if (open.length >= MAX_OPEN_PER_ROOM) {
-    throw badRequest(`一个房间最多同时开 ${MAX_OPEN_PER_ROOM} 个同步播放器，先关掉一个再建。`);
+    throw badRequest("api.sync.tooMany", undefined, { max: MAX_OPEN_PER_ROOM });
   }
 
   const [created] = await db

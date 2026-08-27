@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { httpUrl } from "../src/lib/livekit.ts";
-import { describeDbError, parseOr400, redactSecrets } from "../src/lib/http.ts";
+import { describeDbError, formatDbError, parseOr400, redactSecrets } from "../src/lib/http.ts";
 import { generateRoomCode } from "../src/lib/room-code.ts";
 import { CARD_ACCENTS } from "../src/lib/identity.ts";
 import {
@@ -102,28 +102,38 @@ describe("describeDbError", () => {
     return wrapper;
   }
 
+  /**
+   * 假翻译器：原样回传消息键。
+   *
+   * describeDbError 负责的是「挖出真实原因 + 认出 SQLSTATE + 抹掉口令」，
+   * 指引的**措辞**在语言包里（`api.db.*`），所以这里断言键而不是断言中文。
+   */
+  const t = (key: string) => key;
+
   it("挖出 cause 里的真实原因，不返回 drizzle 那层的 Failed query", () => {
     const out = describeDbError(drizzleWrapped('relation "app_config" does not exist', "42P01"));
     assert.ok(!out.message.includes("Failed query"), out.message);
     assert.ok(out.message.includes('relation "app_config" does not exist'), out.message);
   });
 
-  it("按 SQLSTATE 补一句可操作的指引", () => {
+  it("按 SQLSTATE 指向一条可操作的指引", () => {
     const out = describeDbError(drizzleWrapped('relation "users" does not exist', "42P01"));
     assert.equal(out.code, "42P01");
-    assert.ok(out.message.includes("npm run db:migrate"), out.message);
+    assert.equal(out.hintKey, "api.db.42P01");
   });
 
   it("认得出口令错误和连接数超限", () => {
-    assert.ok(describeDbError(drizzleWrapped("auth failed", "28P01")).message.includes("密码不对"));
-    assert.ok(
-      describeDbError(drizzleWrapped("too many clients", "53300")).message.includes("Pooled"),
+    assert.equal(describeDbError(drizzleWrapped("auth failed", "28P01")).hintKey, "api.db.28P01");
+    assert.equal(
+      describeDbError(drizzleWrapped("too many clients", "53300")).hintKey,
+      "api.db.53300",
     );
   });
 
-  it("未收录的 SQLSTATE 仍然回传原始消息和码", () => {
+  it("未收录的 SQLSTATE 仍然回传原始消息和码，但没有指引", () => {
     const out = describeDbError(drizzleWrapped("something odd", "XX999"));
     assert.equal(out.code, "XX999");
+    assert.equal(out.hintKey, undefined);
     assert.ok(out.message.includes("something odd"), out.message);
   });
 
@@ -132,7 +142,7 @@ describe("describeDbError", () => {
     assert.ok(!out.message.includes("secret"), out.message);
   });
 
-  it("只有 Failed query 一层时给兜底文案而不是回显 SQL", () => {
+  it("只有 Failed query 一层时不回显 SQL", () => {
     const bare = new Error("Failed query: select 1\nparams: ");
     const out = describeDbError(bare);
     assert.ok(!out.message.includes("select 1"), out.message);
@@ -140,15 +150,23 @@ describe("describeDbError", () => {
   });
 
   it("非 Error 输入不炸", () => {
-    assert.ok(describeDbError("boom").message.length > 0);
-    assert.ok(describeDbError(null).message.length > 0);
-    assert.ok(describeDbError(undefined).message.length > 0);
+    for (const input of ["boom", null, undefined]) {
+      assert.equal(typeof describeDbError(input).message, "string");
+    }
   });
 
   it("cause 自引用不会死循环", () => {
     const loop = new Error("outer") as Error & { cause?: unknown };
     loop.cause = loop;
     assert.ok(describeDbError(loop).message.includes("outer"));
+  });
+
+  it("formatDbError：指引和原始报错都在时两条都给，都没有时给兜底", () => {
+    const both = formatDbError(t, describeDbError(drizzleWrapped("auth failed", "28P01")));
+    assert.ok(both.includes("api.db.28P01"), both);
+    assert.ok(both.includes("auth failed"), both);
+
+    assert.equal(formatDbError(t, describeDbError(null)), "api.db.unknown");
   });
 });
 

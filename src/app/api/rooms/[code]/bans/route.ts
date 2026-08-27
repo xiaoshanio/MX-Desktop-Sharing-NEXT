@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { roomBans, users } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { badRequest, json, notFound, route } from "@/lib/http";
+import { badRequest, json, notFound } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { requireRoomOwner } from "@/lib/rooms";
 
 export const runtime = "nodejs";
@@ -54,13 +55,13 @@ export const DELETE = route(async (req, ctx: { params: Promise<{ code: string }>
   const roomCtx = await requireRoomOwner(code, user);
 
   const targetId = new URL(req.url).searchParams.get("userId");
-  if (!targetId) throw badRequest("缺少 userId");
+  if (!targetId) throw badRequest("api.bans.missingUserId");
 
   const removed = await db
     .delete(roomBans)
     .where(and(eq(roomBans.roomId, roomCtx.room.id), eq(roomBans.userId, targetId)))
     .returning();
-  if (removed.length === 0) throw notFound("这个人不在黑名单里");
+  if (removed.length === 0) throw notFound("api.bans.notBanned");
 
   audit({
     actorId: user.id,

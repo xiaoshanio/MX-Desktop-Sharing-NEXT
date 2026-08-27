@@ -1,6 +1,7 @@
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { badRequest, json, readJson, route, parseOr400 } from "@/lib/http";
+import { badRequest, json, readJson, parseOr400 } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { createInvite, listInvites, revokeInvite } from "@/lib/invites";
 import { requireRoomOwner } from "@/lib/rooms";
 import { appUrl } from "@/lib/url";
@@ -68,7 +69,7 @@ export const DELETE = route(async (req, ctx: { params: Promise<{ code: string }>
   const roomCtx = await requireRoomOwner(code, user);
 
   const inviteId = new URL(req.url).searchParams.get("id");
-  if (!inviteId) throw badRequest("缺少 id");
+  if (!inviteId) throw badRequest("api.invites.missingId");
 
   await revokeInvite(inviteId, roomCtx.room.id);
   audit({

@@ -2,14 +2,17 @@ import { z } from "zod";
 
 /**
  * 纯 schema 模块：不 import 任何本项目的其他文件。
- * 校验失败如何转成 HTTP 响应见 http.ts 的 parseOr400。
+ *
+ * 校验失败的 message 写的是**消息键**（`valid.*`，见 i18n/messages/en.ts），
+ * 不是成品文案 —— 这个模块拿不到请求语言，翻译由 http.ts 的 parseOr400 + route()
+ * 在同一处完成。保持零依赖也是为此：它只描述数据，不描述呈现。
  */
 
 /** wss:// 或 ws://（自建）都收，顺手剥掉尾巴上的斜杠和路径。 */
 export const wsUrlSchema = z
   .string()
   .trim()
-  .min(1, "LiveKit 地址不能为空")
+  .min(1, "valid.wsUrlRequired")
   .transform((raw, ctx) => {
     let value = raw;
     // 用户经常从控制台复制成 https://xxx.livekit.cloud，替他改掉
@@ -21,7 +24,7 @@ export const wsUrlSchema = z
     try {
       parsed = new URL(value);
     } catch {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "不是合法的 LiveKit 地址" });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "valid.wsUrlInvalid" });
       return z.NEVER;
     }
     return `${parsed.protocol}//${parsed.host}`;
@@ -44,23 +47,23 @@ export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .min(3, "邮箱格式不对")
-  .max(254, "邮箱太长")
-  .regex(EMAIL_RE, "邮箱格式不对");
+  .min(3, "valid.emailFormat")
+  .max(254, "valid.emailTooLong")
+  .regex(EMAIL_RE, "valid.emailFormat");
 
 export const nodeCredentialsSchema = z.object({
   wsUrl: wsUrlSchema,
-  apiKey: z.string().trim().min(3, "API Key 太短"),
-  apiSecret: z.string().trim().min(8, "API Secret 太短"),
+  apiKey: z.string().trim().min(3, "valid.apiKeyShort"),
+  apiSecret: z.string().trim().min(8, "valid.apiSecretShort"),
 });
 
 export const createNodeSchema = nodeCredentialsSchema.extend({
-  name: z.string().trim().min(1, "给节点起个名字").max(60),
+  name: z.string().trim().min(1, "valid.nodeName").max(60),
 });
 
 export const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, "请输入密码"),
+  password: z.string().min(1, "valid.passwordRequired"),
   /** Turnstile 的一次性 token。没配人机验证时前端不会带，服务端也会放行。 */
   captchaToken: z.string().trim().max(4096).optional(),
 });
@@ -68,7 +71,7 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   email: emailSchema,
   displayName: z.string().trim().min(1).max(60),
-  password: z.string().min(8, "密码至少 8 位"),
+  password: z.string().min(8, "valid.passwordShort"),
   captchaToken: z.string().trim().max(4096).optional(),
 });
 
@@ -80,11 +83,11 @@ export const requestEmailCodeSchema = z.object({
 
 export const verifyEmailCodeSchema = z.object({
   email: emailSchema,
-  code: z.string().trim().regex(/^\d{6}$/, "验证码是 6 位数字"),
+  code: z.string().trim().regex(/^\d{6}$/, "valid.codeSixDigits"),
 });
 
 export const createRoomSchema = z.object({
-  name: z.string().trim().min(1, "房间名不能为空").max(80),
+  name: z.string().trim().min(1, "valid.roomName").max(80),
   /** 省略 = 用内置节点（前提是管理员开了 allowPublic） */
   nodeId: z.string().uuid().optional(),
   /** 或者建房时现场接一套自己的凭据进来 */
@@ -107,7 +110,7 @@ export const updateRoomSchema = z
   })
   .refine(
     (value) => value.obsEnabled !== undefined || value.viewerCanPublish !== undefined,
-    { message: "至少要改一项设置" },
+    { message: "valid.atLeastOneSetting" },
   );
 
 export const addMemberSchema = z.object({
@@ -154,7 +157,7 @@ export const adminUpdateSettingsSchema = z
     registrationEnabled: z.boolean().optional(),
   })
   .refine((value) => value.registrationEnabled !== undefined, {
-    message: "至少要改一项设置",
+    message: "valid.atLeastOneSetting",
   });
 
 /* ============================================================
@@ -193,7 +196,7 @@ export const CARD_ACCENT_VALUES = [
 ] as const;
 
 export const updateProfileSchema = z.object({
-  displayName: z.string().trim().min(1, "显示名不能为空").max(60).optional(),
+  displayName: z.string().trim().min(1, "valid.displayName").max(60).optional(),
   cardAccent: z.enum(CARD_ACCENT_VALUES).nullable().optional(),
   avatar: z.string().max(700_000).nullable().optional(),
   banner: z.string().max(2_800_000).nullable().optional(),
@@ -204,7 +207,7 @@ export const updateProfileSchema = z.object({
    ============================================================ */
 
 export const createSyncPlayerSchema = z.object({
-  name: z.string().trim().min(1, "给播放器起个名字").max(60),
+  name: z.string().trim().min(1, "valid.playerName").max(60),
 });
 
 /**
@@ -219,7 +222,7 @@ export const updateSyncPlayerSchema = z.object({
     .string()
     .trim()
     .max(2048)
-    .refine((v) => v === "" || /^https?:\/\//i.test(v), "地址要以 http:// 或 https:// 开头")
+    .refine((v) => v === "" || /^https?:\/\//i.test(v), "valid.sourceUrlScheme")
     .transform((v) => (v === "" ? null : v))
     .nullable(),
 });
@@ -231,7 +234,7 @@ export const updateSyncPlayerSchema = z.object({
 export const upsertServiceSchema = z.object({
   service: z.enum(["github", "google", "turnstile", "resend"]),
   /** Client ID / Site Key / 发件地址 */
-  publicValue: z.string().trim().min(1, "这一项不能为空").max(400),
+  publicValue: z.string().trim().min(1, "valid.fieldRequired").max(400),
   /** 留空 = 保留库里已有的密钥 */
   secret: z.string().trim().max(4096).optional(),
   isEnabled: z.boolean().default(true),

@@ -1,10 +1,51 @@
+/**
+ * 主题与外壳状态的持久化。
+ *
+ * 主题有**三档**：跟随系统 / 浅色 / 深色，默认跟随系统。
+ * 存储里放的是「偏好」（preference），页面上生效的是「解析后的主题」（theme）——
+ * 两者必须分开，否则「跟随系统」这一档没法表示：它本身不是一个颜色，而是「去问系统」。
+ *
+ * <html> 上因此有两个属性：
+ *   data-theme      = light | dark  ← CSS 只看这一个
+ *   data-theme-pref = system | light | dark  ← 只给切换按钮读，用来知道现在是哪一档
+ */
+
 export type Theme = "light" | "dark";
+export type ThemePreference = "system" | Theme;
 
 export const THEME_STORAGE_KEY = "mxds.theme";
 export const SIDEBAR_STORAGE_KEY = "mxds.sidebar";
 
-/** Default when nothing is stored — this is a media app, dark reads better. */
-export const DEFAULT_THEME: Theme = "dark";
+/**
+ * 默认跟随系统。
+ *
+ * 以前写死深色（「这是个媒体应用，深色更好看」），但那会跟操作系统的深浅色设置打架 ——
+ * 白天把系统调成浅色的人打开本站还是一片黑。跟随系统之后仍然可以手动锁定某一档。
+ */
+export const DEFAULT_THEME_PREFERENCE: ThemePreference = "system";
+
+/** 三档循环的顺序：跟随系统 → 浅色 → 深色 → 跟随系统。 */
+export const THEME_CYCLE: readonly ThemePreference[] = ["system", "light", "dark"];
+
+export function nextThemePreference(current: ThemePreference): ThemePreference {
+  const index = THEME_CYCLE.indexOf(current);
+  return THEME_CYCLE[(index + 1) % THEME_CYCLE.length] ?? "system";
+}
+
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+/** 系统当前是深色还是浅色。读不到（老浏览器 / 服务端）时按浅色算。 */
+export function systemTheme(): Theme {
+  try {
+    return window.matchMedia(DARK_QUERY).matches ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+export function resolveTheme(preference: ThemePreference): Theme {
+  return preference === "system" ? systemTheme() : preference;
+}
 
 /**
  * 进了房间就自动收起侧栏（画面要宽），离开房间恢复成用户自己的偏好。
@@ -30,7 +71,7 @@ export function readStoredSidebar(): SidebarState {
 }
 
 /**
- * 首帧之前把 `data-theme` 和 `data-sidebar` 一起盖到 <html> 上。
+ * 首帧之前把 `data-theme` / `data-theme-pref` / `data-sidebar` 一起盖到 <html> 上。
  *
  * 侧栏状态为什么必须在这里定：原来它是在 AppShell 挂载后的 useEffect 里读的，
  * 于是每次刷新都先按「展开」画一帧，再动画收起 —— 也就是「刷新页面会再次收起」
@@ -42,36 +83,42 @@ export function readStoredSidebar(): SidebarState {
  * 保持零依赖、ES5 语法 —— 它是内联进 <head> 的裸脚本。
  */
 export const themeBootstrapScript = `(function(){
+var d=document.documentElement;
+function sys(){try{return window.matchMedia("${DARK_QUERY}").matches?"dark":"light"}catch(e){return "light"}}
 try{
 var v=localStorage.getItem("${THEME_STORAGE_KEY}");
-var t=(v==="light"||v==="dark")?v:"${DEFAULT_THEME}";
-document.documentElement.setAttribute("data-theme",t);
-}catch(e){document.documentElement.setAttribute("data-theme","${DEFAULT_THEME}");}
+var p=(v==="light"||v==="dark"||v==="system")?v:"${DEFAULT_THEME_PREFERENCE}";
+d.setAttribute("data-theme-pref",p);
+d.setAttribute("data-theme",p==="system"?sys():p);
+}catch(e){d.setAttribute("data-theme-pref","system");d.setAttribute("data-theme",sys());}
 try{
 var immersive=location.pathname.indexOf("/room/")===0;
 var s=immersive?"collapsed":(localStorage.getItem("${SIDEBAR_STORAGE_KEY}")==="collapsed"?"collapsed":"expanded");
-document.documentElement.setAttribute("data-sidebar",s);
-}catch(e){document.documentElement.setAttribute("data-sidebar","expanded");}
+d.setAttribute("data-sidebar",s);
+}catch(e){d.setAttribute("data-sidebar","expanded");}
 })();`;
 
-export function readStoredTheme(): Theme {
+export function readStoredThemePreference(): ThemePreference {
   try {
     const value = localStorage.getItem(THEME_STORAGE_KEY);
-    return value === "light" || value === "dark" ? value : DEFAULT_THEME;
+    if (value === "light" || value === "dark" || value === "system") return value;
   } catch {
-    return DEFAULT_THEME;
+    /* 隐私模式 */
   }
+  return DEFAULT_THEME_PREFERENCE;
 }
 
 let crossfadeTimer: ReturnType<typeof setTimeout> | undefined;
 
 /**
- * Applies a theme to <html> and persists it. Enables a brief color crossfade so the switch
- * doesn't snap, then removes it — otherwise every hover would animate too.
+ * 把偏好写进 <html> 并持久化。切换时开一小段颜色过渡，免得硬跳；
+ * 过渡类随后移除 —— 留着的话每次 hover 都会跟着动画。
  */
-export function applyTheme(theme: Theme): void {
+export function applyThemePreference(preference: ThemePreference): void {
   const root = document.documentElement;
+  const theme = resolveTheme(preference);
   const previous = root.getAttribute("data-theme");
+
   if (previous && previous !== theme) {
     root.classList.add("mx-theme-switching");
     if (crossfadeTimer !== undefined) clearTimeout(crossfadeTimer);
@@ -80,12 +127,33 @@ export function applyTheme(theme: Theme): void {
       crossfadeTimer = undefined;
     }, 260);
   }
+
   root.setAttribute("data-theme", theme);
+  root.setAttribute("data-theme-pref", preference);
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    localStorage.setItem(THEME_STORAGE_KEY, preference);
   } catch {
     /* private mode — the theme still applies for this page view */
   }
+}
+
+/**
+ * 「跟随系统」这一档下，系统深浅色变了要当场跟上。
+ *
+ * 返回取消订阅函数。只在 preference === "system" 时需要挂 —— 锁定了某一档的人
+ * 不该因为系统换了主题而被改掉。
+ */
+export function watchSystemTheme(onChange: (theme: Theme) => void): () => void {
+  let media: MediaQueryList;
+  try {
+    media = window.matchMedia(DARK_QUERY);
+  } catch {
+    return () => {};
+  }
+
+  const handler = (event: MediaQueryListEvent) => onChange(event.matches ? "dark" : "light");
+  media.addEventListener("change", handler);
+  return () => media.removeEventListener("change", handler);
 }
 
 /**

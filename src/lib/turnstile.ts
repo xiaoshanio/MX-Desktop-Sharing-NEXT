@@ -24,7 +24,7 @@ export async function verifyTurnstile(
   if (!credential) return { ok: true, skipped: true };
 
   if (!token || token.trim() === "") {
-    return { ok: false, reason: "请先完成人机验证" };
+    return { ok: false, reason: "api.captcha.required" };
   }
 
   const body = new URLSearchParams({ secret: credential.secret, response: token });
@@ -42,7 +42,7 @@ export async function verifyTurnstile(
     });
     payload = (await res.json()) as typeof payload;
   } catch {
-    return { ok: false, reason: "人机验证服务连不上，请稍后再试" };
+    return { ok: false, reason: "api.captcha.unreachable" };
   }
 
   if (payload.success) return { ok: true, skipped: false };
@@ -51,10 +51,10 @@ export async function verifyTurnstile(
   // timeout-or-duplicate 是最常见的一种：token 只能用一次，且 5 分钟内有效。
   // 直接把 Cloudflare 的原始码抛给用户看没意义，翻成能照着做的话。
   const reason = codes.includes("timeout-or-duplicate")
-    ? "人机验证已过期，请重新验证一次"
+    ? "api.captcha.expired"
     : codes.includes("invalid-input-secret")
-      ? "人机验证配置有误：Secret Key 不对，请联系管理员"
-      : "人机验证没通过，请重试";
+      ? "api.captcha.badSecret"
+      : "api.captcha.failed";
   return { ok: false, reason };
 }
 

@@ -1,32 +1,35 @@
+**English** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Français](README.fr.md) · [Русский](README.ru.md) · [日本語](README.ja.md) · [Tiếng Việt](README.vi.md)
+
 # MX-Desktop-Sharing-NEXT
 
-基于 LiveKit 的桌面共享。核心设计：**一房一节点，一人一推流地址**。
+LiveKit-based desktop sharing. The core idea: **one node per room, one publish URL per person**.
 
-- **房间绑定 LiveKit 节点**。建房时指定用哪套 LiveKit 凭据，这个房间的媒体流量和免费额度就烧在那个节点上。
-- **普通用户自带节点**。用户接入自己的 LiveKit Cloud 项目，各烧各的额度，互不抢占。
-- **内置节点兜底**。管理员可把任一节点「设为内置」供全站共享，能开关是否对普通用户开放、限制房间数。
-- **鉴权在协议层**。不在成员表里 → 签不出 token → 连不上 room → 订阅不到任何 track。不是前端过滤。
-- **OBS 走 WHIP 直通**。`enableTranscoding: false`，不消耗每月 60 分钟的 transcode 额度。
-- **OBS 直播有开关**。房主可以一键关掉本房间的 WHIP 入口：正在推的立刻断，已发出去的推流地址全部作废。浏览器共享是另一条路，不受它影响。
-- **两个环境变量就能跑**。管理员账户自动创建，加密密钥自动供给，LiveKit 在网页里配。
+- **Rooms are bound to a LiveKit node.** You pick which set of LiveKit credentials a room uses when you create it, and that room's media traffic and free-tier usage burn on that node.
+- **Regular users bring their own node.** Users connect their own LiveKit Cloud project, each burning their own quota, competing with nobody.
+- **A built-in node as a fallback.** An admin can promote any node to "built-in" so the whole site shares it, with switches for whether regular users may use it and a cap on its room count.
+- **Authorisation happens at the protocol layer.** Not in the member table → no token → no room connection → no track subscription. This is not front-end filtering.
+- **OBS goes over WHIP passthrough.** `enableTranscoding: false`, so it never eats the 60 transcode minutes a month.
+- **"OBS publishing" is a real switch.** The owner can shut this room's WHIP entrance in one click: anything currently publishing drops immediately and every publish URL already handed out is voided. Browser sharing is a separate route and is unaffected.
+- **Two environment variables are enough to run it.** The admin account is created automatically, the encryption key is provisioned automatically, and LiveKit is configured in the web UI.
 
-部署本站到 Vercel 见 [DEPLOY.md](DEPLOY.md)。
+To deploy this site to Vercel, see [DEPLOY.md](DEPLOY.md).
 
-## 快速开始
+## Quick start
 
-只需要两个环境变量。复制 `.env.example` 为 `.env.local`（Next **不读** `.env.example`
-本身，改那个文件不生效），填这两项：
+You only need two environment variables. Copy `.env.example` to `.env.local` (Next **does not read**
+`.env.example` itself — editing that file has no effect) and fill in these two:
 
 ```bash
 DATABASE_URL=postgresql://...@ep-xxx-pooler.../neondb?sslmode=require
-ADMIN_PASSWORD=换成你自己的密码
+ADMIN_PASSWORD=pick-your-own-password
 ```
 
-**引号可以不加** —— 加与不加解析结果完全一样。唯一例外是值里含 `#`：不加引号会被当成
-注释截断且不报错，那种情况要加。`ADMIN_PASSWORD` 必须非空，留成 `""` 等于没设，
-管理员账户不会被创建。
+**Quotes are optional** — with or without them the parsed result is identical. The one exception is a
+value containing `#`: without quotes it is silently truncated as a comment, so quote it in that case.
+`ADMIN_PASSWORD` must be non-empty; leaving it as `""` counts as unset and the admin account will not
+be created.
 
-然后建表、启动：
+Then create the tables and start:
 
 ```bash
 npm install
@@ -34,211 +37,226 @@ npm run db:migrate
 npm run dev
 ```
 
-`db:migrate` 会读 `drizzle/` 下的迁移文件建出 12 张表。它和应用读同一套 env 文件
-（`.env.local` 优先于 `.env`）。**部署到 Vercel 时不用手动跑这条** —— 构建流程里已经
-挂了迁移步骤，配好 `DATABASE_URL` 推代码即可，详见 [DEPLOY.md](DEPLOY.md)。
+`db:migrate` reads the migration files under `drizzle/` and creates 12 tables. It reads the same env
+files as the app (`.env.local` takes precedence over `.env`). **You do not run this by hand when
+deploying to Vercel** — the migration step is already wired into the build, so configure
+`DATABASE_URL` and push; see [DEPLOY.md](DEPLOY.md) for details.
 
-打开 `http://localhost:3000`，用 `admin@localhost` + 上面的密码登录 ——
-**管理员账户在首次启动时自动创建，没有安装向导**。
+Open `http://localhost:3000` and sign in with `admin@localhost` plus the password above —
+**the admin account is created on first start, and there is no install wizard**.
 
-登录后到侧栏「LiveKit 节点」→「接入节点」配一个 LiveKit 节点（怎么拿凭据见下一节）。
-LiveKit 不占用任何环境变量。
+Once signed in, go to "LiveKit nodes" in the sidebar → "Connect a node" and configure a LiveKit node
+(how to get the credentials is in the next section). LiveKit occupies no environment variables.
 
-其他命令：`npm test`（137 项）、`npm run typecheck`、`npm run build`。
-`build` 会先跑一遍数据库迁移（没配 `DATABASE_URL` 就跳过）；只想编译不碰数据库用
-`npm run build:only`。
+Other commands: `npm test` (137 assertions), `npm run typecheck`, `npm run build`.
+`build` runs the database migration first (skipped when `DATABASE_URL` is unset); to compile without
+touching the database use `npm run build:only`.
 
-### 登录报错了？
+### Sign-in is failing?
 
-**先打开 `/api/health`** —— 它逐项报告每个环节的状态，不需要登录，比对着报错猜快得多。
+**Open `/api/health` first** — it reports the state of every step, needs no sign-in, and is far faster
+than guessing from a stack trace.
 
 ```bash
 curl -s http://localhost:3000/api/health | python -m json.tool
 ```
 
-五项依次是：`DATABASE_URL` 有没有设 → 库连不连得上 → **12 张表建没建** →
-`ADMIN_PASSWORD` 有没有设 → 启动引导过不过。前面的项没过时后面的会跳过，
-所以永远只需要修最上面那个红的。
+The five items, in order: is `DATABASE_URL` set → can the database be reached → **were the 12 tables
+created** → is `ADMIN_PASSWORD` set → did the startup bootstrap pass. Later items are skipped while an
+earlier one fails, so you only ever need to fix the topmost red one.
 
-登录接口按原因分开了状态码：
+The sign-in endpoint separates status codes by cause:
 
-| 返回 | 含义 |
+| Response | Meaning |
 | --- | --- |
-| `503 not_configured` | 数据库连不上、表没建，或 `DATABASE_URL` 没配 |
-| `503 admin_not_configured` | 库是通的，但 `ADMIN_PASSWORD` 为空，管理员账户没建出来 |
-| `401 invalid_credentials` | 账户存在，密码不对 |
-| `429 rate_limited` | 同一邮箱 15 分钟内失败 8 次（同 IP 30 次） |
+| `503 not_configured` | The database is unreachable, the tables don't exist, or `DATABASE_URL` isn't set |
+| `503 admin_not_configured` | The database is fine, but `ADMIN_PASSWORD` is empty so the admin account was never created |
+| `401 invalid_credentials` | The account exists, the password is wrong |
+| `429 rate_limited` | 8 failures for the same email within 15 minutes (30 from the same IP) |
 
-最容易误判的一种：**表还没建**。症状是 `database` 显示「连接正常」但凡是碰到表的接口
-全挂 —— 因为连接和建表是两件事。`/api/health` 的 `tables` 那一项会直接列出缺哪几张。
-部署时构建流程会自动建表；本地补跑一次就是 `npm run db:migrate`。
+The easiest one to misdiagnose: **the tables haven't been created**. The symptom is that `database`
+shows "Connected" while every endpoint that touches a table fails — because connecting and creating
+tables are two different things. The `tables` item in `/api/health` lists exactly which ones are
+missing. On deploy the build creates them automatically; locally, catch up with `npm run db:migrate`.
 
-跑了 `db:migrate` 但表还是没建出来？检查 `drizzle/meta/_journal.json` 在不在。
-drizzle-kit 找不到它时**不报错**，而是默默建一个空的然后什么都不干。
-`tests/migrations.test.mts` 就是守这条的。真遇上了，`npm run db:push` 可以绕过迁移
-文件直接按 `schema.ts` 建表。
+Ran `db:migrate` but the tables still aren't there? Check whether `drizzle/meta/_journal.json` exists.
+When drizzle-kit can't find it, it **doesn't error** — it quietly creates an empty one and does
+nothing. `tests/migrations.test.mts` guards exactly this. If you do hit it, `npm run db:push` can
+bypass the migration files and create the tables straight from `schema.ts`.
 
-### 环境变量清单
+### Environment variables
 
-| 变量 | 必填 | 默认 / 说明 |
+| Variable | Required | Default / notes |
 | --- | --- | --- |
-| `DATABASE_URL` | ✅ | Neon 连接串 |
-| `ADMIN_PASSWORD` | ✅ | 必须非空。改这个值并重启即可改密码 |
+| `DATABASE_URL` | ✅ | Neon connection string |
+| `ADMIN_PASSWORD` | ✅ | Must be non-empty. Change this value and restart to change the password |
 | `ADMIN_EMAIL` | | `admin@localhost` |
-| `CREDENTIAL_ENCRYPTION_KEY` | | 不填则首次启动自动生成并存库（见 [DEPLOY.md](DEPLOY.md#关于自动生成的加密密钥) 的取舍说明） |
-| `NEXT_PUBLIC_APP_URL` | | 不填则从请求头推导 |
-| `CRON_SECRET` | | 保护定时清理端点 |
+| `CREDENTIAL_ENCRYPTION_KEY` | | Generated on first start and stored in the database if unset (see the trade-off discussion in [DEPLOY.md](DEPLOY.md#关于自动生成的加密密钥)) |
+| `NEXT_PUBLIC_APP_URL` | | Derived from request headers if unset |
+| `CRON_SECRET` | | Protects the scheduled cleanup endpoint |
 
-### 只给自己人用（关闭注册）
+### Keeping it to your own people (closing sign-ups)
 
-**管理后台 →「站点设置」→ 关掉「开放注册」**。开关存在 `app_config` 表里（键
-`registration_enabled`），不占环境变量，改完立刻生效、不用重新部署。键不存在时默认
-**开放** —— 老部署升级上来不会突然把人关在门外。
+**Admin → "Site settings" → turn off "Allow sign-ups".** The switch lives in the `app_config` table
+(key `registration_enabled`), takes no environment variable, and applies immediately with no redeploy.
+When the key is absent the default is **open** — upgrading an existing deployment never locks people
+out unexpectedly.
 
-关键在于**建号有三条路，关的时候必须一起关**，否则等于没关：
+The crucial part is that **there are three ways to create an account, and closing one means closing
+all three**, otherwise you've closed nothing:
 
-| 入口 | 关闭后的行为 |
+| Entrance | Behaviour once closed |
 | --- | --- |
-| 邮箱密码注册 | `POST /api/auth/register` 直接 `403 registration_closed` |
-| GitHub / Google | 已经绑过的账号照常登录；没绑过、本站也没这个邮箱的，在建号那一步被拒 |
-| 邮箱验证码 | 同上 —— 已有账号照常登录，新邮箱不再自动建号 |
+| Email + password | `POST /api/auth/register` returns `403 registration_closed` outright |
+| GitHub / Google | Already-linked accounts sign in as usual; anyone unlinked whose email isn't here either is rejected at the account-creation step |
+| Email code | Same — existing accounts sign in as usual, new addresses no longer create an account |
 
-所以判断没有写在三个 route 的入口，而是收在 `src/lib/site-settings.ts` 的
-`assertRegistrationOpen()`，由**真的会 insert users 的那两处**调用
-（`src/lib/accounts.ts` 的两个 resolve 函数 + register 路由）。第三方登录和验证码登录
-本质都是「有账号就登录，没有就建一个」，只有后半句该被拦，前半句必须照常放行。
+So the check isn't written at the entrance of three routes; it's collected in
+`assertRegistrationOpen()` in `src/lib/site-settings.ts` and called by **the two places that actually
+insert into users** (the two resolve functions in `src/lib/accounts.ts`, plus the register route).
+Third-party and email-code sign-in are both really "sign in if the account exists, otherwise create
+one"; only the second half should be blocked, and the first half must keep working.
 
-两个刻意的位置选择：
+Two deliberate placement choices:
 
-- **验证码那条拦在「验证之后」而不是「发码之前」**。发码接口无论邮箱在不在库里都回
-  同一个响应（否则它就成了一个查询用户名单的接口），在那一步拦会把这个性质破坏掉。
-- **register 路由里拦在人机验证之前**。Turnstile 的 token 是一次性的，让它在一个注定
-  被拒的请求上烧掉，等于逼用户重验一次才能看到「本站点禁止注册」。
+- **The email-code path is blocked *after* verification, not *before* sending.** The send endpoint
+  returns the same response whether or not the address is in the database (otherwise it becomes an
+  endpoint for enumerating users); blocking at that step would destroy that property.
+- **In the register route it's blocked before the human verification.** A Turnstile token is
+  single-use; burning it on a request that is doomed to be refused would force the user to verify
+  again just to see "sign-ups are disabled on this site".
 
-登录页的「注册」页签会跟着消失，换成一句「本站点禁止注册，只有已有账号可以登录」——
-但那只是提示。前端拿到的 `registrationEnabled` 改成 `true` 也绕不过服务端那道。
+The "Sign up" tab on the sign-in page disappears accordingly, replaced by a line reading "sign-ups are
+disabled on this site — existing accounts can still sign in" — but that's only a hint. Flipping the
+`registrationEnabled` the front end received to `true` still doesn't get past the server check.
 
 
 ---
 
-# 部署一个 LiveKit 节点
+# Deploying a LiveKit node
 
-本站不自带媒体服务器。每个房间都要绑定一个 LiveKit 节点，节点有两种来源。
+This site ships no media server. Every room has to be bound to a LiveKit node, and a node can come
+from one of two places.
 
-**先说结论**：绝大多数人应该用方式一。方式二只在你已经有服务器、且愿意额外部署
-Ingress 服务时才值得。
+**The conclusion first**: almost everyone should use option one. Option two is only worth it when you
+already have a server and are willing to deploy the Ingress service on top.
 
-| | 方式一 · LiveKit Cloud | 方式二 · 自建 |
+| | Option 1 · LiveKit Cloud | Option 2 · Self-hosted |
 | --- | --- | --- |
-| 耗时 | 约 3 分钟 | 半天起 |
-| 费用 | 免费 Build 计划，不绑卡 | 服务器 + 带宽 |
-| OBS 推流（Ingress） | **开箱可用** | **要单独部署 Ingress + Redis** |
-| 额度 | 有硬顶（见文末实算） | 只受你的带宽限制 |
-| 需要域名/证书 | 不需要 | 需要 CA 签发证书，自签不行 |
+| Time | About 3 minutes | Half a day and up |
+| Cost | Free Build plan, no card | Server + bandwidth |
+| OBS publishing (Ingress) | **Works out of the box** | **Requires deploying Ingress + Redis separately** |
+| Quota | Hard caps (see the numbers at the end) | Only limited by your bandwidth |
+| Domain / certificate needed | No | Yes, a CA-issued certificate; self-signed does not work |
 
-## 方式一 · LiveKit Cloud（推荐）
+## Option 1 · LiveKit Cloud (recommended)
 
-### 1. 注册并建 project
+### 1. Sign up and create a project
 
-打开 [cloud.livekit.io](https://cloud.livekit.io) 注册。免费的 **Build** 计划不需要绑卡。
+Open [cloud.livekit.io](https://cloud.livekit.io) and sign up. The free **Build** plan needs no card.
 
-建一个 project，名字随意。创建完会得到一个形如 `wss://xxx.livekit.cloud` 的地址 ——
-这是后面要填的第一个值。
+Create a project with any name. Once created you get a URL of the form `wss://xxx.livekit.cloud` —
+that's the first of the values you'll need.
 
-### 2. 创建 API Key
+### 2. Create an API Key
 
-项目里进 **Settings → Keys → 新建 API Key**，会得到：
+Inside the project go to **Settings → Keys → new API Key**, which gives you:
 
-- `API Key`（形如 `APIxxxxxxxx`）
+- `API Key` (looks like `APIxxxxxxxx`)
 - `API Secret`
 
-> **API Secret 只显示一次。** 关掉弹窗就再也看不到了。先复制出来。
-> 真丢了也不要紧：在 LiveKit 控制台删掉这个 key 重建一个，然后回本站用「换密钥」更新即可。
+> **The API Secret is shown once.** Close the dialog and it's gone for good. Copy it now.
+> Losing it isn't fatal: delete that key in the LiveKit console, create a new one, then come back here
+> and use "Rotate keys" to update it.
 
-### 3. 接入本站
+### 3. Connect it here
 
-登录本站 → 侧栏 **「LiveKit 节点」→「接入节点」**，填三个值：
+Sign in → sidebar **"LiveKit nodes" → "Connect a node"**, and fill in three values:
 
-| 字段 | 填什么 |
+| Field | What goes in |
 | --- | --- |
-| 节点名称 | 随便起，只给你自己看 |
-| LiveKit 地址 | `wss://xxx.livekit.cloud` |
-| API Key | 上一步的 key |
-| API Secret | 上一步的 secret |
+| Node name | Anything; it's only for you |
+| LiveKit URL | `wss://xxx.livekit.cloud` |
+| API Key | The key from the previous step |
+| API Secret | The secret from the previous step |
 
-点保存。**本站会拿这套凭据实地打一次 LiveKit API 做体检，填错了不会存进库。**
-体检做两件事：
+Press save. **This site runs a real health check against the LiveKit API with those credentials, and
+wrong ones are never stored.** The check does two things:
 
-- `listRooms` —— 探测地址和凭据对不对。**失败则拒绝保存**。
-- `listIngress` —— 探测能不能生成 OBS 推流地址。**失败只降级不阻断**（房间仍可用浏览器共享，
-  只是拿不到 WHIP 地址）。
+- `listRooms` — probes whether the URL and credentials are right. **Failure refuses the save.**
+- `listIngress` — probes whether OBS publish URLs can be created. **Failure only degrades, never
+  blocks** (the room still works for browser sharing, it just can't hand out a WHIP URL).
 
-结果会记在节点的 `capabilities` 上，「LiveKit 节点」页面每行都会标出 Ingress 是否可用。
-任何时候都可以点「检测」重测。
+The result is recorded in the node's `capabilities`, and every row on the "LiveKit nodes" page shows
+whether Ingress is available. You can press "Check" to re-test at any time.
 
-### 4. 配 webhook（推荐）
+### 4. Configure the webhook (recommended)
 
-不配也能用，只是服务端不会记录上线/下线（前端仍然实时看得到画面和人数，因为那走的是
-LiveKit SDK 事件，不依赖 webhook）。
+It works without one; you just won't get server-side presence records (the front end still sees video
+and head-count in real time, because that comes from LiveKit SDK events and doesn't depend on the
+webhook).
 
-「LiveKit 节点」页面里每个你自己的节点下面都会显示**它专属的** webhook 地址，形如：
+The "LiveKit nodes" page shows a webhook URL **specific to each of your own nodes**, of the form:
 
 ```
-https://你的站点/api/webhooks/livekit/<nodeId>
+https://your-site/api/webhooks/livekit/<nodeId>
 ```
 
-复制它，填到 LiveKit 控制台 → 该项目 → **Settings → Webhooks**。
+Copy it into the LiveKit console → that project → **Settings → Webhooks**.
 
-> 为什么每个节点地址不同：webhook 的签名是用发送方那套 API key/secret 签的。
-> 多节点场景必须先从 URL 里知道是哪个节点发来的，才能选对密钥验签。
-> 路径里的 `nodeId` 就是干这个的。
+> Why the URL differs per node: a webhook's signature is signed with the sender's own API key/secret.
+> In a multi-node setup you have to know which node sent it *from the URL* before you can pick the
+> right key to verify with. That's what the `nodeId` in the path is for.
 
-### 5. 建房验证
+### 5. Verify by creating a room
 
-回「房间」页面建一个房间，节点选你刚接入的那个。进房后：
+Go back to the "Rooms" page and create a room, picking the node you just connected. Once inside:
 
-- 「从浏览器共享」按钮 → 不装 OBS 也能推
-- 「OBS 推流地址」面板 → 点「生成推流地址」，拿到 Server + Bearer Token
-- 同一面板顶上的「OBS 直播」开关 → 房主关掉它，这个房间就不再接受 WHIP 推流
+- The "Share from the browser" button → publishes without installing OBS
+- The "OBS publish URL" panel → press "Generate publish URL" to get a Server + Bearer Token
+- The "OBS publishing" switch at the top of the same panel → when the owner turns it off, this room
+  stops accepting WHIP streams
 
-## 方式二 · 自建 LiveKit
+## Option 2 · Self-hosted LiveKit
 
-### ⚠️ 先看这条，否则会白干
+### ⚠️ Read this first or you'll waste the effort
 
-**自建的 `livekit-server` 不包含 Ingress。** Ingress 是独立服务，靠 Redis 与
-livekit-server 通信。也就是说：
+**A self-hosted `livekit-server` does not include Ingress.** Ingress is a separate service that talks
+to livekit-server through Redis. Which means:
 
-- 只用**浏览器共享屏幕** → 不需要 Ingress，装个 livekit-server 就够
-- 想要 **OBS/WHIP 推流** → 必须额外部署 Ingress 服务 + Redis，并且在 livekit-server
-  侧配 `whip_base_url` 指向它
+- Only **sharing the screen from a browser** → no Ingress needed, a livekit-server is enough
+- Wanting **OBS/WHIP publishing** → you must additionally deploy the Ingress service + Redis, and
+  configure `whip_base_url` on the livekit-server side to point at it
 
-本站会在体检时探测出 Ingress 不可用，并在建房后的界面上明确提示「拿不到 OBS 推流地址」。
+This site detects the unavailable Ingress during the health check and says plainly in the room UI that
+"no OBS publish URL can be issued".
 
-### 本地开发快速起一个
+### Spinning one up for local development
 
 ```bash
 livekit-server --dev --bind 0.0.0.0
 ```
 
-安装：macOS `brew install livekit`；Linux `curl -sSL https://get.livekit.io | bash`；
-Windows 从 GitHub Releases 下载。
+Install: macOS `brew install livekit`; Linux `curl -sSL https://get.livekit.io | bash`;
+Windows, download from GitHub Releases.
 
-`--dev` 模式用固定凭据 **`devkey` / `secret`**，只适合本地。接入本站时地址填
-`ws://localhost:7880`（本站的地址校验支持 `ws://`，专为自建/内网留的）。
+`--dev` mode uses the fixed credentials **`devkey` / `secret`** and is only suitable locally. When
+connecting it here, use `ws://localhost:7880` as the URL (this site's URL validation accepts `ws://`
+specifically for self-hosted and internal networks).
 
-### 生产部署
+### Production deployment
 
-官方提供了配置生成器，比手写配置省事得多：
+There's an official config generator, which saves a lot over hand-writing the config:
 
 ```bash
 docker pull livekit/generate
 docker run --rm -it -v$PWD:/output livekit/generate
 ```
 
-它会按你输入的域名产出一个目录，里面有 `docker-compose.yaml`、`livekit.yaml`、
-`caddy.yaml`、`redis.conf` 和启动脚本。
+It produces a directory for the domain you enter, containing `docker-compose.yaml`, `livekit.yaml`,
+`caddy.yaml`, `redis.conf` and a startup script.
 
-`livekit.yaml` 的关键项：
+The key entries in `livekit.yaml`:
 
 ```yaml
 port: 7880
@@ -247,241 +265,298 @@ rtc:
   tcp_port: 7881
   port_range_start: 50000
   port_range_end: 60000
-  use_external_ip: true      # 云环境下通过 STUN 发现真实公网 IP
+  use_external_ip: true      # discovers the real public IP via STUN in cloud environments
 redis:
-  address: redis:6379        # 生产强烈建议上 redis
+  address: redis:6379        # strongly recommended in production
 keys:
-  APIyourkey: your_secret_here   # 就是一个 key: secret 的映射
+  APIyourkey: your_secret_here   # simply a key: secret mapping
 turn:
   enabled: true
-  domain: turn.example.com   # 必须与证书匹配
-  tls_port: 443              # 前面没有负载均衡时用 443
+  domain: turn.example.com   # must match the certificate
+  tls_port: 443              # use 443 when there's no load balancer in front
 ```
 
-`keys:` 就是一个映射表，没有专门的生成命令 —— 自己造一个足够随机的 secret 即可：
+`keys:` really is just a mapping table; there's no dedicated generation command — make up a
+sufficiently random secret yourself:
 
 ```bash
 openssl rand -base64 32
 ```
 
-需要开放的端口：
+Ports you need to open:
 
-| 端口 | 协议 | 用途 |
+| Port | Protocol | Purpose |
 | --- | --- | --- |
-| 7880 | TCP | 信令（前面挂 HTTPS/TLS 终结） |
-| 7881 | TCP | WebRTC 媒体的 TCP 回退 |
-| 50000–60000 | UDP | WebRTC 媒体 |
-| 3478 或 5349 | TCP | 内置 TURN over TLS（无 LB 时设 443） |
-| 443 | UDP | 可选 TURN/UDP，穿透严格防火墙用 |
-| 6789 | TCP | 可选 Prometheus 指标 |
+| 7880 | TCP | Signalling (put HTTPS/TLS termination in front) |
+| 7881 | TCP | TCP fallback for WebRTC media |
+| 50000–60000 | UDP | WebRTC media |
+| 3478 or 5349 | TCP | Built-in TURN over TLS (set 443 when there's no LB) |
+| 443 | UDP | Optional TURN/UDP, for punching through strict firewalls |
+| 6789 | TCP | Optional Prometheus metrics |
 
-两个容易踩的点：
+Two easy traps:
 
-- **必须 CA 签发的证书**，自签证书不工作。终端形如 `wss://livekit.example.com`。
-- **Docker 下用 host networking**，别做逐端口的 bridge 映射，否则媒体端口范围会出问题。
+- **A CA-issued certificate is required**; self-signed does not work. The endpoint looks like
+  `wss://livekit.example.com`.
+- **Use host networking under Docker**, not per-port bridge mappings, or the media port range breaks.
 
-### 部署 Ingress（只有要 OBS 推流才需要）
+### Deploying Ingress (only needed for OBS publishing)
 
-- 独立服务，**Redis 地址必须与 livekit-server 用的是同一个**
-- 每实例建议 **≥ 4 CPU / 4 GB 内存**
-- 端口：RTMP `1935/TCP`、WHIP `8080/TCP`、WHIP over UDP `7885/UDP`
-- 配置项：`api_key`、`api_secret`、`ws_url`、`redis`
-  （或用 `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` / `LIVEKIT_WS_URL` 环境变量）
-- **livekit-server 侧还要配 `whip_base_url`**（要 RTMP 再加 `rtmp_base_url`），
-  否则服务端生成不出 ingress 地址
-- 多实例要挂负载均衡：RTMP 走 TCP LB，WHIP 走 HTTP 反代
+- A separate service; **its Redis address must be the same one livekit-server uses**
+- **≥ 4 CPU / 4 GB RAM** recommended per instance
+- Ports: RTMP `1935/TCP`, WHIP `8080/TCP`, WHIP over UDP `7885/UDP`
+- Config keys: `api_key`, `api_secret`, `ws_url`, `redis`
+  (or the `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` / `LIVEKIT_WS_URL` environment variables)
+- **You also have to set `whip_base_url` on the livekit-server side** (add `rtmp_base_url` too if you
+  want RTMP), otherwise the server can't produce an ingress URL
+- Multiple instances need a load balancer: TCP LB for RTMP, HTTP reverse proxy for WHIP
 
-好消息：**WHIP 直通（bypass transcoding）几乎不吃 CPU** —— 官方原文是
-"a WHIP session with transcoding bypassed consumes minimal resources"。
-本站默认就是直通（`enableTranscoding: false`），所以自建 Ingress 的机器压力比想象中小。
-真正吃 CPU 的是 RTMP 和开了转码的 WHIP，它们随分辨率和层数线性增长。
+The good news: **WHIP passthrough (bypass transcoding) barely uses CPU** — the official wording is
+"a WHIP session with transcoding bypassed consumes minimal resources". This site uses passthrough by
+default (`enableTranscoding: false`), so a self-hosted Ingress machine is under far less strain than
+you'd expect. What actually eats CPU is RTMP and WHIP with transcoding on, and that grows linearly
+with resolution and layer count.
 
-## OBS 怎么填
+## Configuring OBS
 
-拿到推流地址后：
+Once you have the publish URL:
 
-1. OBS → 设置 → 直播 → **服务选 `WHIP`**
-2. **Server** = 面板里的 Server
-3. **Bearer Token** = 面板里的 Bearer Token（就是 Stream Key 的 WHIP 叫法）
+1. OBS → Settings → Stream → **Service: `WHIP`**
+2. **Server** = the Server from the panel
+3. **Bearer Token** = the Bearer Token from the panel (WHIP's name for the stream key)
 
-生成不出地址、或者推着推着被断开，先看面板顶上的「OBS 直播」开关是不是被房主关了。
+If no URL can be generated, or the stream keeps getting cut, first check whether the owner turned off
+the "OBS publishing" switch at the top of the panel.
 
-WHIP 直通没有服务端 simulcast。要多档清晰度，得在 **OBS 32.1.0+** 自己开（支持 1–4 层）。
+WHIP passthrough has no server-side simulcast. For multiple quality levels you have to enable it
+yourself in **OBS 32.1.0+** (1–4 layers are supported).
 
-## 节点接入常见问题
+## Node connection FAQ
 
-| 现象 | 原因 / 处理 |
+| Symptom | Cause / fix |
 | --- | --- |
-| 地址填成了 `https://` | 不用改，本站自动转成 `wss://`，也会剥掉多余的路径和尾斜杠 |
-| 保存时报「连不上或凭据无效」 | `listRooms` 探测失败。检查地址是否是该 project 的、key/secret 是否配对、secret 有没有复制全 |
-| Ingress 显示「—」不可用 | Cloud：项目未启用 Ingress，或 Ingress 并发已满（免费层只有 2 个）。自建：没部署 Ingress，或 `whip_base_url` 没配 |
-| 这套凭据已经接入过了 | 同一用户 + 同一地址 + 同一 key 只允许接一次，去列表里找现有那条 |
-| 请求突然全部失败 | 免费层额度打满了。**超额是直接失败、不计费**，等下个月或换节点 |
-| Secret 丢了 | LiveKit 控制台重建 key，回本站用「换密钥」更新（会先体检新凭据再写入） |
+| Entered the URL as `https://` | No need to change it; this site converts to `wss://` automatically and also strips extra paths and trailing slashes |
+| Save reports "can't connect or credentials invalid" | The `listRooms` probe failed. Check that the URL belongs to that project, that the key/secret are a matching pair, and that the secret was copied in full |
+| Ingress shows "—" / unavailable | Cloud: Ingress isn't enabled on the project, or Ingress concurrency is full (the free tier only allows 2). Self-hosted: Ingress isn't deployed, or `whip_base_url` isn't set |
+| These credentials are already connected | The same user + same URL + same key may only be connected once; find the existing entry in the list |
+| All requests suddenly fail | The free tier is exhausted. **Going over fails outright and is never billed** — wait for next month or switch nodes |
+| Lost the secret | Recreate the key in the LiveKit console, come back here and use "Rotate keys" (the new credentials are health-checked before anything is written) |
 
 ---
 
-## 架构
+## Architecture
 
 ```
-浏览器 ──── Next.js on Vercel ──── Neon Postgres
-  │          (登录/房间/成员/签 token)
+Browser ──── Next.js on Vercel ──── Neon Postgres
+  │          (auth / rooms / members / token signing)
   │                 │
-  │ WebRTC          │ server SDK（用该房间所属节点的凭据）
-  │ 共享/看画面      ▼
-  └────────► LiveKit 节点 A / B / C …        ← 媒体面，每个房间只落在一个节点上
+  │ WebRTC          │ server SDK (with the credentials of the room's own node)
+  │ share/watch     ▼
+  └────────► LiveKit node A / B / C …        ← media plane; a room lives on exactly one node
                     ▲
-                    │ WHIP（直通，不转码）
+                    │ WHIP (passthrough, no transcoding)
                   OBS
 ```
 
-**两条推流路线是分开的。** 浏览器的「共享我的屏幕」只经过 Next.js 拿一次 token，
-之后画面从浏览器**直连 LiveKit**（`getDisplayMedia` → WebRTC），既不过 Vercel 也不过 Ingress；
-OBS 那条要先在服务端建 ingress，再由 OBS 把 WHIP 推给 LiveKit。所以「OBS 直播」开关
-只关得住后者 —— 关掉它，浏览器共享照旧能用。
+**The two publish routes are separate.** The browser's "Share my screen" passes through Next.js once to
+get a token, after which the video **connects straight to LiveKit** (`getDisplayMedia` → WebRTC),
+touching neither Vercel nor Ingress; the OBS route requires an ingress to be created on the server
+first, and then OBS pushes WHIP to LiveKit. So the "OBS publishing" switch only closes the latter —
+turn it off and browser sharing keeps working.
 
-| 路径 | 作用 |
+| Path | Purpose |
 | --- | --- |
-| `src/db/schema.ts` | 12 张表。`livekit_nodes` 是整个架构的核心 |
-| `src/lib/livekit.ts` | 节点 → SDK client、签 token、建 WHIP ingress、凭据体检 |
-| `src/lib/nodes.ts` | 节点选取与「谁能用哪个节点」的判定 |
-| `src/lib/rooms.ts` | 成员判定（`requireMember` / `requireRoomOwner`） |
-| `src/lib/invites.ts` | 邀请链接的签发与原子兑换 |
-| `src/lib/crypto.ts` | 凭据 AES-256-GCM 加解密 |
-| `src/lib/site-settings.ts` | 站点级策略（当前只有「开放注册」），含建号守卫 |
-| `src/lib/app-config.ts` | `app_config` 这张全局 KV 的读写 |
-| `src/lib/brand.ts` | 站点名 / 公司名 / 版权行，全站只在这里写一遍 |
-| `src/lib/bootstrap.ts` | 启动引导：建管理员、供给密钥。惰性触发，幂等 |
-| `src/app/api/rooms/[code]/token/route.ts` | 鉴权收口 |
-| `src/app/api/rooms/[code]/route.ts` | 房间详情、OBS 闸门（PATCH）、关闭房间 |
-| `src/app/api/webhooks/livekit/[nodeId]/route.ts` | 上线检测，按节点验签 |
-| `src/app/api/health/route.ts` | 配置诊断，排查入口 |
+| `src/db/schema.ts` | 12 tables. `livekit_nodes` is the heart of the whole architecture |
+| `src/lib/livekit.ts` | Node → SDK client, token signing, WHIP ingress creation, credential health checks |
+| `src/lib/nodes.ts` | Node selection and the "who may use which node" decision |
+| `src/lib/rooms.ts` | Membership checks (`requireMember` / `requireRoomOwner`) |
+| `src/lib/invites.ts` | Issuing invite links and redeeming them atomically |
+| `src/lib/crypto.ts` | AES-256-GCM encryption of credentials |
+| `src/lib/site-settings.ts` | Site-level policy (currently just "allow sign-ups"), including the account-creation guard |
+| `src/lib/app-config.ts` | Reads and writes the global `app_config` KV table |
+| `src/lib/brand.ts` | Site name / company / copyright line, written once for the whole site |
+| `src/i18n/` | Seven language catalogs plus locale resolution (cookie → Accept-Language → English) |
+| `src/lib/bootstrap.ts` | Startup bootstrap: create the admin, provision the key. Lazy and idempotent |
+| `src/app/api/rooms/[code]/token/route.ts` | Where authorisation converges |
+| `src/app/api/rooms/[code]/route.ts` | Room detail, the OBS gate (PATCH), closing a room |
+| `src/app/api/webhooks/livekit/[nodeId]/route.ts` | Presence detection, signature verified per node |
+| `src/app/api/health/route.ts` | Configuration diagnostics, the entry point for troubleshooting |
 
-## 界面
+## Interface
 
-自成一套设计系统，没有 UI 框架依赖，也没有 Tailwind ——
-只有 CSS 自定义属性 + 一层薄薄的 React 原语。
+Its own design system, with no UI framework dependency and no Tailwind —
+just CSS custom properties plus a thin layer of React primitives.
 
-| 路径 | 作用 |
+| Path | Purpose |
 | --- | --- |
-| `src/styles/tokens.css` | 全部设计变量（`--mx-*`）。浅色是 `:root`，深色是 `[data-theme="dark"]` |
-| `src/styles/base.css` | 重置 + 排版工具类 |
-| `src/styles/components.css` | 原语样式（按钮、表单、卡片、表格、弹窗…） |
-| `src/styles/shell.css` | 应用外壳：顶栏、侧栏、状态栏 |
-| `src/styles/pages.css` | 页面级组合：登录页、统计块、视频舞台 |
-| `src/styles/landing.css` | 首页（`/`）。唯一的对外介绍页，见下 |
-| `src/ui/` | React 原语，只消费 token，从不写死颜色尺寸 |
-| `src/components/AppShell.tsx` | 顶栏 + 可折叠侧栏 + 主区 + 状态栏；<1024px 侧栏变抽屉 |
-| `src/components/BrandMark.tsx` | 品牌标记（等距立方体 + 上行信号），见下 |
-| `src/lib/theme.ts` | 主题持久化 + 首屏防闪脚本 |
+| `src/styles/tokens.css` | Every design variable (`--mx-*`). Light lives on `:root`, dark on `[data-theme="dark"]` |
+| `src/styles/base.css` | Reset + typography utilities |
+| `src/styles/components.css` | Primitive styles (buttons, forms, cards, tables, modals…) |
+| `src/styles/shell.css` | App shell: top bar, sidebar, status bar, language picker |
+| `src/styles/pages.css` | Page-level compositions: sign-in page, stat tiles, video stage |
+| `src/styles/landing.css` | The landing page (`/`). The only outward-facing page; see below |
+| `src/ui/` | React primitives; they consume tokens only and never hard-code a colour or size |
+| `src/components/AppShell.tsx` | Top bar + collapsible sidebar + main area + status bar; below 1024px the sidebar becomes a drawer |
+| `src/components/LanguageSwitcher.tsx` | The language dropdown, immediately left of the theme toggle |
+| `src/components/BrandMark.tsx` | The brand mark (isometric cube + upward signal); see below |
+| `src/lib/theme.ts` | Theme persistence (system / light / dark) + the anti-flash bootstrap script |
 
-三个刻意的取舍：
+Four deliberate trade-offs:
 
-- **主题在首屏之前定好**。`themeBootstrapScript` 内联进 `<head>`，在第一次绘制前就把
-  `data-theme` 打到 `<html>` 上，所以不会有一闪的白底。
-- **视频舞台恒定深色**。`--mx-stage-bg` 在两个主题下都是近黑 —— 画面周围的亮色边框会
-  影响对画面本身的判读。
-- **首页自带一套排版步进**。`landing.css` 顶上声明了一小组 `--land-*`（hero 字号、
-  段落节奏），因为 `--mx-font-size-display` 是 30px —— 给页面标题合适，给 hero 太小了。
-  颜色、圆角、阴影仍然全部走 `--mx-*`。
+- **The theme is settled before the first paint.** `themeBootstrapScript` is inlined into `<head>` and
+  stamps `data-theme` onto `<html>` before anything is painted, so there's never a flash of white.
+- **The theme follows the system by default.** The stored value is a *preference*
+  (`system` / `light` / `dark`), and only `data-theme` on `<html>` holds a resolved colour — those two
+  have to stay separate, or "follow the system" has nowhere to live.
+- **The video stage is permanently dark.** `--mx-stage-bg` is near-black in both themes — a bright
+  frame around the video changes how you read the video itself.
+- **The landing page carries its own type scale.** `landing.css` declares a small set of `--land-*` at
+  the top (hero sizes, section rhythm), because `--mx-font-size-display` is 30px — right for a page
+  title, far too small for a hero. Colour, radius and shadow still all go through `--mx-*`.
 
-### 首页
+### Languages
 
-`/` 是讲项目的落地页，不是分流器：顶栏 + hero + 推流路线 + 免费额度实算 + 功能 +
-快速开始 + 桌面端预告 + Q&A + 收尾 CTA。已登录时 CTA 变成「进入控制台」，未登录是
-「登录 / 注册」。
+The interface ships in **Simplified Chinese, Traditional Chinese, English, French, Russian, Japanese
+and Vietnamese**. Three decisions worth knowing:
 
-**它必须在数据库没配好的时候也能打开** —— 那正是最需要读它的时候。所以 `currentUser()`
-的失败被吞掉按未登录渲染（`src/app/page.tsx`），而不是让首页跟着 500。
+- **The language is resolved on the server**: the `mxds.lang` cookie (an explicit choice) →
+  `Accept-Language` (i.e. follow the system) → English as the fallback. It has to be the server,
+  because `<html lang>` and the first painted frame must already be correct — reading
+  `navigator.language` on the client would flash the wrong language on every load.
+- **Every catalog is type-checked against the English one.** `src/i18n/messages/en.ts` defines the key
+  set; the other six are declared as `Messages`, so a missing or misspelled key fails
+  `npm run typecheck` instead of rendering a bare key in the UI. Placeholders are `{name}`; inline
+  emphasis in copy is written as `**bold**` / `` `code` `` and rendered by `<RichText>` — that keeps
+  markup out of the catalogs so translators never touch JSX.
+- **API error messages are message keys, not prose.** Route handlers throw keys like
+  `api.node.duplicate`, and the `route()` wrapper (`src/lib/api-route.ts`) translates once, using the
+  language of the request that caused the error. Same for zod validation messages, so
+  `src/lib/validation.ts` stays a pure, dependency-free data module.
 
-Q&A 用原生 `<details>`，不是自己写的折叠：首页是服务端组件，没有 JS 也要能展开，
-而键盘操作和读屏器播报浏览器已经做对了。
+The language picker sits immediately left of the theme toggle, in both the app shell's top bar and the
+landing bar. On phones the landing bar hides it: there the bar's job is the mark, the wordmark and the
+GitHub link (see below), and the sign-in page keeps its own picker in the corner so an unrecognised
+system language is never a dead end.
 
-桌面端预告那一节讲的是 `MX-Desktop-Sharing-APP`（自部署、端到端加密的聊天 + 屏幕分享）。
-**它一行代码都还没写**，所以那一节全部用「考虑」「打算」的语气，并且挂了一枚「构想阶段」
-的标签 —— 落地页上写成既成事实就是假承诺。两个 CTA 都指向本仓库的 issues 和 discussions，
-本项目没有单独的邮箱或联系表单。
+### The landing page
 
-### 品牌标记
+`/` is a page about the project, not a router: top bar + hero + publish routes + free-tier reality
+check + features + quick start + desktop-app teaser + Q&A + closing CTA. When signed in the CTA becomes
+"Open the console"; otherwise "Sign in / Sign up".
 
-一个等距立方体（房间绑定的那个 LiveKit 节点）加上方掀起的折角（推出去的流）。
-两个形状共用同一条 2:1 等距斜率，所以折角的两臂与立方体顶面棱严格平行。
+**It has to open even when the database isn't configured** — that's precisely when someone most needs
+to read it. So a failure from `currentUser()` is swallowed and it renders as signed-out
+(`src/app/page.tsx`) rather than letting the landing page 500 along with everything else.
 
-`src/components/BrandMark.tsx` 是唯一事实来源；三个面的颜色走
-`--mx-mark-{top,right,left,signal}`，按主题分别定义 —— 用透明度做明暗会在深色底下
-把光照关系倒过来。`public/` 下另有独立文件：`logo-mark.svg`（浅色底）、
-`logo-mark-dark.svg`、`logo-tile.svg`（带底板，给 favicon / 应用图标）、
-`logo-glyph.svg`（单色）、`logo-lockup.svg`（横向组合）。
+The Q&A uses native `<details>` rather than a hand-rolled accordion: the page is a server component, it
+has to expand with JS off, and the browser already gets keyboard and screen-reader behaviour right.
+
+**The top bar drops items by priority rather than at a fixed breakpoint.** The wordmark is a fixed 23
+characters, but "Sign in / Sign up" is nearly twice as wide in French as in Chinese, so any hard-coded
+breakpoint would cut too early or too late in some languages. `src/components/LandingBarFit.tsx`
+measures instead: when the bar can't fit everything, the theme toggle and the sign-in CTA go **together**,
+guaranteeing the mark, the full wordmark and the GitHub link stay. On a desktop nothing is ever dropped.
+
+The desktop-app section is about `MX-Desktop-Sharing-APP` (self-hosted, end-to-end encrypted chat +
+screen sharing). **Not a line of it has been written**, so that whole section is phrased with
+"considering" and "planning to" and carries a "concept stage" badge — writing it as an accomplished
+fact on a landing page is just a false promise. Both CTAs point at this repository's issues and
+discussions; the project has no separate email address or contact form.
+
+### The brand mark
+
+An isometric cube (the LiveKit node a room is bound to) with a corner lifted above it (the stream being
+pushed out). Both shapes share the same 2:1 isometric slope, so the lifted corner's two arms are exactly
+parallel to the cube's top edges.
+
+`src/components/BrandMark.tsx` is the single source of truth; the three faces take their colours from
+`--mx-mark-{top,right,left,signal}`, defined per theme — using opacity for light and shade would invert
+the lighting on a dark background. `public/` holds standalone files too: `logo-mark.svg` (light ground),
+`logo-mark-dark.svg`, `logo-tile.svg` (with a plate, for favicons / app icons), `logo-glyph.svg`
+(monochrome) and `logo-lockup.svg` (horizontal combination).
 
 
-## 鉴权模型
+## Authorisation model
 
-签 token 前必须先过 `requireMember`。签出来的 grant 是：
+`requireMember` has to pass before a token is signed. The grant that comes out is:
 
 ```ts
-{ roomJoin: true, room: <该房间的 code>, canSubscribe: true, canPublish: <按角色> }
+{ roomJoin: true, room: <that room's code>, canSubscribe: true, canPublish: <by role> }
 ```
 
-`room` 只能写一个房间名，所以这张 token 物理上无法用于订阅别的房间。
-不给 `roomCreate` / `roomAdmin` / `roomList` —— 房间由服务端建好。
+`room` can only hold one room name, so this token physically cannot be used to subscribe to another
+room. It grants no `roomCreate` / `roomAdmin` / `roomList` — rooms are created by the server.
 
-踢人必须三件事一起做，否则踢不干净（已实现）：删成员行（之后签不出新 token）、
-`RemoveParticipant`（断掉当前连接，因为已签发的 token 在过期前仍然有效）、
-删他的 ingress（否则他的 OBS 还能继续往房里推）。
+Removing someone requires three things at once, or the removal leaks (all implemented): delete the
+member row (so no new token can be signed), `RemoveParticipant` (drop the current connection, because an
+already-issued token stays valid until it expires), and delete their ingress (otherwise their OBS can
+keep pushing into the room).
 
-「OBS 直播」开关同理 —— 只改库里的标志位是关不住的，那个 stream key 在 LiveKit 侧仍然有效。
-所以关闭时对本房间每条生效的 ingress 做两件事：`DeleteIngress`（删掉资源，之后拿旧密钥也连不上来）
-和 `RemoveParticipant`（把 `obs:` 那个参与者踢出房间，房里的人立刻不再收到它的画面 ——
-文档没明说 DeleteIngress 会不会顺带终止正在进行的会话，不赌）；再把行标成 revoked，
-最后写标志位挡住新的生成请求。代价是重新打开后每个人要再生成一次地址：
-LiveKit 有 `UpdateIngress(enabled=false)` 这种保留密钥的软关法，但 JS server SDK 的
-`updateIngress` 没把 `enabled` 透出来（它按固定字段表重建请求，多传的会被丢掉），
-要用就得自己拼 Twirp 请求。宁可让人换一次密钥，也不要一个「看起来关了其实没关」的开关。
+The "OBS publishing" switch is the same story — flipping a flag in the database doesn't close anything,
+because that stream key is still valid on the LiveKit side. So when it closes, two things happen to every
+live ingress in the room: `DeleteIngress` (delete the resource so an old key can't connect any more) and
+`RemoveParticipant` (kick the `obs:` participant out so everyone stops receiving its video immediately —
+the docs don't say whether DeleteIngress also terminates an in-flight session, and that's not worth
+betting on); then the row is marked revoked, and finally the flag is written to block new generation
+requests. The cost is that everyone has to generate a new URL after it's reopened: LiveKit does have a
+soft close that keeps the key, `UpdateIngress(enabled=false)`, but the JS server SDK's `updateIngress`
+doesn't expose `enabled` (it rebuilds the request from a fixed field list and drops anything extra), so
+using it would mean hand-assembling a Twirp request. Better to make people swap a key once than to ship
+a switch that "looks off but isn't".
 
-## 免费额度能用多久
+## How long does the free tier last
 
-这是「为什么要让用户自带节点」的全部理由。LiveKit Cloud 免费 Build 计划按 **project** 计额度，
-超出后请求直接失败、不计费，且同一账号下多个免费项目**共享**额度：
+This is the entire reason for letting users bring their own node. LiveKit Cloud's free Build plan is
+metered per **project**; going over fails outright and is never billed, and multiple free projects under
+one account **share** the allowance:
 
-- 5,000 WebRTC 参与者分钟
-- 50 GB 下行带宽
-- 100 并发参与者、Ingress / Egress 各 2 并发
-- 60 transcode 分钟（**这就是必须走 WHIP 而不是 RTMP 的原因** —— RTMP 输入必定转码，一个月只够推 1 小时）
+- 5,000 WebRTC participant minutes
+- 50 GB egress bandwidth
+- 100 concurrent participants, 2 concurrent Ingress / Egress each
+- 60 transcode minutes (**this is exactly why WHIP and not RTMP** — RTMP input always transcodes, which
+  is only an hour a month)
 
-关键一点：ingress / egress participant **不计**连接分钟，所以消耗连接分钟的只有观众。
+The key point: ingress / egress participants **don't count** toward connection minutes, so the only
+thing consuming them is viewers.
 
-按观众码率算下来（50 GB 下行是主要瓶颈）：
+Worked out by viewer bitrate (50 GB of egress is the main bottleneck):
 
-| 推流码率 | 每观众分钟耗流量 | 50 GB 能撑的观众分钟 | 折合观众小时 |
+| Publish bitrate | Traffic per viewer minute | Viewer minutes on 50 GB | In viewer hours |
 | --- | --- | --- | --- |
-| 4 Mbps（1080p 高码率） | 30 MB | 1,667 | ≈ 28 h |
-| 2.5 Mbps（1080p 常规） | 18.75 MB | 2,667 | ≈ 44 h |
-| 1.5 Mbps（720p） | 11.25 MB | 4,444 | ≈ 74 h |
-| 0.8 Mbps | 6 MB | 5,000（触及分钟上限） | ≈ 83 h |
+| 4 Mbps (1080p high bitrate) | 30 MB | 1,667 | ≈ 28 h |
+| 2.5 Mbps (1080p typical) | 18.75 MB | 2,667 | ≈ 44 h |
+| 1.5 Mbps (720p) | 11.25 MB | 4,444 | ≈ 74 h |
+| 0.8 Mbps | 6 MB | 5,000 (hits the minute cap) | ≈ 83 h |
 
-**约 1.33 Mbps 是分水岭**：高于它，50 GB 带宽先撞墙；低于它，5,000 分钟先撞墙。
+**About 1.33 Mbps is the dividing line**: above it the 50 GB of bandwidth runs out first; below it the
+5,000 minutes do.
 
-换成「实际能开多久会」—— 观众小时要除以人数：
+Translated into "how long can I actually run a meeting" — divide the viewer hours by the number of
+viewers:
 
-- 1 人分享 + 1 人看，1080p：约 **44 小时/月**
-- 1 人分享 + 3 人看，1080p：约 **15 小时/月**
-- 1 人分享 + 9 人看，1080p：约 **5 小时/月**
+- 1 sharing + 1 watching, 1080p: about **44 hours/month**
+- 1 sharing + 3 watching, 1080p: about **15 hours/month**
+- 1 sharing + 9 watching, 1080p: about **5 hours/month**
 
-结论：单个免费 project 是**试点额度，不是产品额度**。所以本项目把节点做成一等公民 ——
-每个用户接自己的 LiveKit Cloud project，额度就从「站长的一份」变成「每人一份」。
-内置节点只用来兜底体验，务必给它设 `maxRooms`。
+Conclusion: a single free project is a **pilot allowance, not a product allowance**. That's why this
+project makes nodes a first-class citizen — every user connects their own LiveKit Cloud project, and the
+allowance goes from "one for the site owner" to "one each". The built-in node is only there as a
+fallback, so do set `maxRooms` on it.
 
-## 已知限制
+## Known limitations
 
-- WHIP 直通**没有服务端 simulcast**，需要在 OBS 32.1.0+ 自己开多层。
-- 自建 LiveKit 要用 OBS 推流，必须额外部署 Ingress + Redis（见上文方式二）。
-- 没有密钥轮换工具：`CREDENTIAL_ENCRYPTION_KEY` 一旦更换，已存的节点凭据全部解不开。
-- 没有额度看板，只能靠上面的实算表自己估。
+- WHIP passthrough has **no server-side simulcast**; you need to enable multiple layers yourself in
+  OBS 32.1.0+.
+- Publishing from OBS with a self-hosted LiveKit requires deploying Ingress + Redis separately (see
+  option two above).
+- There is no key-rotation tool: once `CREDENTIAL_ENCRYPTION_KEY` is replaced, every stored node
+  credential becomes undecryptable.
+- There is no quota dashboard; you have to estimate from the table above.
 
-取舍原因和其余待办见 [TASKS.md](TASKS.md)。
+The reasoning behind the trade-offs and the rest of the to-do list are in [TASKS.md](TASKS.md).
 
-## 参考
+## References
 
-- [LiveKit 配额与限制](https://docs.livekit.io/cloud/quotas-and-limits/)
-- [LiveKit 定价](https://livekit.io/pricing)
-- [自建部署](https://docs.livekit.io/transport/self-hosting/deployment/) · [本地运行](https://docs.livekit.io/home/self-hosting/local/) · [Ingress](https://docs.livekit.io/home/self-hosting/ingress/)
+- [LiveKit quotas and limits](https://docs.livekit.io/cloud/quotas-and-limits/)
+- [LiveKit pricing](https://livekit.io/pricing)
+- [Self-hosting](https://docs.livekit.io/transport/self-hosting/deployment/) · [Running locally](https://docs.livekit.io/home/self-hosting/local/) · [Ingress](https://docs.livekit.io/home/self-hosting/ingress/)

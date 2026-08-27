@@ -1,6 +1,7 @@
 import { currentUser } from "@/lib/auth";
 import { ensureBootstrapped } from "@/lib/bootstrap";
-import { json, route } from "@/lib/http";
+import { json } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { accentFor } from "@/lib/identity";
 
 export const runtime = "nodejs";

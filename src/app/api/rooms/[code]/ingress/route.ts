@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { roomIngress } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { badRequest, conflict, json, notFound, route } from "@/lib/http";
+import { badRequest, conflict, json, notFound } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { createWhipIngress, deleteIngress, ensureRoom } from "@/lib/livekit";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { resolve } from "@/lib/nodes";
@@ -26,7 +27,7 @@ export const GET = route(async (_req, ctx: { params: Promise<{ code: string }> }
   const roomCtx = await requireMember(code, user);
 
   const [row] = await db.select().from(roomIngress).where(activeFilter(roomCtx.room.id, user.id)).limit(1);
-  if (!row) throw notFound("还没有为你生成推流地址");
+  if (!row) throw notFound("api.ingress.notGenerated");
 
   return json({
     ingress: {
@@ -49,15 +50,15 @@ export const POST = route(async (req, ctx: { params: Promise<{ code: string }> }
   const { code } = await ctx.params;
   const roomCtx = await requireMember(code, user);
 
-  if (!roomCtx.room.isActive) throw badRequest("房间已关闭");
+  if (!roomCtx.room.isActive) throw badRequest("api.ingress.roomClosed");
   if (!roomCtx.room.obsEnabled) {
-    throw badRequest("这个房间的「OBS 直播」开关是关闭的，请房主先打开再生成推流地址");
+    throw badRequest("api.ingress.gateClosed");
   }
-  if (!canPublish(roomCtx, user)) throw badRequest("你在这个房间没有推流权限");
+  if (!canPublish(roomCtx, user)) throw badRequest("api.ingress.noPermission");
 
   const caps = roomCtx.node.capabilities as { ingress?: boolean } | null;
   if (caps && caps.ingress === false) {
-    throw badRequest("该节点的 Ingress 不可用（未开启或额度已满），无法生成 OBS 推流地址");
+    throw badRequest("api.ingress.nodeNoIngress");
   }
 
   const node = await resolve(roomCtx.node);
@@ -100,7 +101,7 @@ export const POST = route(async (req, ctx: { params: Promise<{ code: string }> }
   });
 
   if (!info.url || !info.streamKey) {
-    throw conflict("LiveKit 未返回 WHIP 地址，请检查该项目的 Ingress 是否可用");
+    throw conflict("api.ingress.noWhipUrl");
   }
 
   const [row] = await db
@@ -147,7 +148,7 @@ export const DELETE = route(async (_req, ctx: { params: Promise<{ code: string }
     .from(roomIngress)
     .where(activeFilter(roomCtx.room.id, user.id))
     .limit(1);
-  if (!row) throw notFound("没有可撤销的推流地址");
+  if (!row) throw notFound("api.ingress.nothingToRevoke");
 
   await deleteIngress(await resolve(roomCtx.node), row.ingressId).catch(() => {});
   await db.update(roomIngress).set({ revokedAt: new Date() }).where(eq(roomIngress.id, row.id));

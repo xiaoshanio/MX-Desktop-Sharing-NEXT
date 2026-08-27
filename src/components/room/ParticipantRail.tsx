@@ -5,6 +5,7 @@ import { useParticipants, useTracks } from "@livekit/components-react";
 import { Track } from "livekit-client";
 
 import { decodeParticipantMeta, initialOf, userImageUrl } from "@/lib/identity";
+import { useI18n, useT } from "@/i18n";
 import { roleLabel } from "@/lib/labels";
 import type { Member } from "@/lib/api-types";
 import {
@@ -62,6 +63,7 @@ export function ParticipantRail({
   onChangeRole,
   onKick,
 }: ParticipantRailProps) {
+  const { locale, t } = useI18n();
   const participants = useParticipants();
   const tracks = useTracks(
     [
@@ -114,25 +116,26 @@ export function ParticipantRail({
         // 有画面的排前面（那是你现在最可能想点的），然后自己，最后按名字
         if (a.hasVideo !== b.hasVideo) return a.hasVideo ? -1 : 1;
         if (a.isLocal !== b.isLocal) return a.isLocal ? -1 : 1;
-        return a.displayName.localeCompare(b.displayName, "zh-CN");
+        // 按当前语言的排序规则比 —— 中文按拼音，法语忽略变音符号，等等
+        return a.displayName.localeCompare(b.displayName, locale);
       });
-  }, [participants, memberById, publishing]);
+  }, [participants, memberById, publishing, locale]);
 
   return (
-    <aside className="mx-rail" aria-label="在线成员">
+    <aside className="mx-rail" aria-label={t("rail.label")}>
       <header className="mx-rail__head">
         <Icon name="users" size={14} />
-        <span>在线 {entries.length}</span>
+        <span>{t("rail.online", { count: entries.length })}</span>
         {selected && (
           <button type="button" className="mx-rail__clear" onClick={() => onSelect(null)}>
-            显示全部
+            {t("rail.showAll")}
           </button>
         )}
       </header>
 
       <div className="mx-rail__list">
         {entries.length === 0 ? (
-          <p className="mx-rail__empty">房间里还没有人。</p>
+          <p className="mx-rail__empty">{t("rail.empty")}</p>
         ) : (
           entries.map((entry) => (
             <RailCard
@@ -175,6 +178,7 @@ function RailMenu({
   onKick: (entry: RailEntry, ban: boolean) => void;
   onDone: () => void;
 }) {
+  const t = useT();
   const isOwner = entry.userId === ownerId;
   const wrap = (run: () => void) => () => {
     run();
@@ -183,26 +187,28 @@ function RailMenu({
 
   // 房主不能被自己的房间踢掉，也不该被改权限 —— 那会把房间锁死
   if (isOwner) {
-    return <ContextMenuLabel>房主，不能修改或移出</ContextMenuLabel>;
+    return <ContextMenuLabel>{t("rail.menu.ownerLocked")}</ContextMenuLabel>;
   }
 
   // OBS 那条推流不是「一个人」，只能掐掉它对应的用户，改权限没有意义
   return (
     <>
-      <ContextMenuLabel>权限</ContextMenuLabel>
+      <ContextMenuLabel>{t("rail.menu.permission")}</ContextMenuLabel>
       <ContextMenuItem
         icon={<Icon name="broadcast" size={14} />}
         disabled={entry.role === "publisher"}
         onSelect={wrap(() => onChangeRole(entry, "publisher"))}
       >
-        可推流{entry.role === "publisher" ? "（当前）" : ""}
+        {t("label.role.publisher")}
+        {entry.role === "publisher" ? t("rail.menu.current") : ""}
       </ContextMenuItem>
       <ContextMenuItem
         icon={<Icon name="eye" size={14} />}
         disabled={entry.role === "viewer"}
         onSelect={wrap(() => onChangeRole(entry, "viewer"))}
       >
-        仅观看{entry.role === "viewer" ? "（当前）" : ""}
+        {t("label.role.viewer")}
+        {entry.role === "viewer" ? t("rail.menu.current") : ""}
       </ContextMenuItem>
 
       <ContextMenuSeparator />
@@ -212,14 +218,14 @@ function RailMenu({
         icon={<Icon name="x" size={14} />}
         onSelect={wrap(() => onKick(entry, false))}
       >
-        移出房间
+        {t("rail.menu.kick")}
       </ContextMenuItem>
       <ContextMenuItem
         tone="danger"
         icon={<Icon name="ban" size={14} />}
         onSelect={wrap(() => onKick(entry, true))}
       >
-        移出并加入黑名单
+        {t("rail.menu.kickBan")}
       </ContextMenuItem>
     </>
   );
@@ -237,6 +243,7 @@ function RailCard({
   /** 返回 true 表示自己处理了，会阻止浏览器默认菜单 */
   onContextMenu: (origin: ContextMenuOrigin) => boolean;
 }) {
+  const t = useT();
   const banner = userImageUrl(entry.userId, "banner", entry.bannerAt);
   const avatar = userImageUrl(entry.userId, "avatar", entry.avatarAt);
 
@@ -251,7 +258,7 @@ function RailCard({
       onContextMenu={(event) => {
         if (onContextMenu({ x: event.clientX, y: event.clientY })) event.preventDefault();
       }}
-      title={`${entry.displayName}${entry.hasVideo ? " · 有画面" : ""}`}
+      title={`${entry.displayName}${entry.hasVideo ? t("rail.hasVideo") : ""}`}
     >
       {/* 背景：上传过就用那张图，否则用按 id 分配的底色渐变 */}
       <span
@@ -273,18 +280,18 @@ function RailCard({
           <span className="mx-pcard__name">{entry.displayName}</span>
           <span className="mx-pcard__meta">
             {entry.isObs
-              ? "OBS 推流"
+              ? t("rail.obs")
               : entry.isLocal
-                ? "你"
+                ? t("rail.you")
                 : entry.role
-                  ? roleLabel(entry.role)
-                  : "在线"}
+                  ? roleLabel(t, entry.role)
+                  : t("rail.onlineTag")}
           </span>
         </span>
       </span>
 
       {entry.hasVideo && (
-        <span className="mx-pcard__live" title="正在共享画面">
+        <span className="mx-pcard__live" title={t("rail.sharing")}>
           <span className="mx-pcard__live-dot" />
         </span>
       )}

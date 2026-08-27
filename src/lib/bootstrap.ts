@@ -93,7 +93,7 @@ async function ensureAdmin(): Promise<boolean> {
     .insert(users)
     .values({
       email,
-      displayName: "管理员",
+      displayName: "Admin",
       passwordHash: await hashPassword(password),
       role: "admin",
     })
@@ -157,7 +157,7 @@ export async function requireBootstrapped(): Promise<BootstrapResult> {
     throw new ApiError(
       503,
       "not_configured",
-      "服务端还没就绪：数据库连不上，或者必填的环境变量没配。打开 /api/health 看具体缺哪一项。",
+      "api.notReady",
     );
   }
   return result;

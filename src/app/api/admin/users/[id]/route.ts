@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { sessions, users } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth";
-import { badRequest, json, readJson, route, parseOr400 } from "@/lib/http";
+import { badRequest, json, readJson, parseOr400 } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { adminUpdateUserSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -17,13 +18,13 @@ export const PATCH = route(async (req, ctx: { params: Promise<{ id: string }> })
 
   if (id === admin.id) {
     // 防止把自己锁在门外：最后一个管理员降级/停用会导致没人能管
-    throw badRequest("不能修改自己的角色或状态");
+    throw badRequest("api.adminUser.selfEdit");
   }
 
   const patch: Record<string, unknown> = {};
   if (input.role !== undefined) patch.role = input.role;
   if (input.isDisabled !== undefined) patch.isDisabled = input.isDisabled;
-  if (Object.keys(patch).length === 0) throw badRequest("没有要修改的字段");
+  if (Object.keys(patch).length === 0) throw badRequest("api.adminUser.noFields");
 
   // 撤销别人的管理员前，确认站内还留有至少一个管理员
   if (input.role === "user") {
@@ -31,7 +32,7 @@ export const PATCH = route(async (req, ctx: { params: Promise<{ id: string }> })
       .select({ n: count() })
       .from(users)
       .where(and(eq(users.role, "admin"), ne(users.id, id), eq(users.isDisabled, false)));
-    if ((row?.n ?? 0) === 0) throw badRequest("站内必须保留至少一个启用的管理员");
+    if ((row?.n ?? 0) === 0) throw badRequest("api.adminUser.lastAdmin");
   }
 
   const updated = await db
@@ -39,7 +40,7 @@ export const PATCH = route(async (req, ctx: { params: Promise<{ id: string }> })
     .set(patch)
     .where(eq(users.id, id))
     .returning({ id: users.id });
-  if (updated.length === 0) throw badRequest("用户不存在");
+  if (updated.length === 0) throw badRequest("api.adminUser.notFound");
 
   // 停用账号要顺手把他的会话全部作废，否则已登录的浏览器还能继续用
   if (input.isDisabled === true) {

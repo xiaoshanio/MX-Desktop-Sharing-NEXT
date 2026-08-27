@@ -3,7 +3,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { userAssets } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
-import { badRequest, notFound, route } from "@/lib/http";
+import { badRequest, notFound } from "@/lib/http";
+import { route } from "@/lib/api-route";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,7 @@ export const GET = route(
 
     const { id } = await ctx.params;
     const kind = new URL(req.url).searchParams.get("kind") ?? "avatar";
-    if (kind !== "avatar" && kind !== "banner") throw badRequest("kind 只能是 avatar 或 banner");
+    if (kind !== "avatar" && kind !== "banner") throw badRequest("api.image.badKind");
 
     const [row] = await db
       .select({ mimeType: userAssets.mimeType, data: userAssets.data })
@@ -32,7 +33,7 @@ export const GET = route(
       .where(and(eq(userAssets.userId, id), eq(userAssets.kind, kind)))
       .limit(1);
 
-    if (!row) throw notFound("没有这张图");
+    if (!row) throw notFound("api.image.notFound");
 
     return new Response(Buffer.from(row.data, "base64"), {
       headers: {

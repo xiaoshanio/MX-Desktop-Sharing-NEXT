@@ -3,7 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
-import { json, route } from "@/lib/http";
+import { json } from "@/lib/http";
+import { route } from "@/lib/api-route";
 
 export const runtime = "nodejs";
 

@@ -72,7 +72,7 @@ export async function redeemInvite(token: string, user: User) {
       .from(roomBans)
       .where(and(eq(roomBans.roomId, peek.roomId), eq(roomBans.userId, user.id)))
       .limit(1);
-    if (banned) throw forbidden("你已被移出这个房间，邀请链接对你无效。");
+    if (banned) throw forbidden("api.invite.banned");
   }
 
   const claimed = await db
@@ -91,12 +91,12 @@ export async function redeemInvite(token: string, user: User) {
   const invite = claimed[0];
   if (!invite) {
     // 分不清是「不存在」还是「已过期/用完」——对外统一话术，不给探测空间
-    throw notFound("邀请链接无效或已失效");
+    throw notFound("api.invite.invalid");
   }
 
   const [room] = await db.select().from(rooms).where(eq(rooms.id, invite.roomId)).limit(1);
-  if (!room) throw notFound("房间不存在");
-  if (!room.isActive) throw badRequest("房间已关闭");
+  if (!room) throw notFound("api.room.notFound");
+  if (!room.isActive) throw badRequest("api.token.roomClosed");
 
   // 已经是成员就直接放行，不重复写、也不算浪费一次名额之外的副作用
   await db
@@ -117,5 +117,5 @@ export async function revokeInvite(inviteId: string, roomId: string) {
     .set({ revokedAt: new Date() })
     .where(and(eq(roomInvites.id, inviteId), eq(roomInvites.roomId, roomId)))
     .returning();
-  if (revoked.length === 0) throw notFound("邀请不存在");
+  if (revoked.length === 0) throw notFound("api.invite.notFound");
 }

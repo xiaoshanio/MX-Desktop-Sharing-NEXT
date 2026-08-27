@@ -89,7 +89,7 @@ export async function consumeState(
   provider: OauthProvider,
   state: string | null,
 ): Promise<{ nextPath: string; codeVerifier: string }> {
-  if (!state) throw badRequest("回调缺少 state 参数");
+  if (!state) throw badRequest("api.oauth.missingState");
 
   const id = hashState(state);
   // delete + returning 天然是原子的，同一个 state 并发过来只有一个能拿到行
@@ -98,9 +98,9 @@ export async function consumeState(
     .where(and(eq(oauthStates.id, id), eq(oauthStates.provider, provider)))
     .returning();
 
-  if (!row) throw badRequest("登录请求已失效，请重新点一次第三方登录。");
+  if (!row) throw badRequest("api.oauth.staleState");
   if (row.expiresAt.getTime() <= Date.now()) {
-    throw badRequest("登录请求超时了（超过 10 分钟），请重新点一次。");
+    throw badRequest("api.oauth.stateTimeout");
   }
 
   // 顺手清一批过期的，省掉一个定时任务
@@ -157,7 +157,7 @@ async function postForm(url: string, body: URLSearchParams): Promise<Record<stri
       signal: AbortSignal.timeout(12_000),
     });
   } catch {
-    throw new ApiError(502, "oauth_unreachable", "连不上第三方登录服务，请稍后再试。");
+    throw new ApiError(502, "oauth_unreachable", "api.oauth.unreachable");
   }
   const raw = await res.text();
   return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
@@ -176,9 +176,11 @@ async function getJson(url: string, token: string): Promise<Record<string, unkno
       signal: AbortSignal.timeout(12_000),
     });
   } catch {
-    throw new ApiError(502, "oauth_unreachable", "连不上第三方登录服务，请稍后再试。");
+    throw new ApiError(502, "oauth_unreachable", "api.oauth.unreachable");
   }
-  if (!res.ok) throw new ApiError(502, "oauth_failed", `第三方接口返回 ${res.status}`);
+  if (!res.ok) throw new ApiError(502, "oauth_failed", "api.oauth.providerStatus", undefined, {
+      status: res.status,
+    });
   const raw = await res.text();
   return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
 }
@@ -190,8 +192,8 @@ function readAccessToken(payload: Record<string, unknown>): string {
   const reason =
     (typeof payload.error_description === "string" && payload.error_description) ||
     (typeof payload.error === "string" && payload.error) ||
-    "第三方没有返回 access_token";
-  throw new ApiError(502, "oauth_failed", `第三方登录失败：${reason}`);
+    "api.oauth.noAccessToken";
+  throw new ApiError(502, "oauth_failed", "api.oauth.loginFailed", undefined, { reason });
 }
 
 async function githubToken(
@@ -237,7 +239,7 @@ async function githubIdentity(token: string): Promise<OauthIdentity> {
   const me = await getJson("https://api.github.com/user", token);
   const id = me.id;
   if (typeof id !== "number" && typeof id !== "string") {
-    throw new ApiError(502, "oauth_failed", "GitHub 没有返回账号 id");
+    throw new ApiError(502, "oauth_failed", "api.oauth.githubNoId");
   }
 
   let email = typeof me.email === "string" ? me.email : null;
@@ -276,7 +278,7 @@ async function googleIdentity(token: string): Promise<OauthIdentity> {
   const me = await getJson("https://www.googleapis.com/oauth2/v3/userinfo", token);
   const sub = me.sub;
   if (typeof sub !== "string" || sub === "") {
-    throw new ApiError(502, "oauth_failed", "Google 没有返回账号 sub");
+    throw new ApiError(502, "oauth_failed", "api.oauth.googleNoSub");
   }
 
   const email = typeof me.email === "string" ? me.email.toLowerCase() : null;

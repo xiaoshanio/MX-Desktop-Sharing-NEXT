@@ -21,7 +21,7 @@ export async function assertLoginAllowed(identifier: string, ip: string | null):
     .from(loginAttempts)
     .where(and(eq(loginAttempts.identifier, identifier), gt(loginAttempts.createdAt, since)));
   if ((identRow?.n ?? 0) >= MAX_PER_IDENTIFIER) {
-    throw new ApiError(429, "rate_limited", "登录尝试过于频繁，请 15 分钟后再试");
+    throw new ApiError(429, "rate_limited", "api.rate.emailTooMany");
   }
 
   if (ip) {
@@ -30,7 +30,7 @@ export async function assertLoginAllowed(identifier: string, ip: string | null):
       .from(loginAttempts)
       .where(and(eq(loginAttempts.ip, ip), gt(loginAttempts.createdAt, since)));
     if ((ipRow?.n ?? 0) >= MAX_PER_IP) {
-      throw new ApiError(429, "rate_limited", "该网络登录尝试过于频繁，请稍后再试");
+      throw new ApiError(429, "rate_limited", "api.rate.ipTooMany");
     }
   }
 }

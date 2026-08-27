@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { ApiError, badRequest, route } from "@/lib/http";
+import { ApiError, badRequest } from "@/lib/http";
+import { route } from "@/lib/api-route";
+import { tFromRequest } from "@/i18n/request";
 import { audit } from "@/lib/audit";
 import { resolveOauthLogin } from "@/lib/accounts";
 import { issueSession } from "@/lib/auth";
@@ -19,12 +21,16 @@ const PROVIDERS = new Set<OauthProvider>(["github", "google"]);
  * 成功回落地页，失败回登录页并把原因挂在查询串上让登录页显示出来。
  *
  * 会话 cookie 显式挂在这个响应上（见 lib/auth.ts 的 issueSession 注释）。
+ *
+ * 这里的失败消息**自己翻**：它不是走 `route()` 的 JSON 错误通道，而是被塞进
+ * 跳转 URL 的查询串，由登录页原样弹出来。
  */
 export const GET = route(async (req, ctx: { params: Promise<{ provider: string }> }) => {
   const { provider: raw } = await ctx.params;
   const base = appUrl(req);
+  const t = tFromRequest(req);
 
-  if (!PROVIDERS.has(raw as OauthProvider)) throw badRequest("不支持这个登录方式");
+  if (!PROVIDERS.has(raw as OauthProvider)) throw badRequest("api.oauth.unsupported");
   const provider = raw as OauthProvider;
 
   const url = new URL(req.url);
@@ -37,11 +43,15 @@ export const GET = route(async (req, ctx: { params: Promise<{ provider: string }
     // 用户在第三方页面点了「取消」会带 error 回来，这是正常路径，不该当成故障
     const denied = url.searchParams.get("error");
     if (denied) {
-      return fail(denied === "access_denied" ? "你取消了第三方登录。" : `第三方返回：${denied}`);
+      return fail(
+        denied === "access_denied"
+          ? t("api.oauth.userCancelled")
+          : t("api.oauth.providerReturned", { error: denied }),
+      );
     }
 
     const code = url.searchParams.get("code");
-    if (!code) throw badRequest("回调缺少 code 参数");
+    if (!code) throw badRequest("api.oauth.missingCode");
 
     const { nextPath, codeVerifier } = await consumeState(provider, url.searchParams.get("state"));
 
@@ -55,10 +65,10 @@ export const GET = route(async (req, ctx: { params: Promise<{ provider: string }
     res.cookies.set(cookie.name, cookie.value, cookie.options);
     return res;
   } catch (err) {
-    // ApiError 的 message 是给人看的（「这个邮箱已有账号但没验证」之类），可以直接显示；
+    // ApiError 的 message 是消息键（「这个邮箱已有账号但没验证」之类），翻出来给用户看；
     // 其余异常只记日志，回一句笼统的 —— 里面可能有第三方响应的细节。
-    if (err instanceof ApiError) return fail(err.message);
-    console.error("[oauth] 回调处理失败", err);
-    return fail("第三方登录失败，请重试或改用邮箱登录。");
+    if (err instanceof ApiError) return fail(t.raw(err.message, err.params));
+    console.error("[oauth] callback failed", err);
+    return fail(t("api.oauth.failed"));
   }
 });

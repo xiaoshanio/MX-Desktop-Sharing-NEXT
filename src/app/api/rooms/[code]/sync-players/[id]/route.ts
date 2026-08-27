@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { syncPlayers } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { forbidden, json, notFound, parseOr400, readJson, route } from "@/lib/http";
+import { forbidden, json, notFound, parseOr400, readJson } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { requireMember } from "@/lib/rooms";
 import { updateSyncPlayerSchema } from "@/lib/validation";
 
@@ -33,14 +34,14 @@ async function requireController(code: string, playerId: string) {
     .limit(1);
 
   // 用 404 而不是 403：房间成员没必要知道别的房间有没有这个 id
-  if (!player) throw notFound("这个同步播放器不存在或已关闭");
+  if (!player) throw notFound("api.sync.notFound");
 
   const allowed =
     player.createdBy === user.id ||
     roomCtx.room.ownerId === user.id ||
     roomCtx.membership?.role === "owner" ||
     user.role === "admin";
-  if (!allowed) throw forbidden("只有创建者或房主能操作这个播放器");
+  if (!allowed) throw forbidden("api.sync.notAllowed");
 
   return { user, roomCtx, player };
 }

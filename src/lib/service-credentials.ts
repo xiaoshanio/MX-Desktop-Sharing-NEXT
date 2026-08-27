@@ -77,16 +77,23 @@ export async function getCredential(service: ServiceName): Promise<ResolvedCrede
 export async function requireCredential(service: ServiceName): Promise<ResolvedCredential> {
   const found = await getCredential(service);
   if (!found) {
-    throw badRequest(`${LABELS[service]} 还没有配置，请让管理员到「管理后台 → 第三方服务」里填。`);
+    throw badRequest("api.svc.notConfigured", undefined, { name: LABELS[service] });
   }
   return found;
 }
 
+/**
+ * 服务名 → 展示名。
+ *
+ * 只用产品名（"GitHub"、"Turnstile"），不带「登录」「人机验证」这类后缀 ——
+ * 后缀属于要翻译的文案，而这个值会被塞进 `api.svc.notConfigured` 的
+ * `{name}` 占位符里，那句话本身已经在语言包里说清楚是「还没有配置」了。
+ */
 export const LABELS: Record<ServiceName, string> = {
-  github: "GitHub 登录",
-  google: "Google 登录",
-  turnstile: "Turnstile 人机验证",
-  resend: "Resend 邮件服务",
+  github: "GitHub",
+  google: "Google",
+  turnstile: "Turnstile",
+  resend: "Resend",
 };
 
 export async function upsertCredential(input: {
@@ -104,7 +111,7 @@ export async function upsertCredential(input: {
     secretEnc = encryptSecret(input.secret.trim());
   } else {
     const existing = await row(input.service);
-    if (!existing) throw badRequest("首次配置必须填密钥");
+    if (!existing) throw badRequest("api.svc.firstSecretRequired");
     secretEnc = existing.secretEnc;
   }
 
@@ -139,7 +146,7 @@ export async function describeAll(): Promise<ServiceDescriptor[]> {
   await ensureEncryptionKey().catch(() => {});
 
   return rows.map((found) => {
-    let secretMask = "（解不开，请重新填写）";
+    let secretMask = "api.svc.maskUndecryptable";
     try {
       secretMask = maskSecret(decryptSecret(found.secretEnc));
     } catch {

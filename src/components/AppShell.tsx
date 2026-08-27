@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { api } from "@/lib/api-client";
+import { useT } from "@/i18n";
 import { APP_NAME, POWERED_BY } from "@/lib/brand";
 import {
   applySidebar,
@@ -15,14 +16,16 @@ import {
 import type { ShellUser } from "@/lib/shell-user";
 import { BrandMark } from "@/components/BrandMark";
 import { Avatar } from "@/components/Avatar";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Icon, IconButton, PageLoader, type IconName } from "@/ui";
+import type { MessageKey } from "@/i18n";
 
 export type { ShellUser };
 
 interface NavItem {
   href: string;
-  label: string;
+  labelKey: MessageKey;
   icon: IconName;
   /** Extra path prefixes that should keep this item highlighted. */
   alsoMatch?: string[];
@@ -30,10 +33,10 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { href: "/dashboard", label: "房间", icon: "rooms", alsoMatch: ["/room"] },
-  { href: "/nodes", label: "LiveKit 节点", icon: "node" },
-  { href: "/me", label: "个人中心", icon: "user" },
-  { href: "/admin", label: "管理后台", icon: "shield", adminOnly: true },
+  { href: "/dashboard", labelKey: "shell.nav.rooms", icon: "rooms", alsoMatch: ["/room"] },
+  { href: "/nodes", labelKey: "shell.nav.nodes", icon: "node" },
+  { href: "/me", labelKey: "shell.nav.me", icon: "user" },
+  { href: "/admin", labelKey: "shell.nav.admin", icon: "shield", adminOnly: true },
 ];
 
 export interface AppShellProps {
@@ -88,6 +91,7 @@ export function AppShell({
   loadingLabel,
   children,
 }: AppShellProps): ReactNode {
+  const t = useT();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -147,7 +151,7 @@ export function AppShell({
       <header className="mx-topbar">
         <IconButton
           className="mx-topbar__menu"
-          label={drawerOpen ? "关闭导航" : "打开导航"}
+          label={drawerOpen ? t("shell.closeNav") : t("shell.openNav")}
           onClick={() => setDrawerOpen((open) => !open)}
         >
           <Icon name={drawerOpen ? "x" : "menu"} size={18} />
@@ -157,14 +161,18 @@ export function AppShell({
           <BrandMark size={32} className="mx-brand__mark" />
           <span className="mx-brand__text">
             <span className="mx-brand__name">{APP_NAME}</span>
-            <span className="mx-brand__sub">LiveKit 多节点</span>
+            <span className="mx-brand__sub">{t("brand.subtitle")}</span>
           </span>
         </Link>
 
         {heading ? (
           <div className="mx-topbar__heading">
             {backHref ? (
-              <Link href={backHref} className="mx-topbar__back" title={backLabel ?? "返回"}>
+              <Link
+                href={backHref}
+                className="mx-topbar__back"
+                title={backLabel ?? t("shell.back")}
+              >
                 <Icon name="chevronLeft" size={15} />
                 <span className="mx-topbar__back-label">{heading}</span>
               </Link>
@@ -179,19 +187,22 @@ export function AppShell({
         ) : null}
 
         <div className="mx-topbar__actions">
+          {/* 语言下拉在主题开关左边 —— 两个都是「整站偏好」，放一起才好找 */}
+          <LanguageSwitcher />
           <ThemeToggle />
           <UserMenu user={user} />
         </div>
       </header>
 
       <div className="mx-body">
-        <nav className="mx-sidebar" aria-label="主导航">
-          <div className="mx-sidebar__group-label">工作区</div>
+        <nav className="mx-sidebar" aria-label={t("shell.mainNav")}>
+          <div className="mx-sidebar__group-label">{t("shell.workspace")}</div>
           {items.map((item) => {
             const active =
               pathname === item.href ||
               pathname.startsWith(`${item.href}/`) ||
               (item.alsoMatch ?? []).some((prefix) => pathname.startsWith(prefix));
+            const label = t(item.labelKey);
             return (
               <Link
                 key={item.href}
@@ -199,12 +210,12 @@ export function AppShell({
                 className="mx-sidebar__item"
                 data-active={active}
                 aria-current={active ? "page" : undefined}
-                title={collapsed ? item.label : undefined}
+                title={collapsed ? label : undefined}
               >
                 <span className="mx-sidebar__item-icon">
                   <Icon name={item.icon} size={18} />
                 </span>
-                <span className="mx-sidebar__item-label">{item.label}</span>
+                <span className="mx-sidebar__item-label">{label}</span>
               </Link>
             );
           })}
@@ -212,7 +223,7 @@ export function AppShell({
           <div className="mx-sidebar__footer">
             <IconButton
               size="sm"
-              label={collapsed ? "展开侧栏" : "收起侧栏"}
+              label={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
               onClick={toggleSidebar}
             >
               <Icon name={collapsed ? "panelLeft" : "panelLeftClose"} size={16} />
@@ -243,7 +254,7 @@ export function AppShell({
         <span className="mx-statusbar__divider mx-statusbar__powered" />
         <span className="mx-statusbar__item" data-tone={online ? "success" : "error"}>
           <span className="mx-statusbar__dot" />
-          {online ? "已连接" : "网络离线"}
+          {online ? t("shell.online") : t("shell.offline")}
         </span>
       </footer>
     </div>
@@ -252,6 +263,7 @@ export function AppShell({
 
 /** Avatar chip with a small menu: identity, profile, admin shortcut, sign out. */
 function UserMenu({ user }: { user: ShellUser }): ReactNode {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -302,7 +314,9 @@ function UserMenu({ user }: { user: ShellUser }): ReactNode {
         />
         <span className="mx-user__label">
           <span className="mx-user__name">{user.displayName}</span>
-          <span className="mx-user__role">{user.role === "admin" ? "管理员" : "用户"}</span>
+          <span className="mx-user__role">
+            {user.role === "admin" ? t("shell.role.admin") : t("shell.role.user")}
+          </span>
         </span>
       </button>
 
@@ -314,12 +328,12 @@ function UserMenu({ user }: { user: ShellUser }): ReactNode {
           </div>
           <Link href="/me" className="mx-menu__item" role="menuitem">
             <Icon name="user" size={15} />
-            个人中心
+            {t("shell.menu.profile")}
           </Link>
           {user.role === "admin" && (
             <Link href="/admin" className="mx-menu__item" role="menuitem">
               <Icon name="shield" size={15} />
-              管理后台
+              {t("shell.menu.admin")}
             </Link>
           )}
           <button
@@ -331,7 +345,7 @@ function UserMenu({ user }: { user: ShellUser }): ReactNode {
             onClick={() => void logout()}
           >
             <Icon name="logout" size={15} />
-            {busy ? "退出中…" : "退出登录"}
+            {busy ? t("shell.menu.loggingOut") : t("shell.menu.logout")}
           </button>
         </div>
       )}

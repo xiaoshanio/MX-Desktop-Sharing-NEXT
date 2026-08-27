@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { roomMembers, rooms } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { badRequest, conflict, json, readJson, route, parseOr400 } from "@/lib/http";
+import { badRequest, conflict, json, readJson, parseOr400 } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { ensureRoom } from "@/lib/livekit";
 import { assertNodeUsable, createNode, getBuiltinNode, getNodeById, resolve } from "@/lib/nodes";
 import { generateRoomCode, listRoomsForUser } from "@/lib/rooms";
@@ -57,7 +58,7 @@ export const POST = route(async (req) => {
     node = await getNodeById(input.nodeId);
   } else {
     const builtin = await getBuiltinNode();
-    if (!builtin) throw badRequest("未指定节点，且本站没有内置节点可用");
+    if (!builtin) throw badRequest("api.rooms.noNode");
     node = builtin;
   }
 
@@ -72,7 +73,7 @@ export const POST = route(async (req) => {
       .where(eq(rooms.code, code))
       .limit(1);
     if (!dup) break;
-    if (attempt === 4) throw conflict("房间码生成冲突，请重试");
+    if (attempt === 4) throw conflict("api.rooms.codeConflict");
     code = generateRoomCode();
   }
 

@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
-import { badRequest, json, parseOr400, readJson, route } from "@/lib/http";
+import { badRequest, json, parseOr400, readJson } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import {
   deleteCredential,
   describeAll,
@@ -64,7 +65,7 @@ export const DELETE = route(async (req) => {
   const admin = await requireAdmin();
 
   const service = new URL(req.url).searchParams.get("service");
-  if (!service || !SERVICES.has(service as ServiceName)) throw badRequest("service 参数不合法");
+  if (!service || !SERVICES.has(service as ServiceName)) throw badRequest("api.services.badService");
 
   await deleteCredential(service as ServiceName);
   audit({ actorId: admin.id, action: "service.delete", detail: { service } });

@@ -88,6 +88,6 @@ export async function requireUser(): Promise<User> {
 
 export async function requireAdmin(): Promise<User> {
   const user = await requireUser();
-  if (user.role !== "admin") throw forbidden("需要管理员权限");
+  if (user.role !== "admin") throw forbidden("api.needAdmin");
   return user;
 }

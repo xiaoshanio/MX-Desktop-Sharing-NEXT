@@ -1,4 +1,5 @@
-import { badRequest, route } from "@/lib/http";
+import { badRequest } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { beginAuthorization, safeNextPath } from "@/lib/oauth";
 import { requireBootstrapped } from "@/lib/bootstrap";
 import { appUrl } from "@/lib/url";
@@ -17,7 +18,7 @@ const PROVIDERS = new Set<OauthProvider>(["github", "google"]);
  */
 export const GET = route(async (req, ctx: { params: Promise<{ provider: string }> }) => {
   const { provider } = await ctx.params;
-  if (!PROVIDERS.has(provider as OauthProvider)) throw badRequest("不支持这个登录方式");
+  if (!PROVIDERS.has(provider as OauthProvider)) throw badRequest("api.oauth.unsupported");
 
   await requireBootstrapped();
 

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { useT } from "@/i18n";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
 
@@ -27,13 +28,14 @@ export function ConfirmDialog({
   open,
   title,
   body,
-  confirmLabel = "确定",
-  cancelLabel = "取消",
+  confirmLabel,
+  cancelLabel,
   danger = false,
   busy = false,
   onConfirm,
   onClose,
 }: ConfirmDialogProps): ReactNode {
+  const t = useT();
   return (
     <Modal
       open={open}
@@ -43,10 +45,10 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={busy}>
-            {cancelLabel}
+            {cancelLabel ?? t("common.cancel")}
           </Button>
           <Button variant={danger ? "danger" : "primary"} onClick={onConfirm} disabled={busy}>
-            {busy ? "处理中…" : confirmLabel}
+            {busy ? t("common.working") : (confirmLabel ?? t("common.confirm"))}
           </Button>
         </>
       }

@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { api } from "@/lib/api-client";
+import { useT } from "@/i18n";
 import { COPYRIGHT } from "@/lib/brand";
 import { humanizeError } from "@/lib/error-text";
 import { toast } from "@/lib/toast";
@@ -15,6 +16,7 @@ import { Icon, LinkButton, Spinner } from "@/ui";
  */
 export default function JoinPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
+  const t = useT();
   const router = useRouter();
   const [state, setState] = useState<"working" | "error">("working");
 
@@ -39,7 +41,7 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
         if (!cancelled) router.replace(`/room/${room.code}`);
       } catch (error) {
         if (cancelled) return;
-        toast.error(humanizeError(error));
+        toast.error(humanizeError(t, error));
         setState("error");
       }
     })();
@@ -47,18 +49,18 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
     return () => {
       cancelled = true;
     };
-  }, [token, router]);
+  }, [token, router, t]);
 
   return (
     <div className="mx-auth">
       <div className="mx-auth__inner">
         <div className="mx-auth__brand">
           <BrandMark size={64} className="mx-auth__mark" />
-          <h1 className="mx-auth__title">{state === "working" ? "正在加入房间" : "无法加入"}</h1>
+          <h1 className="mx-auth__title">
+            {state === "working" ? t("join.working") : t("join.failed")}
+          </h1>
           <p className="mx-auth__subtitle">
-            {state === "working"
-              ? "正在校验邀请链接，马上就好。"
-              : "这个邀请链接没能兑换成一次入房。"}
+            {state === "working" ? t("join.workingBody") : t("join.failedBody")}
           </p>
         </div>
 
@@ -69,16 +71,14 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
               style={{ justifyContent: "center", padding: "var(--mx-space-lg) 0" }}
             >
               <Spinner size={18} />
-              <span className="mx-text-caption">校验邀请链接…</span>
+              <span className="mx-text-caption">{t("join.checking")}</span>
             </div>
           ) : (
             <>
-              <p className="mx-text-caption">
-                链接可能已过期、被撤销，或使用次数已满。找房主重新发一个。
-              </p>
+              <p className="mx-text-caption">{t("join.failedHint")}</p>
               <LinkButton href="/dashboard" variant="primary" full>
                 <Icon name="rooms" size={16} />
-                回到控制台
+                {t("join.backToConsole")}
               </LinkButton>
             </>
           )}

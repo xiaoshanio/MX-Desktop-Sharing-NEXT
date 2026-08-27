@@ -14,6 +14,7 @@ import { RoomEvent, Track } from "livekit-client";
 
 import { api } from "@/lib/api-client";
 import type { Ban, Invite, LogRow, Member, RoomDetail, SyncPlayerRow } from "@/lib/api-types";
+import { RichText, useI18n, useT } from "@/i18n";
 import { humanizeError, isBenignError } from "@/lib/error-text";
 import { formatTime, roleLabel, roleTone } from "@/lib/labels";
 import { toast } from "@/lib/toast";
@@ -45,6 +46,7 @@ type PeopleTab = "members" | "invites";
 type SettingsTab = "publish" | "room" | "logs" | "bans";
 
 export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
+  const t = useT();
   const [detail, setDetail] = useState<RoomDetail | null>(null);
   const [grant, setGrant] = useState<Grant | null>(null);
   /** 只保留「整个房间打不开」这一种致命错误，其余都走右上角提示。 */
@@ -83,11 +85,11 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
       setDetail(detailRes.room);
       if (detailRes.room.isActive && tokenRes) setGrant(tokenRes);
     } catch (error) {
-      setFatal(humanizeError(error));
+      setFatal(humanizeError(t, error));
     } finally {
       setLoading(false);
     }
-  }, [code]);
+  }, [code, t]);
 
   const loadMembers = useCallback(async () => {
     try {
@@ -164,14 +166,17 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
           json: { userId: entry.userId, role },
         });
         toast.success(
-          `已把「${entry.displayName}」改成${role === "publisher" ? "可推流" : "仅观看"}`,
+          t("room.roleChanged", {
+            name: entry.displayName,
+            role: role === "publisher" ? t("label.role.publisher") : t("label.role.viewer"),
+          }),
         );
         await loadMembers();
       } catch (error) {
-        toast.error(humanizeError(error));
+        toast.error(humanizeError(t, error));
       }
     },
-    [code, loadMembers],
+    [code, loadMembers, t],
   );
 
   const [kicking, setKicking] = useState<{ entry: RailEntry; ban: boolean } | null>(null);
@@ -186,18 +191,18 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
       await api(`/api/rooms/${code}/members?${query}`, { method: "DELETE" });
       toast.success(
         kicking.ban
-          ? `已移出「${kicking.entry.displayName}」并加入黑名单`
-          : `已移出「${kicking.entry.displayName}」`,
+          ? t("room.kickedBanned", { name: kicking.entry.displayName })
+          : t("room.kicked", { name: kicking.entry.displayName }),
       );
       setKicking(null);
       await loadMembers();
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
       setKicking(null);
     } finally {
       setKickBusy(false);
     }
-  }, [kicking, code, loadMembers]);
+  }, [kicking, code, loadMembers, t]);
 
   /* ---- 同步播放器 ---- */
   const closeSyncPlayer = useCallback(
@@ -205,13 +210,13 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
       setSyncPlayers((previous) => previous.filter((player) => player.id !== id));
       try {
         await api(`/api/rooms/${code}/sync-players/${id}`, { method: "DELETE" });
-        toast.success("同步播放器已关闭");
+        toast.success(t("sync.closed"));
       } catch (error) {
-        toast.error(humanizeError(error));
+        toast.error(humanizeError(t, error));
         await loadSyncPlayers();
       }
     },
-    [code, loadSyncPlayers],
+    [code, loadSyncPlayers, t],
   );
 
   const patchSyncSource = useCallback((id: string, sourceUrl: string | null) => {
@@ -223,25 +228,25 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
   /* ---- 打不开 / 还没加载 ---- */
   if (fatal) {
     return (
-      <AppShell user={user} heading={<span>房间 {code}</span>}>
+      <AppShell user={user} heading={<span>{t("room.heading", { code })}</span>}>
         <section className="mx-section">
           <header className="mx-section__header">
             <div className="mx-section__heading">
-              <h1 className="mx-section__title">打不开这个房间</h1>
+              <h1 className="mx-section__title">{t("room.fatalTitle")}</h1>
             </div>
           </header>
           <Banner tone="error">{fatal}</Banner>
           <EmptyState
             icon="rooms"
-            title="没有访问权限"
+            title={t("room.fatal.emptyTitle")}
             actions={
               <LinkButton href="/dashboard" variant="primary">
                 <Icon name="rooms" size={16} />
-                回到房间列表
+                {t("room.fatal.back")}
               </LinkButton>
             }
           >
-            非成员看到的就是「房间不存在」—— 这是故意的，避免有人拿房间码逐个探测。
+            {t("room.fatal.body")}
           </EmptyState>
         </section>
       </AppShell>
@@ -250,7 +255,12 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
 
   if (loading || !detail) {
     return (
-      <AppShell user={user} loading loadingLabel="正在进入房间…" heading={<span>房间 {code}</span>}>
+      <AppShell
+        user={user}
+        loading
+        loadingLabel={t("room.entering")}
+        heading={<span>{t("room.heading", { code })}</span>}
+      >
         <span />
       </AppShell>
     );
@@ -264,23 +274,27 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
       // 房间名本身就是「返回列表」的按钮：反向的箭头 + 房间名，一个目标
       heading={detail.name}
       backHref="/dashboard"
-      backLabel="返回房间列表"
+      backLabel={t("room.backLabel")}
       actions={
         <>
           <IconButton
             size="sm"
-            label="分享房间（邀请链接）"
+            label={t("room.action.share")}
             onClick={() => setPeopleTab("invites")}
           >
             <Icon name="share" size={16} />
           </IconButton>
-          <IconButton size="sm" label="成员" onClick={() => setPeopleTab("members")}>
+          <IconButton
+            size="sm"
+            label={t("room.action.members")}
+            onClick={() => setPeopleTab("members")}
+          >
             <Icon name="users" size={16} />
           </IconButton>
           <IconButton
             ref={settingsButtonRef}
             size="sm"
-            label="房间设置与推流信息"
+            label={t("room.action.settings")}
             onClick={() => setSettingsTab("publish")}
           >
             <Icon name="settings" size={16} />
@@ -288,7 +302,7 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
           {canManage && (
             <IconButton
               size="sm"
-              label="新建同步播放器"
+              label={t("room.action.newPlayer")}
               onClick={() => setCreatingPlayer(true)}
             >
               <Icon name="film" size={16} />
@@ -298,24 +312,32 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
       }
       status={
         <>
-          <span className="mx-statusbar__item">房间码 {detail.code}</span>
+          <span className="mx-statusbar__item">
+            {t("room.stat.code", { code: detail.code })}
+          </span>
           <span className="mx-statusbar__divider" />
           <span className="mx-statusbar__item">
-            节点 {detail.node.name}
-            {detail.node.kind === "builtin" ? "（内置）" : ""}
+            {t("room.stat.node", { name: detail.node.name })}
+            {detail.node.kind === "builtin" ? t("room.stat.nodeBuiltin") : ""}
           </span>
           <span className="mx-statusbar__divider" />
           <span className="mx-statusbar__item" data-tone={detail.isActive ? "success" : undefined}>
-            {detail.isActive ? "活跃" : "已关闭"}
+            {detail.isActive ? t("room.stat.active") : t("room.stat.closed")}
           </span>
           <span className="mx-statusbar__divider" />
           <span className="mx-statusbar__item">
-            {detail.isOwner ? "房主" : detail.canPublish ? "可推流" : "仅观看"}
+            {detail.isOwner
+              ? t("label.role.owner")
+              : detail.canPublish
+                ? t("label.role.publisher")
+                : t("label.role.viewer")}
           </span>
           {members.length > 0 && (
             <>
               <span className="mx-statusbar__divider" />
-              <span className="mx-statusbar__item">成员 {members.length}</span>
+              <span className="mx-statusbar__item">
+                {t("room.stat.members", { count: members.length })}
+              </span>
             </>
           )}
         </>
@@ -323,8 +345,8 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
     >
       <div className="mx-room">
         {!detail.isActive && (
-          <Banner tone="warning" title="房间已关闭">
-            无法再签发 token，画面和推流都不可用。
+          <Banner tone="warning" title={t("room.closedTitle")}>
+            {t("room.closedBody")}
           </Banner>
         )}
 
@@ -345,7 +367,7 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
                * 紧接着第二次挂载就连上了 —— 这条报错出现时功能是好的，不该弹给用户。
                */
               if (isBenignError(error)) return;
-              toast.error(humanizeError(error));
+              toast.error(humanizeError(t, error));
             }}
           >
             <RoomWorkspace
@@ -373,17 +395,24 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
       <Modal
         open={peopleTab !== null}
         size="lg"
-        title="房间成员"
+        title={t("room.people.title")}
         onClose={() => setPeopleTab(null)}
       >
         <Tabs
-          label="成员与邀请"
+          label={t("room.people.tabs")}
           value={peopleTab ?? "members"}
           onChange={setPeopleTab}
           items={[
-            { value: "members", label: "成员", icon: "users", count: members.length },
+            {
+              value: "members",
+              label: t("room.people.tabMembers"),
+              icon: "users",
+              count: members.length,
+            },
             ...(detail.isOwner
-              ? ([{ value: "invites", label: "邀请", icon: "link" }] as const)
+              ? ([
+                  { value: "invites", label: t("room.people.tabInvites"), icon: "link" },
+                ] as const)
               : []),
           ]}
         />
@@ -402,20 +431,20 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
       <Modal
         open={settingsTab !== null}
         size="xl"
-        title="房间设置"
+        title={t("room.settings.title")}
         onClose={() => setSettingsTab(null)}
       >
         <Tabs
-          label="房间设置"
+          label={t("room.settings.tabs")}
           value={settingsTab ?? "publish"}
           onChange={setSettingsTab}
           items={[
-            { value: "publish", label: "推流信息", icon: "broadcast" },
+            { value: "publish", label: t("room.settings.tabPublish"), icon: "broadcast" },
             ...(detail.isOwner
               ? ([
-                  { value: "room", label: "房间", icon: "settings" },
-                  { value: "logs", label: "操作日志", icon: "logs" },
-                  { value: "bans", label: "黑名单", icon: "ban" },
+                  { value: "room", label: t("room.settings.tabRoom"), icon: "settings" },
+                  { value: "logs", label: t("room.settings.tabLogs"), icon: "logs" },
+                  { value: "bans", label: t("room.settings.tabBans"), icon: "ban" },
                 ] as const)
               : []),
           ]}
@@ -455,10 +484,10 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
       {coachOpen && (
         <CoachMark
           anchor={settingsButtonRef.current}
-          title="推流信息就在这里"
+          title={t("room.coach.title")}
           onDismiss={() => setCoachOpen(false)}
         >
-          以后想看或重新生成 OBS 推流地址，点顶栏这个齿轮 → 「推流信息」。
+          {t("room.coach.body")}
         </CoachMark>
       )}
 
@@ -466,20 +495,16 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
         open={kicking !== null}
         danger
         busy={kickBusy}
-        title={kicking?.ban ? "移出并加入黑名单" : "移出成员"}
-        confirmLabel={kicking?.ban ? "移出并拉黑" : "移出"}
+        title={kicking?.ban ? t("room.kick.titleBan") : t("room.kick.title")}
+        confirmLabel={kicking?.ban ? t("room.kick.confirmBan") : t("room.kick.confirm")}
         body={
-          kicking?.ban ? (
-            <>
-              把「{kicking.entry.displayName}」移出房间并加入黑名单？他会立刻断开，
-              推流地址作废，之后<b>即使拿到邀请链接也进不来</b>，直到你在设置里解除拉黑。
-            </>
-          ) : (
-            <>
-              移出「{kicking?.entry.displayName}」？会同时断开他的连接并删掉他的推流地址。
-              注意：他手上还有效的邀请链接仍然能让他自己回来 —— 要彻底挡住请用「移出并加入黑名单」。
-            </>
-          )
+          <RichText
+            text={
+              kicking?.ban
+                ? t("room.kick.bodyBan", { name: kicking.entry.displayName })
+                : t("room.kick.body", { name: kicking?.entry.displayName ?? "" })
+            }
+          />
         }
         onConfirm={() => void confirmKick()}
         onClose={() => setKicking(null)}
@@ -592,6 +617,7 @@ function Stage({
   selected: string | null;
   viewerCanPublish: boolean;
 }) {
+  const t = useT();
   const room = useRoomContext();
   const allTracks = useTracks(
     [
@@ -640,10 +666,10 @@ function Stage({
       <div className="mx-stage__bar">
         <span className="mx-stage__live" data-live={live}>
           <span className="mx-stage__live-dot" />
-          {live ? "直播中" : "无信号"}
+          {live ? t("room.stage.live") : t("room.stage.noSignal")}
         </span>
-        <span>房内 {participants.length} 人</span>
-        {selected && <Badge tone="info">只看选中的人</Badge>}
+        <span>{t("room.stage.inRoom", { count: participants.length })}</span>
+        {selected && <Badge tone="info">{t("room.stage.onlySelected")}</Badge>}
         <span className="mx-stage__spacer" />
         {canPublish ? (
           <ShareControls />
@@ -654,8 +680,8 @@ function Stage({
            */
           <span className="mx-stage__note">
             {viewerCanPublish
-              ? "正在获取推流权限…"
-              : "你是「仅观看」—— 让房主在设置里改你的权限，或打开「允许所有人共享」"}
+              ? t("room.stage.gettingPermission")
+              : t("room.stage.viewerOnly")}
           </span>
         )}
       </div>
@@ -672,10 +698,10 @@ function Stage({
                 {ref.participant.name || ref.participant.identity}
                 {" · "}
                 {ref.participant.identity.startsWith("obs:")
-                  ? "OBS 推流"
+                  ? t("room.stage.tagObs")
                   : ref.source === Track.Source.ScreenShare
-                    ? "屏幕共享"
-                    : "摄像头"}
+                    ? t("room.stage.tagScreen")
+                    : t("room.stage.tagCamera")}
               </span>
             </div>
           ))}
@@ -686,12 +712,10 @@ function Stage({
             <Icon name="broadcast" size={24} />
           </span>
           <span className="mx-stage__idle-title">
-            {selected ? "这个人没有在共享画面" : "还没有人在推流"}
+            {selected ? t("room.stage.idleSelectedTitle") : t("room.stage.idleTitle")}
           </span>
           <span className="mx-stage__idle-body">
-            {selected
-              ? "点左侧的「显示全部」可以看房里其他人的画面。"
-              : "推流端一连上，这里会自动出现画面 —— 不需要刷新页面。"}
+            {selected ? t("room.stage.idleSelectedBody") : t("room.stage.idleBody")}
           </span>
         </div>
       )}
@@ -701,12 +725,13 @@ function Stage({
 
 /** 房间没连上时（已关闭 / 还在签 token）的占位画面。 */
 function OfflineStage({ active }: { active: boolean }) {
+  const t = useT();
   return (
     <div className="mx-stage">
       <div className="mx-stage__bar">
         <span className="mx-stage__live" data-live="false">
           <span className="mx-stage__live-dot" />
-          未连接
+          {t("room.offline.notConnected")}
         </span>
         <span className="mx-stage__spacer" />
       </div>
@@ -714,9 +739,11 @@ function OfflineStage({ active }: { active: boolean }) {
         <span className="mx-stage__idle-icon">
           <Icon name="share" size={24} />
         </span>
-        <span className="mx-stage__idle-title">{active ? "正在连接房间…" : "房间已关闭"}</span>
+        <span className="mx-stage__idle-title">
+          {active ? t("room.offline.connecting") : t("room.offline.closed")}
+        </span>
         <span className="mx-stage__idle-body">
-          {active ? "正在签发访问 token。" : "关闭的房间不再签发 token，也不能推流。"}
+          {active ? t("room.offline.connectingBody") : t("room.offline.closedBody")}
         </span>
       </div>
     </div>
@@ -725,6 +752,7 @@ function OfflineStage({ active }: { active: boolean }) {
 
 /** 浏览器直接共享屏幕。不用 OBS 的那条路。 */
 function ShareControls() {
+  const t = useT();
   const room = useRoomContext();
   const [busy, setBusy] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -751,7 +779,7 @@ function ShareControls() {
     } catch (error) {
       // 用户在系统的「选择要共享的窗口」里点了取消也会走到这里 —— 那是正常操作，
       // isBenignError 会把它认出来，不弹提示
-      if (!isBenignError(error)) toast.error(humanizeError(error));
+      if (!isBenignError(error)) toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
@@ -765,7 +793,7 @@ function ShareControls() {
       onClick={() => void toggle()}
     >
       <Icon name={sharing ? "stop" : "play"} size={13} />
-      {busy ? "处理中…" : sharing ? "停止共享" : "共享我的屏幕"}
+      {busy ? t("room.share.busy") : sharing ? t("room.share.stop") : t("room.share.start")}
     </Button>
   );
 }
@@ -776,6 +804,7 @@ function ShareControls() {
 
 /** 生成/取回本人在本房间的 WHIP 推流地址。首次进房的引导弹窗也复用这段逻辑。 */
 function useIngress(code: string, enabled: boolean) {
+  const t = useT();
   const [ingress, setIngress] = useState<{ server: string; bearerToken: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -799,12 +828,12 @@ function useIngress(code: string, enabled: boolean) {
         );
         setIngress(res.ingress);
       } catch (error) {
-        toast.error(humanizeError(error));
+        toast.error(humanizeError(t, error));
       } finally {
         setBusy(false);
       }
     },
-    [code],
+    [code, t],
   );
 
   const revoke = useCallback(async () => {
@@ -813,26 +842,27 @@ function useIngress(code: string, enabled: boolean) {
       await api(`/api/rooms/${code}/ingress`, { method: "DELETE" });
       setIngress(null);
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
-  }, [code]);
+  }, [code, t]);
 
   return { ingress, busy, generate, revoke };
 }
 
 /** 推流信息面板：一人一房一个独立 WHIP 地址。房间级闸门在「房间」那一栏。 */
 function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
+  const t = useT();
   const obsEnabled = detail.obsEnabled;
   const { ingress, busy, generate, revoke } = useIngress(code, obsEnabled);
   const [revoking, setRevoking] = useState(false);
 
   if (detail.node.ingressAvailable === false) {
     return (
-      <Card title="OBS 推流">
-        <Banner tone="warning" title="这个节点的 Ingress 不可用">
-          拿不到 OBS 推流地址。你仍然可以用画面上方的「共享我的屏幕」直接从浏览器推。
+      <Card title={t("obs.title")}>
+        <Banner tone="warning" title={t("obs.noIngressTitle")}>
+          {t("obs.noIngressBody")}
         </Banner>
       </Card>
     );
@@ -840,9 +870,9 @@ function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
 
   if (!detail.canPublish) {
     return (
-      <Card title="OBS 推流">
-        <Banner tone="info" title="你是「仅观看」">
-          房主把你设成了只看，所以没有推流地址。需要推流的话找房主改一下权限。
+      <Card title={t("obs.title")}>
+        <Banner tone="info" title={t("obs.viewerTitle")}>
+          {t("obs.viewerBody")}
         </Banner>
       </Card>
     );
@@ -850,10 +880,9 @@ function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
 
   if (!obsEnabled) {
     return (
-      <Card title="OBS 推流">
-        <Banner tone="warning" title="房主关闭了 OBS 直播">
-          这个房间现在不接受 OBS 推流，也生成不出推流地址。用画面上方的「共享我的屏幕」
-          可以直接从浏览器推。
+      <Card title={t("obs.title")}>
+        <Banner tone="warning" title={t("obs.gateTitle")}>
+          {t("obs.gateBody")}
         </Banner>
       </Card>
     );
@@ -861,52 +890,57 @@ function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
 
   return (
     <>
-
       <Card
-        title="我的 OBS 推流地址"
-        description="绑定到「你 + 这个房间」，别人拿不到也用不了。走 WHIP 直通，不消耗 transcode 额度。"
-        actions={ingress ? <Badge tone="success" dot>已生成</Badge> : <Badge tone="neutral">未生成</Badge>}
+        title={t("obs.myUrl")}
+        description={t("obs.myUrlDesc")}
+        actions={
+          ingress ? (
+            <Badge tone="success" dot>
+              {t("obs.generated")}
+            </Badge>
+          ) : (
+            <Badge tone="neutral">{t("obs.notGenerated")}</Badge>
+          )
+        }
       >
         {!ingress ? (
           <div className="mx-card__actions">
             <Button variant="primary" disabled={busy} onClick={() => void generate(false)}>
               <Icon name="broadcast" size={15} />
-              {busy ? "生成中…" : "生成推流地址"}
+              {busy ? t("obs.generating") : t("obs.generate")}
             </Button>
           </div>
         ) : (
           <>
             <ol className="mx-steps">
               <li>
-                OBS → 设置 → 直播 → 服务选 <b>WHIP</b>
+                <RichText text={t("obs.step1")} />
               </li>
-              <li>把下面两个值分别填进 Server 和 Bearer Token</li>
-              <li>
-                WHIP 直通没有服务端 simulcast。要多档清晰度得在 OBS 32.1.0+ 自己开（1–4 层）。
-              </li>
+              <li>{t("obs.step2")}</li>
+              <li>{t("obs.step3")}</li>
             </ol>
 
             <div className="mx-field">
-              <span className="mx-field__label">Server</span>
-              <CopyRow value={ingress.server} label="Server 地址" />
+              <span className="mx-field__label">{t("obs.serverLabel")}</span>
+              <CopyRow value={ingress.server} label={t("obs.serverShort")} />
             </div>
 
             <div className="mx-field">
-              <span className="mx-field__label">Bearer Token（就是 Stream Key）</span>
-              <CopyRow value={ingress.bearerToken} secret label="Bearer Token" />
+              <span className="mx-field__label">{t("obs.tokenLabel")}</span>
+              <CopyRow value={ingress.bearerToken} secret label={t("obs.tokenShort")} />
             </div>
 
             <div className="mx-card__actions">
               <Button variant="secondary" disabled={busy} onClick={() => void generate(true)}>
                 <Icon name="refresh" size={15} />
-                {busy ? "处理中…" : "重新生成"}
+                {busy ? t("common.working") : t("obs.regenerate")}
               </Button>
               <Button variant="danger" disabled={busy} onClick={() => setRevoking(true)}>
                 <Icon name="trash" size={15} />
-                撤销
+                {t("obs.revoke")}
               </Button>
             </div>
-            <p className="mx-text-caption">重新生成会让旧地址立即失效。</p>
+            <p className="mx-text-caption">{t("obs.regenNote")}</p>
           </>
         )}
 
@@ -914,9 +948,9 @@ function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
           open={revoking}
           danger
           busy={busy}
-          title="撤销推流地址"
-          confirmLabel="撤销"
-          body="撤销后 OBS 会立刻推不上来，需要重新生成并在 OBS 里改一遍。确定？"
+          title={t("obs.revokeTitle")}
+          confirmLabel={t("obs.revoke")}
+          body={t("obs.revokeBody")}
           onConfirm={async () => {
             await revoke();
             setRevoking(false);
@@ -927,9 +961,7 @@ function ObsPanel({ code, detail }: { code: string; detail: RoomDetail }) {
 
       {/* 房主也在这个标签里，但闸门开关放「房间」那一栏，避免和自己的地址混在一起 */}
       {detail.isOwner && (
-        <p className="mx-text-caption mx-text-muted">
-          想彻底关掉这个房间的 OBS 通道？在「房间」标签里。
-        </p>
+        <p className="mx-text-caption mx-text-muted">{t("obs.ownerHint")}</p>
       )}
     </>
   );
@@ -945,6 +977,7 @@ function RoomSettingsPanel({
   detail: RoomDetail;
   onPatched: (patch: Partial<RoomDetail>) => void;
 }) {
+  const t = useT();
   const [closingGate, setClosingGate] = useState(false);
   const [gateBusy, setGateBusy] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
@@ -962,9 +995,11 @@ function RoomSettingsPanel({
       });
       onPatched({ obsEnabled: res.obsEnabled });
       setClosingGate(false);
-      toast.success(next ? "已允许 OBS 推流" : `已关闭 OBS 通道，作废了 ${res.revoked} 个推流地址`);
+      toast.success(
+        next ? t("rset.gate.onToast") : t("rset.gate.offToast", { count: res.revoked }),
+      );
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setGateBusy(false);
     }
@@ -979,9 +1014,9 @@ function RoomSettingsPanel({
         json: { viewerCanPublish: next },
       });
       onPatched({ viewerCanPublish: res.viewerCanPublish });
-      toast.success(next ? "现在所有成员都能共享屏幕了" : "已改回只有可推流的成员能共享");
+      toast.success(next ? t("rset.share.onToast") : t("rset.share.offToast"));
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setShareBusy(false);
     }
@@ -990,39 +1025,45 @@ function RoomSettingsPanel({
   return (
     <>
       <Card
-        title="谁能共享屏幕"
-        description="新加入的人默认是「仅观看」，所以他们看不到画面上方的「共享我的屏幕」按钮。想让所有人都能共享，打开下面这个开关；只想放开某几个人，就在画面左侧的成员卡片上右键改成「可推流」。"
+        title={t("rset.share.title")}
+        description={t("rset.share.desc")}
         actions={
           detail.viewerCanPublish ? (
             <Badge tone="success" dot>
-              所有人
+              {t("rset.share.everyone")}
             </Badge>
           ) : (
-            <Badge tone="neutral">仅房主与可推流成员</Badge>
+            <Badge tone="neutral">{t("rset.share.restricted")}</Badge>
           )
         }
       >
         <Switch
           checked={detail.viewerCanPublish}
           disabled={shareBusy || !detail.isActive}
-          label="允许所有成员共享屏幕"
-          hint="立刻对房里在线的人生效，不用他们刷新页面。只影响浏览器共享，OBS 那条路由下面的闸门管。"
+          label={t("rset.share.label")}
+          hint={t("rset.share.hint")}
           onChange={(event) => void setViewerPublish(event.target.checked)}
         />
       </Card>
 
       <Card
-        title="OBS 直播闸门"
-        description="只管 OBS/WHIP 这条路。浏览器的「共享我的屏幕」是另一条路（WebRTC 直连），不受它影响。"
+        title={t("rset.gate.title")}
+        description={t("rset.gate.desc")}
         actions={
-          obsEnabled ? <Badge tone="success" dot>已开启</Badge> : <Badge tone="neutral">已关闭</Badge>
+          obsEnabled ? (
+            <Badge tone="success" dot>
+              {t("rset.gate.on")}
+            </Badge>
+          ) : (
+            <Badge tone="neutral">{t("rset.gate.off")}</Badge>
+          )
         }
       >
         <Switch
           checked={obsEnabled}
           disabled={gateBusy || !detail.isActive}
-          label="允许 OBS 往这个房间推流"
-          hint="关闭会立刻掐断正在推的 OBS，并作废本房间已生成的全部推流地址。"
+          label={t("rset.gate.label")}
+          hint={t("rset.gate.hint")}
           onChange={(event) => {
             // 关是破坏性的（地址会作废），先确认；开则直接生效
             if (event.target.checked) void setGate(true);
@@ -1035,9 +1076,9 @@ function RoomSettingsPanel({
         open={closingGate}
         danger
         busy={gateBusy}
-        title="关闭 OBS 直播"
-        confirmLabel="关闭"
-        body="正在推的 OBS 会立刻断开，本房间所有人已生成的推流地址一并作废。重新打开后要各自再生成一次，并把 OBS 里的 Bearer Token 换成新的。确定关闭？"
+        title={t("rset.gate.closeTitle")}
+        confirmLabel={t("rset.gate.closeConfirm")}
+        body={t("rset.gate.closeBody")}
         onConfirm={() => void setGate(false)}
         onClose={() => setClosingGate(false)}
       />
@@ -1056,6 +1097,7 @@ function MembersPanel({
   members: Member[];
   onChanged: () => Promise<void>;
 }) {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"viewer" | "publisher">("viewer");
   const [busy, setBusy] = useState(false);
@@ -1068,7 +1110,7 @@ function MembersPanel({
       setEmail("");
       await onChanged();
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
@@ -1076,18 +1118,17 @@ function MembersPanel({
 
   return (
     <Card
-      title="成员"
-      description="不在这张表里的人签不出 token，也就订阅不到任何画面 —— 这是协议层的限制，不是前端过滤。改权限和踢人在画面左侧的成员卡片上右键。"
-      actions={<Badge tone="neutral">{members.length} 人</Badge>}
+      title={t("members.title")}
+      description={t("members.desc")}
+      actions={<Badge tone="neutral">{t("members.count", { count: members.length })}</Badge>}
     >
-
       <div className="mx-table-wrap">
         <table className="mx-table">
           <thead>
             <tr>
-              <th>成员</th>
-              <th data-shrink="true">权限</th>
-              <th data-shrink="true">状态</th>
+              <th>{t("members.col.member")}</th>
+              <th data-shrink="true">{t("members.col.permission")}</th>
+              <th data-shrink="true">{t("members.col.status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -1100,15 +1141,15 @@ function MembersPanel({
                   </span>
                 </td>
                 <td data-shrink="true">
-                  <Badge tone={roleTone(member.role)}>{roleLabel(member.role)}</Badge>
+                  <Badge tone={roleTone(member.role)}>{roleLabel(t, member.role)}</Badge>
                 </td>
                 <td data-shrink="true">
                   {member.isOnline ? (
                     <Badge tone="success" dot>
-                      在线
+                      {t("members.onlineTag")}
                     </Badge>
                   ) : (
-                    <Badge tone="neutral">离线</Badge>
+                    <Badge tone="neutral">{t("members.offlineTag")}</Badge>
                   )}
                 </td>
               </tr>
@@ -1123,29 +1164,29 @@ function MembersPanel({
           <form className="mx-field-row" onSubmit={add}>
             <div style={{ flex: 1, minWidth: 220 }}>
               <TextField
-                label="邀请已注册的用户"
+                label={t("members.invite")}
                 type="email"
                 required
                 placeholder="user@example.com"
-                hint="对方需要先注册本站账号。没账号的人用「邀请」标签页发链接。"
+                hint={t("members.inviteHint")}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
               />
             </div>
             <div style={{ width: 150 }}>
               <Select
-                label="权限"
+                label={t("members.permission")}
                 value={role}
                 onChange={(event) => setRole(event.target.value as "viewer" | "publisher")}
                 options={[
-                  { value: "viewer", label: "仅观看" },
-                  { value: "publisher", label: "可推流" },
+                  { value: "viewer", label: t("label.role.viewer") },
+                  { value: "publisher", label: t("label.role.publisher") },
                 ]}
               />
             </div>
             <Button type="submit" variant="primary" disabled={busy}>
               <Icon name="plus" size={15} />
-              添加
+              {t("members.add")}
             </Button>
           </form>
         </>
@@ -1156,6 +1197,7 @@ function MembersPanel({
 
 /** 邀请链接：房主不必知道对方邮箱就能拉人。 */
 function InvitePanel({ code }: { code: string }) {
+  const { locale, t } = useI18n();
   const [invites, setInvites] = useState<Invite[]>([]);
   const [role, setRole] = useState<"viewer" | "publisher">("viewer");
   const [expires, setExpires] = useState("24");
@@ -1170,8 +1212,8 @@ function InvitePanel({ code }: { code: string }) {
   }, [code]);
 
   useEffect(() => {
-    load().catch((error) => toast.error(humanizeError(error)));
-  }, [load]);
+    load().catch((error) => toast.error(humanizeError(t, error)));
+  }, [load, t]);
 
   async function create(event: React.FormEvent) {
     event.preventDefault();
@@ -1188,7 +1230,7 @@ function InvitePanel({ code }: { code: string }) {
       setFresh(res.joinUrl);
       await load();
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
@@ -1202,7 +1244,7 @@ function InvitePanel({ code }: { code: string }) {
       setRevoking(null);
       await load();
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
       setRevoking(null);
     } finally {
       setBusy(false);
@@ -1213,16 +1255,17 @@ function InvitePanel({ code }: { code: string }) {
 
   return (
     <Card
-      title="邀请链接"
-      description="对方打开链接、登录（或注册）后自动入房。链接只在创建时显示一次，之后库里只有哈希。"
-      actions={<Badge tone="neutral">{active.length} 个有效</Badge>}
+      title={t("invite.title")}
+      description={t("invite.desc")}
+      actions={
+        <Badge tone="neutral">{t("invite.activeCount", { count: active.length })}</Badge>
+      }
     >
-
       {fresh && (
-        <Banner tone="success" title="新链接已生成，请立刻复制">
-          <span className="mx-text-caption">这一次之后就再也看不到它了。</span>
+        <Banner tone="success" title={t("invite.freshTitle")}>
+          <span className="mx-text-caption">{t("invite.freshBody")}</span>
           <div style={{ marginTop: "var(--mx-space-sm)" }}>
-            <CopyRow value={fresh} label="邀请链接" />
+            <CopyRow value={fresh} label={t("invite.linkLabel")} />
           </div>
         </Banner>
       )}
@@ -1230,38 +1273,38 @@ function InvitePanel({ code }: { code: string }) {
       <form className="mx-field-row" onSubmit={create}>
         <div style={{ width: 150 }}>
           <Select
-            label="权限"
+            label={t("members.permission")}
             value={role}
             onChange={(event) => setRole(event.target.value as "viewer" | "publisher")}
             options={[
-              { value: "viewer", label: "仅观看" },
-              { value: "publisher", label: "可推流" },
+              { value: "viewer", label: t("label.role.viewer") },
+              { value: "publisher", label: t("label.role.publisher") },
             ]}
           />
         </div>
         <div style={{ width: 170 }}>
           <TextField
-            label="有效小时数"
+            label={t("invite.hours")}
             type="number"
             min={1}
-            placeholder="空 = 永久"
+            placeholder={t("invite.hoursPlaceholder")}
             value={expires}
             onChange={(event) => setExpires(event.target.value)}
           />
         </div>
         <div style={{ width: 170 }}>
           <TextField
-            label="可用次数"
+            label={t("invite.uses")}
             type="number"
             min={1}
-            placeholder="空 = 不限"
+            placeholder={t("invite.usesPlaceholder")}
             value={maxUses}
             onChange={(event) => setMaxUses(event.target.value)}
           />
         </div>
         <Button type="submit" variant="primary" disabled={busy}>
           <Icon name="link" size={15} />
-          {busy ? "生成中…" : "生成链接"}
+          {busy ? t("invite.creating") : t("invite.create")}
         </Button>
       </form>
 
@@ -1270,9 +1313,9 @@ function InvitePanel({ code }: { code: string }) {
           <table className="mx-table">
             <thead>
               <tr>
-                <th data-shrink="true">权限</th>
-                <th data-shrink="true">已用</th>
-                <th>过期时间</th>
+                <th data-shrink="true">{t("invite.col.permission")}</th>
+                <th data-shrink="true">{t("invite.col.used")}</th>
+                <th>{t("invite.col.expires")}</th>
                 <th data-shrink="true" data-align="right" />
               </tr>
             </thead>
@@ -1280,24 +1323,26 @@ function InvitePanel({ code }: { code: string }) {
               {active.map((invite) => (
                 <tr key={invite.id}>
                   <td data-shrink="true">
-                    <Badge tone={roleTone(invite.role)}>{roleLabel(invite.role)}</Badge>
+                    <Badge tone={roleTone(invite.role)}>{roleLabel(t, invite.role)}</Badge>
                   </td>
                   <td data-shrink="true">
                     {invite.useCount}
                     <span className="mx-text-muted">
-                      {invite.maxUses === null ? " / 不限" : ` / ${invite.maxUses}`}
+                      {invite.maxUses === null
+                        ? t("invite.unlimitedSuffix")
+                        : ` / ${invite.maxUses}`}
                     </span>
                   </td>
                   <td>
                     {invite.expiresAt ? (
-                      formatTime(invite.expiresAt)
+                      formatTime(locale, invite.expiresAt)
                     ) : (
-                      <span className="mx-text-muted">永久</span>
+                      <span className="mx-text-muted">{t("invite.forever")}</span>
                     )}
                   </td>
                   <td data-shrink="true" data-align="right">
                     <Button variant="secondary" size="sm" onClick={() => setRevoking(invite)}>
-                      撤销
+                      {t("invite.revoke")}
                     </Button>
                   </td>
                 </tr>
@@ -1311,9 +1356,9 @@ function InvitePanel({ code }: { code: string }) {
         open={revoking !== null}
         danger
         busy={busy}
-        title="撤销邀请链接"
-        confirmLabel="撤销"
-        body="撤销后这条链接立刻失效，已经用它入房的人不受影响。"
+        title={t("invite.revokeTitle")}
+        confirmLabel={t("invite.revoke")}
+        body={t("invite.revokeBody")}
         onConfirm={() => void revoke()}
         onClose={() => setRevoking(null)}
       />
@@ -1323,6 +1368,7 @@ function InvitePanel({ code }: { code: string }) {
 
 /** 房间黑名单。被拉黑的人即使拿到邀请链接也进不来。 */
 function BansPanel({ code }: { code: string }) {
+  const { locale, t } = useI18n();
   const [bans, setBans] = useState<Ban[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -1333,11 +1379,11 @@ function BansPanel({ code }: { code: string }) {
       const res = await api<{ bans: Ban[] }>(`/api/rooms/${code}/bans`);
       setBans(res.bans);
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setLoading(false);
     }
-  }, [code]);
+  }, [code, t]);
 
   useEffect(() => {
     void load();
@@ -1349,7 +1395,7 @@ function BansPanel({ code }: { code: string }) {
       await api(`/api/rooms/${code}/bans?userId=${userId}`, { method: "DELETE" });
       await load();
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
@@ -1357,24 +1403,23 @@ function BansPanel({ code }: { code: string }) {
 
   return (
     <Card
-      title="黑名单"
-      description="在这张表里的人进不了这个房间 —— 邀请链接对他们也无效。解除拉黑不会自动把人加回成员，需要你再请他一次。"
-      actions={<Badge tone="neutral">{bans.length} 人</Badge>}
+      title={t("bans.title")}
+      description={t("bans.desc")}
+      actions={<Badge tone="neutral">{t("bans.count", { count: bans.length })}</Badge>}
     >
-
       {loading ? (
         <Loading />
       ) : bans.length === 0 ? (
-        <EmptyState icon="ban" title="黑名单是空的">
-          在画面左侧的成员卡片上右键，选「移出并加入黑名单」就会出现在这里。
+        <EmptyState icon="ban" title={t("bans.emptyTitle")}>
+          {t("bans.emptyBody")}
         </EmptyState>
       ) : (
         <div className="mx-table-wrap">
           <table className="mx-table">
             <thead>
               <tr>
-                <th>用户</th>
-                <th>拉黑时间</th>
+                <th>{t("bans.col.user")}</th>
+                <th>{t("bans.col.at")}</th>
                 <th data-shrink="true" data-align="right" />
               </tr>
             </thead>
@@ -1387,7 +1432,7 @@ function BansPanel({ code }: { code: string }) {
                       <span className="mx-cell__hint">{ban.email}</span>
                     </span>
                   </td>
-                  <td>{formatTime(ban.createdAt)}</td>
+                  <td>{formatTime(locale, ban.createdAt)}</td>
                   <td data-shrink="true" data-align="right">
                     <Button
                       variant="secondary"
@@ -1395,7 +1440,7 @@ function BansPanel({ code }: { code: string }) {
                       disabled={busy}
                       onClick={() => void unban(ban.userId)}
                     >
-                      解除拉黑
+                      {t("bans.unban")}
                     </Button>
                   </td>
                 </tr>
@@ -1410,6 +1455,7 @@ function BansPanel({ code }: { code: string }) {
 
 /** 房间操作日志 —— 排查用。 */
 function LogsPanel({ code }: { code: string }) {
+  const { locale, t } = useI18n();
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1419,11 +1465,11 @@ function LogsPanel({ code }: { code: string }) {
       const res = await api<{ logs: LogRow[] }>(`/api/rooms/${code}/logs`);
       setLogs(res.logs);
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setLoading(false);
     }
-  }, [code]);
+  }, [code, t]);
 
   useEffect(() => {
     void load();
@@ -1431,28 +1477,28 @@ function LogsPanel({ code }: { code: string }) {
 
   return (
     <Card
-      title="操作日志"
-      description="房间里发生过的动作，按时间倒序。"
+      title={t("logs.title")}
+      description={t("logs.desc")}
       actions={
         <Button variant="secondary" size="sm" onClick={() => void load()}>
           <Icon name="refresh" size={14} />
-          刷新
+          {t("common.refresh")}
         </Button>
       }
     >
       {loading ? (
         <Loading />
       ) : logs.length === 0 ? (
-        <EmptyState icon="logs" title="暂无记录">
-          建房、生成推流地址、成员进出这些动作都会记在这里。
+        <EmptyState icon="logs" title={t("logs.emptyTitle")}>
+          {t("logs.emptyBody")}
         </EmptyState>
       ) : (
         <div className="mx-logs">
           {logs.map((log) => (
             <div key={log.id} className="mx-log">
-              <span className="mx-log__time">{formatTime(log.createdAt)}</span>
+              <span className="mx-log__time">{formatTime(locale, log.createdAt)}</span>
               <span className="mx-log__action">{log.action}</span>
-              <span className="mx-log__actor">{log.actor ?? "系统"}</span>
+              <span className="mx-log__actor">{log.actor ?? t("logs.system")}</span>
             </div>
           ))}
         </div>
@@ -1476,6 +1522,7 @@ function CreateSyncPlayerModal({
   onClose: () => void;
   onCreated: (player: SyncPlayerRow) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -1490,33 +1537,31 @@ function CreateSyncPlayerModal({
       setName("");
       onCreated(res.player);
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Modal open={open} title="新建同步播放器" onClose={onClose}>
+    <Modal open={open} title={t("sync.new.title")} onClose={onClose}>
       <form className="mx-form" onSubmit={submit}>
         <p className="mx-text-caption">
-          建好之后它会出现在画面右侧。你（创建者）就是放映端 ——
-          你的播放进度是权威的，房里其他人自动对齐到你这里。
-          视频由每个人的浏览器直连片源读取，<b>不经过本站服务器，也不经过 LiveKit</b>。
+          <RichText text={t("sync.new.intro")} />
         </p>
 
         <TextField
-          label="播放器名字"
+          label={t("sync.new.name")}
           required
           maxLength={60}
-          placeholder="例如：周五观影"
+          placeholder={t("sync.new.namePlaceholder")}
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
 
         <Button type="submit" variant="primary" full disabled={busy || name.trim() === ""}>
           <Icon name="film" size={15} />
-          {busy ? "创建中…" : "创建"}
+          {busy ? t("sync.new.creating") : t("sync.new.create")}
         </Button>
       </form>
     </Modal>
@@ -1540,54 +1585,53 @@ function IngressTipModal({
   detail: RoomDetail;
   onClose: () => void;
 }) {
-  const publishable = detail.canPublish && detail.obsEnabled && detail.node.ingressAvailable !== false;
+  const t = useT();
+  const publishable =
+    detail.canPublish && detail.obsEnabled && detail.node.ingressAvailable !== false;
   const { ingress, busy, generate } = useIngress(code, open && publishable);
 
   return (
     <Modal
       open={open}
-      title="欢迎，先认一下推流地址"
+      title={t("room.tip.title")}
       onClose={onClose}
       footer={
         <Button variant="primary" onClick={onClose}>
-          知道了
+          {t("common.gotIt")}
         </Button>
       }
     >
       <p>
-        这个房间有两条把画面推上来的路：画面上方的<b>「共享我的屏幕」</b>
-        （浏览器直连，点一下就能用），以及下面这个 <b>OBS 推流地址</b>。
+        <RichText text={t("room.tip.intro")} />
       </p>
 
       {!publishable ? (
-        <Banner tone="info" title="你这个房间暂时没有推流地址">
+        <Banner tone="info" title={t("room.tip.noneTitle")}>
           {!detail.canPublish
-            ? "房主把你设成了「仅观看」。"
+            ? t("room.tip.noneViewer")
             : !detail.obsEnabled
-              ? "房主关闭了这个房间的 OBS 通道。"
-              : "这个节点的 Ingress 不可用。"}
+              ? t("room.tip.noneGate")
+              : t("room.tip.noneIngress")}
           <br />
-          仍然可以用「共享我的屏幕」从浏览器直接推。
+          {t("room.tip.noneFoot")}
         </Banner>
       ) : ingress ? (
         <>
           <div className="mx-field">
-            <span className="mx-field__label">Server（OBS → 设置 → 直播 → 服务选 WHIP）</span>
-            <CopyRow value={ingress.server} label="Server 地址" />
+            <span className="mx-field__label">{t("room.tip.serverLabel")}</span>
+            <CopyRow value={ingress.server} label={t("obs.serverShort")} />
           </div>
           <div className="mx-field">
-            <span className="mx-field__label">Bearer Token（就是 Stream Key）</span>
-            <CopyRow value={ingress.bearerToken} secret label="Bearer Token" />
+            <span className="mx-field__label">{t("obs.tokenLabel")}</span>
+            <CopyRow value={ingress.bearerToken} secret label={t("obs.tokenShort")} />
           </div>
         </>
       ) : (
         <>
-          <p className="mx-text-caption">
-            你还没生成过推流地址。它绑定到「你 + 这个房间」，别人拿不到也用不了。
-          </p>
+          <p className="mx-text-caption">{t("room.tip.notGenerated")}</p>
           <Button variant="secondary" disabled={busy} onClick={() => void generate(false)}>
             <Icon name="broadcast" size={15} />
-            {busy ? "生成中…" : "现在生成"}
+            {busy ? t("obs.generating") : t("room.tip.generateNow")}
           </Button>
         </>
       )}

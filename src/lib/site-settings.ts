@@ -11,7 +11,7 @@ import { ApiError } from "./http";
 const REGISTRATION_KEY = "registration_enabled";
 
 /** 关闭注册后，所有「这一步会新建账号」的路径都回这一句。 */
-export const REGISTRATION_CLOSED_MESSAGE = "本站点禁止注册。如需账号请联系管理员。";
+export const REGISTRATION_CLOSED_MESSAGE = "api.registrationClosed";
 
 /**
  * 注册开着没有。

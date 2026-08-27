@@ -10,7 +10,8 @@
  * 那个 PNG 由 scripts/render-logo-png.mjs 从同一份几何生成，见 public/logo-mark-email.png。
  */
 
-import { APP_NAME, APP_TAGLINE } from "./brand";
+import { LOCALE_HTML_LANG, type Locale, type TFunction } from "@/i18n";
+import { APP_NAME } from "./brand";
 
 /* tokens.css 浅色档的对应值 */
 const ACCENT = "#5640c9";
@@ -32,43 +33,53 @@ export type CodeMailInput = {
   minutes: number;
   /** 站点根地址，用来拼 LOGO 的绝对地址 —— 邮件里不能用相对路径 */
   appUrl: string;
+  /**
+   * 收件人的语言。
+   *
+   * 用**发起这次请求的语言**，而不是账号上存的偏好：验证码邮件是「我刚才点了发送」
+   * 的即时回应，所以此刻界面是什么语言，邮件就该是什么语言 —— 而且这封信可能发给
+   * 一个还没有账号的邮箱，那种情况下也没有偏好可查。
+   */
+  locale: Locale;
+  t: TFunction;
 };
 
 /** 主题行。收件箱里一眼能认出是谁发的、干什么用的。 */
-export function codeMailSubject(code: string): string {
-  return `${code} 是你的 ${APP_NAME} 验证码`;
+export function codeMailSubject(code: string, t: TFunction): string {
+  return t("mail.subject", { code, app: APP_NAME });
 }
 
 /**
  * 纯文本兜底。
  * 只发 HTML 的邮件会被相当多的垃圾邮件规则加分，而且文本客户端会显示成一片空白。
  */
-export function codeMailText({ code, minutes }: CodeMailInput): string {
+export function codeMailText({ code, minutes, t }: CodeMailInput): string {
   return [
     APP_NAME,
     "",
-    `你的登录验证码是：${code}`,
+    t("mail.textLead", { code }),
     "",
-    `${minutes} 分钟内有效，只能使用一次。`,
-    "如果不是你本人在登录，忽略这封邮件即可 —— 没有验证码，别人进不来。",
+    t("mail.validity", { minutes }),
+    t("mail.textSafety"),
   ].join("\n");
 }
 
-export function codeMailHtml({ code, minutes, appUrl }: CodeMailInput): string {
+export function codeMailHtml({ code, minutes, appUrl, locale, t }: CodeMailInput): string {
   const logo = `${appUrl}/logo-mark-email.png`;
+  const host = appUrl.replace(/^https?:\/\//, "");
 
   // 验证码逐字符切开，字间距靠 letter-spacing 撑 —— 比整串显示好读，也不容易看错 0/O
   return `<!doctype html>
-<html lang="zh-CN">
+<html lang="${LOCALE_HTML_LANG[locale]}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${APP_NAME} 验证码</title>
+<title>${t("mail.title", { app: APP_NAME })}</title>
 </head>
 <body style="margin:0;padding:0;background:${BG_BASE};">
   <!-- 预览文字：收件箱列表里显示在标题后面的那一句 -->
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
-    验证码 ${code}，${minutes} 分钟内有效。
+    ${t("mail.preview", { code, minutes })}
   </div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
@@ -91,7 +102,7 @@ export function codeMailHtml({ code, minutes, appUrl }: CodeMailInput): string {
                 ${APP_NAME}
               </div>
               <div style="font-size:13px;line-height:18px;color:${TEXT_TERTIARY};padding-top:2px;">
-                ${APP_TAGLINE}
+                ${t("brand.tagline")}
               </div>
             </td>
           </tr>
@@ -100,14 +111,14 @@ export function codeMailHtml({ code, minutes, appUrl }: CodeMailInput): string {
           <tr>
             <td align="center" style="padding:26px 32px 8px 32px;font-family:${FONT};">
               <div style="font-size:15px;line-height:22px;color:${TEXT_PRIMARY};padding-bottom:16px;">
-                用下面这个验证码继续登录：
+                ${t("mail.lead")}
               </div>
               <div style="background:${ACCENT_SOFT};border-radius:12px;padding:18px 24px;">
                 <span style="font-family:${MONO};font-size:32px;line-height:40px;font-weight:700;
                              letter-spacing:8px;color:${ACCENT_TEXT};">${code}</span>
               </div>
               <div style="font-size:13px;line-height:18px;color:${TEXT_TERTIARY};padding-top:14px;">
-                ${minutes} 分钟内有效，只能使用一次。
+                ${t("mail.validity", { minutes })}
               </div>
             </td>
           </tr>
@@ -117,8 +128,7 @@ export function codeMailHtml({ code, minutes, appUrl }: CodeMailInput): string {
             <td style="padding:22px 32px 30px 32px;font-family:${FONT};">
               <div style="border-top:1px solid ${STROKE};padding-top:18px;font-size:13px;
                           line-height:20px;color:${TEXT_TERTIARY};">
-                不是你本人在登录？忽略这封邮件即可 —— 没有这串验证码，别人进不来。
-                本站不会通过任何渠道向你索取验证码。
+                ${t("mail.safety")}
               </div>
             </td>
           </tr>
@@ -126,7 +136,7 @@ export function codeMailHtml({ code, minutes, appUrl }: CodeMailInput): string {
 
         <div style="max-width:480px;padding:16px 8px 0 8px;font-family:${FONT};font-size:12px;
                     line-height:18px;color:${TEXT_TERTIARY};text-align:center;">
-          这封邮件由 <a href="${appUrl}" style="color:${ACCENT};text-decoration:none;">${appUrl.replace(/^https?:\/\//, "")}</a> 自动发出。
+          ${t("mail.autoSent", { host: `<a href="${appUrl}" style="color:${ACCENT};text-decoration:none;">${host}</a>` })}
         </div>
       </td>
     </tr>

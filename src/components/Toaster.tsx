@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { dismissToast, subscribeToasts, type ToastItem, type ToastTone } from "@/lib/toast";
+import { useT } from "@/i18n";
 import { Icon, type IconName } from "@/ui";
 
 const ICONS: Record<ToastTone, IconName> = {
@@ -20,6 +21,7 @@ const ICONS: Record<ToastTone, IconName> = {
  * 而且在弹窗里报的错常常被挡住看不见。
  */
 export function Toaster(): ReactNode {
+  const t = useT();
   const [items, setItems] = useState<ToastItem[]>([]);
   const [mounted, setMounted] = useState(false);
 
@@ -31,7 +33,7 @@ export function Toaster(): ReactNode {
   if (!mounted || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="mx-toasts" role="region" aria-label="通知">
+    <div className="mx-toasts" role="region" aria-label={t("common.notifications")}>
       {items.map((item) => (
         <Toast key={item.id} item={item} />
       ))}
@@ -41,6 +43,7 @@ export function Toaster(): ReactNode {
 }
 
 function Toast({ item }: { item: ToastItem }): ReactNode {
+  const t = useT();
   /** 关闭前先播退场动画，不然卡片是硬消失的。 */
   const [leaving, setLeaving] = useState(false);
 
@@ -81,7 +84,7 @@ function Toast({ item }: { item: ToastItem }): ReactNode {
       <button
         type="button"
         className="mx-toast__close"
-        aria-label="关闭通知"
+        aria-label={t("common.dismissNotification")}
         onClick={() => setLeaving(true)}
       >
         <Icon name="x" size={14} />

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { api } from "@/lib/api-client";
 import type { NodeSummary, RoomRow } from "@/lib/api-types";
+import { useT, type TFunction } from "@/i18n";
 import { humanizeError } from "@/lib/error-text";
 import { roleLabel, roleTone } from "@/lib/labels";
 import { toast } from "@/lib/toast";
@@ -32,27 +33,31 @@ import {
 const FULL_CODE = /^[2-9a-hjkmnp-z]{10}$/;
 
 export function DashboardClient({ user }: { user: ShellUser }) {
+  const t = useT();
   const router = useRouter();
   const [nodes, setNodes] = useState<NodeSummary[]>([]);
   const [rooms, setRooms] = useState<RoomRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
-  const refresh = useCallback(async (silent = false) => {
-    try {
-      const [nodeRes, roomRes] = await Promise.all([
-        api<{ nodes: NodeSummary[] }>("/api/nodes"),
-        api<{ rooms: RoomRow[] }>("/api/rooms"),
-      ]);
-      setNodes(nodeRes.nodes);
-      setRooms(roomRes.rooms);
-      if (silent) toast.success("已刷新");
-    } catch (error) {
-      toast.error(humanizeError(error));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const refresh = useCallback(
+    async (silent = false) => {
+      try {
+        const [nodeRes, roomRes] = await Promise.all([
+          api<{ nodes: NodeSummary[] }>("/api/nodes"),
+          api<{ rooms: RoomRow[] }>("/api/rooms"),
+        ]);
+        setNodes(nodeRes.nodes);
+        setRooms(roomRes.rooms);
+        if (silent) toast.success(t("dash.refreshed"));
+      } catch (error) {
+        toast.error(humanizeError(t, error));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
     void refresh();
@@ -66,17 +71,25 @@ export function DashboardClient({ user }: { user: ShellUser }) {
     <AppShell
       user={user}
       loading={loading}
-      loadingLabel="正在加载房间…"
-      heading={<span>房间</span>}
+      loadingLabel={t("dash.loading")}
+      heading={<span>{t("dash.heading")}</span>}
       status={
         <>
-          <span className="mx-statusbar__item">房间 {rooms.length}</span>
+          <span className="mx-statusbar__item">
+            {t("dash.stat.rooms", { count: rooms.length })}
+          </span>
           <span className="mx-statusbar__divider" />
-          <span className="mx-statusbar__item">活跃 {activeRooms}</span>
+          <span className="mx-statusbar__item">
+            {t("dash.stat.active", { count: activeRooms })}
+          </span>
           <span className="mx-statusbar__divider" />
-          <span className="mx-statusbar__item">在线 {totalOnline}</span>
+          <span className="mx-statusbar__item">
+            {t("dash.stat.online", { count: totalOnline })}
+          </span>
           <span className="mx-statusbar__divider" />
-          <span className="mx-statusbar__item">可用节点 {usableNodes.length}</span>
+          <span className="mx-statusbar__item">
+            {t("dash.stat.nodes", { count: usableNodes.length })}
+          </span>
         </>
       }
     >
@@ -86,20 +99,18 @@ export function DashboardClient({ user }: { user: ShellUser }) {
 
         <header className="mx-section__header">
           <div className="mx-section__heading">
-            <h2 className="mx-section__title">我加入的房间</h2>
-            <p className="mx-section__subtitle">
-              点卡片直接进入。每个房间绑定一个 LiveKit 节点，媒体流量只走那个节点。
-            </p>
+            <h2 className="mx-section__title">{t("dash.title")}</h2>
+            <p className="mx-section__subtitle">{t("dash.subtitle")}</p>
           </div>
           <span className="mx-section__spacer" />
           <div className="mx-section__actions">
             <Button variant="secondary" size="sm" onClick={() => void refresh(true)}>
               <Icon name="refresh" size={14} />
-              刷新
+              {t("common.refresh")}
             </Button>
             <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
               <Icon name="plus" size={14} />
-              创建房间
+              {t("dash.create")}
             </Button>
           </div>
         </header>
@@ -107,21 +118,24 @@ export function DashboardClient({ user }: { user: ShellUser }) {
         {rooms.length === 0 ? (
           <EmptyState
             icon="rooms"
-            title="还没有房间"
+            title={t("dash.empty.title")}
             actions={
               <Button variant="primary" onClick={() => setCreating(true)}>
                 <Icon name="plus" size={16} />
-                创建第一个房间
+                {t("dash.empty.action")}
               </Button>
             }
           >
-            建一个房间，就能拿到属于你自己的 OBS 推流地址，或者直接从浏览器共享屏幕。
-            别人给你房间码的话，用上面的搜索框进去。
+            {t("dash.empty.body")}
           </EmptyState>
         ) : (
           <div className="mx-roomgrid">
             {rooms.map((room) => (
-              <RoomCard key={room.code} room={room} onEnter={() => router.push(`/room/${room.code}`)} />
+              <RoomCard
+                key={room.code}
+                room={room}
+                onEnter={() => router.push(`/room/${room.code}`)}
+              />
             ))}
           </div>
         )}
@@ -133,7 +147,7 @@ export function DashboardClient({ user }: { user: ShellUser }) {
         onClose={() => setCreating(false)}
         onCreated={async (code) => {
           setCreating(false);
-          toast.success("房间已创建");
+          toast.success(t("dash.created"));
           await refresh();
           router.push(`/room/${code}`);
         }}
@@ -153,6 +167,7 @@ function RoomFinder({
   rooms: RoomRow[];
   onEnter: (code: string) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   /** 键盘上下选中的那一项 */
@@ -249,8 +264,8 @@ function RoomFinder({
           <input
             type="text"
             className="mx-finder__input"
-            placeholder="输入房间码进入，或搜索我的房间"
-            aria-label="输入房间码或搜索房间"
+            placeholder={t("dash.find.placeholder")}
+            aria-label={t("dash.find.label")}
             autoComplete="off"
             spellCheck={false}
             value={query}
@@ -265,7 +280,7 @@ function RoomFinder({
             <button
               type="button"
               className="mx-finder__clear"
-              aria-label="清空"
+              aria-label={t("dash.find.clear")}
               onClick={() => {
                 setQuery("");
                 setOpen(false);
@@ -279,9 +294,7 @@ function RoomFinder({
         {showList && (
           <div className="mx-finder__menu" role="listbox">
             {options.length === 0 ? (
-              <div className="mx-finder__hint">
-                没有匹配的房间。房间码是 10 位小写字母和数字，检查一下有没有敲错。
-              </div>
+              <div className="mx-finder__hint">{t("dash.find.noMatch")}</div>
             ) : (
               options.map((option, index) =>
                 option.kind === "room" ? (
@@ -301,16 +314,17 @@ function RoomFinder({
                     <span className="mx-finder__item-main">
                       <span className="mx-finder__item-name">{option.room.name}</span>
                       <span className="mx-finder__item-meta">
-                        <code>{option.room.code}</code> · 节点 {option.room.nodeName}
+                        <code>{option.room.code}</code> ·{" "}
+                        {t("dash.find.node", { name: option.room.nodeName })}
                       </span>
                     </span>
                     <span className="mx-finder__item-side">
                       {option.room.isActive ? (
                         <Badge tone="success" dot>
-                          {option.room.onlineCount}/{option.room.memberCount} 人
+                          {option.room.onlineCount}/{option.room.memberCount}
                         </Badge>
                       ) : (
-                        <Badge tone="neutral">已关闭</Badge>
+                        <Badge tone="neutral">{t("dash.find.closed")}</Badge>
                       )}
                       <Icon name="chevronRight" size={15} />
                     </span>
@@ -331,11 +345,9 @@ function RoomFinder({
                     </span>
                     <span className="mx-finder__item-main">
                       <span className="mx-finder__item-name">
-                        直接进入 <code>{option.code}</code>
+                        {t("dash.find.direct")} <code>{option.code}</code>
                       </span>
-                      <span className="mx-finder__item-meta">
-                        这不是你已加入的房间 —— 只有被邀请过才进得去。
-                      </span>
+                      <span className="mx-finder__item-meta">{t("dash.find.directHint")}</span>
                     </span>
                     <span className="mx-finder__item-side">
                       <Icon name="chevronRight" size={15} />
@@ -356,6 +368,7 @@ function RoomFinder({
    ============================================================ */
 
 function RoomCard({ room, onEnter }: { room: RoomRow; onEnter: () => void }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   async function copyCode(event: React.MouseEvent) {
@@ -364,10 +377,10 @@ function RoomCard({ room, onEnter }: { room: RoomRow; onEnter: () => void }) {
     try {
       await navigator.clipboard.writeText(room.code);
       setCopied(true);
-      toast.success("房间码已复制");
+      toast.success(t("dash.card.codeCopied"));
       setTimeout(() => setCopied(false), 1600);
     } catch {
-      toast.error("浏览器不允许写剪贴板，手动选中复制吧。");
+      toast.error(t("dash.card.clipboardBlocked"));
     }
   }
 
@@ -380,12 +393,12 @@ function RoomCard({ room, onEnter }: { room: RoomRow; onEnter: () => void }) {
         <span className="mx-roomcard__badges">
           {room.isActive ? (
             <Badge tone="success" dot>
-              活跃
+              {t("dash.card.active")}
             </Badge>
           ) : (
-            <Badge tone="neutral">已关闭</Badge>
+            <Badge tone="neutral">{t("dash.card.closed")}</Badge>
           )}
-          <Badge tone={roleTone(room.role)}>{roleLabel(room.role)}</Badge>
+          <Badge tone={roleTone(room.role)}>{roleLabel(t, room.role)}</Badge>
         </span>
       </span>
 
@@ -397,8 +410,8 @@ function RoomCard({ room, onEnter }: { room: RoomRow; onEnter: () => void }) {
           className="mx-roomcard__copy"
           role="button"
           tabIndex={-1}
-          aria-label="复制房间码"
-          title="复制房间码"
+          aria-label={t("dash.card.copyCode")}
+          title={t("dash.card.copyCode")}
           onClick={(event) => void copyCode(event)}
         >
           <Icon name={copied ? "check" : "copy"} size={14} />
@@ -408,16 +421,16 @@ function RoomCard({ room, onEnter }: { room: RoomRow; onEnter: () => void }) {
       <span className="mx-roomcard__foot">
         <span className="mx-roomcard__people" data-live={room.onlineCount > 0}>
           <Icon name="users" size={14} />
-          {room.onlineCount}/{room.memberCount} 人在线
+          {t("dash.card.online", { online: room.onlineCount, total: room.memberCount })}
         </span>
         <span className="mx-roomcard__node">
-          节点 {room.nodeName}
-          {room.nodeKind === "builtin" ? "（内置）" : ""}
+          {t("dash.card.node", { name: room.nodeName })}
+          {room.nodeKind === "builtin" ? t("dash.card.nodeBuiltin") : ""}
         </span>
       </span>
 
       <span className="mx-roomcard__enter">
-        进入
+        {t("dash.card.enter")}
         <Icon name="chevronRight" size={14} />
       </span>
     </button>
@@ -441,6 +454,7 @@ function CreateRoomDialog({
   onClose: () => void;
   onCreated: (code: string) => Promise<void>;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [nodeId, setNodeId] = useState("");
   const [draft, setDraft] = useState<NodeDraft>(emptyNodeDraft());
@@ -458,11 +472,9 @@ function CreateRoomDialog({
   const options = [
     ...nodes.map((node) => ({
       value: node.id,
-      label: `${node.name}${node.kind === "builtin" ? "（内置 · 共享额度）" : "（我的）"}${
-        node.capabilities?.ingress === false ? " · 无 OBS 推流" : ""
-      }`,
+      label: nodeOptionLabel(t, node),
     })),
-    { value: NEW_NODE, label: "+ 接入一套新的 LiveKit 凭据…" },
+    { value: NEW_NODE, label: t("dash.new.nodeNew") },
   ];
 
   async function submit(event: React.FormEvent) {
@@ -481,7 +493,7 @@ function CreateRoomDialog({
       setDraft(emptyNodeDraft());
       await onCreated(room.code);
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setBusy(false);
     }
@@ -490,50 +502,59 @@ function CreateRoomDialog({
   return (
     <Modal
       open={open}
-      title="创建房间"
+      title={t("dash.new.title")}
       onClose={onClose}
       size={bringingOwnNode ? "lg" : "md"}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={busy}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button variant="primary" form="mx-create-room" type="submit" disabled={busy}>
-            {busy ? "创建中…" : "创建房间"}
+            {busy ? t("dash.new.busy") : t("dash.new.title")}
           </Button>
         </>
       }
     >
       <form id="mx-create-room" className="mx-form" onSubmit={submit}>
         <TextField
-          label="房间名"
+          label={t("dash.new.name")}
           required
           autoFocus
-          placeholder="周会演示"
+          placeholder={t("dash.new.namePlaceholder")}
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
 
         <Select
-          label="使用哪个节点"
+          label={t("dash.new.node")}
           options={options}
           value={nodeId}
           onChange={(event) => setNodeId(event.target.value)}
           hint={
             selected?.capabilities?.ingress === false
-              ? "这个节点的 Ingress 不可用，房间里拿不到 OBS 推流地址，但浏览器共享仍然可用。"
-              : "房间建好后不能换节点。"
+              ? t("dash.new.hintNoIngress")
+              : t("dash.new.hintFixed")
           }
         />
 
         {bringingOwnNode && <NodeCredentialFields value={draft} onChange={setDraft} />}
 
         {nodes.length === 0 && !bringingOwnNode && (
-          <Banner tone="warning" title="没有可用节点">
-            选上面的「接入一套新的 LiveKit 凭据」，或者先到「LiveKit 节点」页添加一个。
+          <Banner tone="warning" title={t("dash.new.noNodesTitle")}>
+            {t("dash.new.noNodesBody")}
           </Banner>
         )}
       </form>
     </Modal>
   );
+}
+
+/** 节点下拉里那一行：名字 + 是内置还是自己的 + Ingress 能不能用。 */
+function nodeOptionLabel(t: TFunction, node: NodeSummary): string {
+  const base =
+    node.kind === "builtin"
+      ? t("dash.new.nodeBuiltin", { name: node.name })
+      : t("dash.new.nodeMine", { name: node.name });
+  return node.capabilities?.ingress === false ? `${base}${t("dash.new.nodeNoIngress")}` : base;
 }

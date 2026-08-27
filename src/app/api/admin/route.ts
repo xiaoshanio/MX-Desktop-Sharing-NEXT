@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { livekitNodes, rooms, users } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth";
-import { badRequest, json, readJson, route, parseOr400 } from "@/lib/http";
+import { badRequest, json, readJson, parseOr400 } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { adminUpdateNodeSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -57,7 +58,7 @@ export const GET = route(async () => {
 export const PATCH = route(async (req) => {
   const admin = await requireAdmin();
   const nodeId = new URL(req.url).searchParams.get("nodeId");
-  if (!nodeId) throw badRequest("缺少 nodeId");
+  if (!nodeId) throw badRequest("api.admin.missingNodeId");
 
   const input = await readJson(req, (raw) => parseOr400(adminUpdateNodeSchema, raw));
   const patch: Record<string, unknown> = {};
@@ -76,14 +77,14 @@ export const PATCH = route(async (req) => {
     if (input.allowPublic === undefined) patch.allowPublic = true;
   }
 
-  if (Object.keys(patch).length === 0) throw badRequest("没有要修改的字段");
+  if (Object.keys(patch).length === 0) throw badRequest("api.admin.noFields");
 
   const updated = await db
     .update(livekitNodes)
     .set(patch)
     .where(eq(livekitNodes.id, nodeId))
     .returning({ id: livekitNodes.id });
-  if (updated.length === 0) throw badRequest("节点不存在");
+  if (updated.length === 0) throw badRequest("api.admin.nodeNotFound");
 
   audit({ actorId: admin.id, action: "admin.node.update", detail: { nodeId, ...patch } });
   return json({ ok: true });

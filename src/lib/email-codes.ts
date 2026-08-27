@@ -53,7 +53,9 @@ export async function issueCode(email: string): Promise<{ code: string; expiresA
       throw new ApiError(
         429,
         "too_many_requests",
-        `发得太频繁了，请 ${Math.ceil(RESEND_COOLDOWN_SECONDS - elapsed)} 秒后再试。`,
+        "api.code.tooFast",
+        undefined,
+        { seconds: Math.ceil(RESEND_COOLDOWN_SECONDS - elapsed) },
       );
     }
   }
@@ -69,7 +71,7 @@ export async function issueCode(email: string): Promise<{ code: string; expiresA
     );
 
   if (count >= MAX_PER_HOUR) {
-    throw new ApiError(429, "too_many_requests", "这个邮箱今天要的验证码太多了，请一小时后再试。");
+    throw new ApiError(429, "too_many_requests", "api.code.tooManyToday");
   }
 
   // 旧码一律作废：多个并存等于放大爆破面
@@ -100,10 +102,10 @@ export async function consumeCode(email: string, code: string): Promise<void> {
     .orderBy(desc(emailCodes.createdAt))
     .limit(1);
 
-  if (!row) throw badRequest("没有待验证的验证码，请先点「发送验证码」。");
+  if (!row) throw badRequest("api.code.noPending");
   if (row.expiresAt.getTime() <= now.getTime()) {
     await db.update(emailCodes).set({ consumedAt: now }).where(eq(emailCodes.id, row.id));
-    throw badRequest("验证码已过期，请重新获取。");
+    throw badRequest("api.code.expired");
   }
 
   if (hash(code.trim()) !== row.codeHash) {
@@ -116,7 +118,9 @@ export async function consumeCode(email: string, code: string): Promise<void> {
 
     const left = MAX_ATTEMPTS - attempts;
     throw badRequest(
-      left > 0 ? `验证码不对，还可以试 ${left} 次。` : "验证码错误次数过多，请重新获取。",
+      left > 0 ? "api.code.wrongLeft" : "api.code.tooManyWrong",
+      undefined,
+      { left },
     );
   }
 

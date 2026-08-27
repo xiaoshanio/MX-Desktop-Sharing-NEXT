@@ -6,7 +6,8 @@ import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
 import { encryptSecret } from "@/lib/crypto";
 import { ensureEncryptionKey } from "@/lib/key-store";
-import { badRequest, conflict, forbidden, json, notFound, readJson, route, parseOr400 } from "@/lib/http";
+import { badRequest, conflict, forbidden, json, notFound, readJson, parseOr400 } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { probeCredentials } from "@/lib/livekit";
 import { getNodeById, recheckNode, toSummary } from "@/lib/nodes";
 import { updateNodeSchema } from "@/lib/validation";
@@ -16,7 +17,7 @@ export const runtime = "nodejs";
 async function loadOwned(id: string, userId: string, isAdmin: boolean) {
   const node = await getNodeById(id);
   const mine = node.ownerId === userId;
-  if (!mine && !isAdmin) throw notFound("节点不存在");
+  if (!mine && !isAdmin) throw notFound("api.node.notFound");
   return node;
 }
 
@@ -49,7 +50,7 @@ export const PATCH = route(async (req, ctx: { params: Promise<{ id: string }> })
 
   if (input.apiKey !== undefined || input.apiSecret !== undefined) {
     if (!input.apiKey || !input.apiSecret) {
-      throw badRequest("换密钥必须同时提供 API Key 和 API Secret");
+      throw badRequest("api.node.rotateBothRequired");
     }
     // 先用新凭据体检，避免把一个连不上的节点写进去
     const probe = await probeCredentials({
@@ -60,7 +61,7 @@ export const PATCH = route(async (req, ctx: { params: Promise<{ id: string }> })
       apiKey: input.apiKey,
       apiSecret: input.apiSecret,
     });
-    if (!probe.ok) throw badRequest(`新凭据校验失败：${probe.error}`);
+    if (!probe.ok) throw badRequest("api.node.rotateFailed", undefined, { error: probe.error ?? "" });
 
     await ensureEncryptionKey();
     patch.apiKey = input.apiKey;
@@ -71,7 +72,7 @@ export const PATCH = route(async (req, ctx: { params: Promise<{ id: string }> })
     patch.capabilities = probe.capabilities;
   }
 
-  if (Object.keys(patch).length === 0) throw badRequest("没有要修改的字段");
+  if (Object.keys(patch).length === 0) throw badRequest("api.node.noFields");
 
   await db.update(livekitNodes).set(patch).where(eq(livekitNodes.id, id));
   audit({
@@ -87,13 +88,13 @@ export const DELETE = route(async (_req, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const node = await loadOwned(id, user.id, user.role === "admin");
 
-  if (node.kind === "builtin") throw forbidden("内置节点不可删除，只能在管理页停用");
+  if (node.kind === "builtin") throw forbidden("api.node.builtinNoDelete");
 
   const [row] = await db
     .select({ n: count() })
     .from(rooms)
     .where(and(eq(rooms.nodeId, id), eq(rooms.isActive, true)));
-  if ((row?.n ?? 0) > 0) throw conflict("该节点下还有活跃房间，先关闭这些房间再删");
+  if ((row?.n ?? 0) > 0) throw conflict("api.node.hasActiveRooms");
 
   await db.delete(livekitNodes).where(eq(livekitNodes.id, id));
   audit({ actorId: user.id, action: "node.delete", detail: { nodeId: id } });

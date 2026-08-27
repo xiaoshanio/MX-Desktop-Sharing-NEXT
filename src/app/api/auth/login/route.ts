@@ -5,7 +5,8 @@ import { users } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { createSession } from "@/lib/auth";
 import { adminEmail, requireBootstrapped } from "@/lib/bootstrap";
-import { ApiError, json, readJson, route, parseOr400 } from "@/lib/http";
+import { ApiError, json, readJson, parseOr400 } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { verifyPassword } from "@/lib/password";
 import {
   assertLoginAllowed,
@@ -53,15 +54,12 @@ export const POST = route(async (req) => {
     // 未配置」时才这么说，所以不会泄露任何真实用户账号的存在性；这条信息
     // /api/health 本来也是公开的。判断放在 hash 之后，不影响防时序探测。
     if (!user && !boot.adminConfigured && input.email === adminEmail()) {
-      throw new ApiError(
-        503,
-        "admin_not_configured",
-        `管理员账户还没创建：环境变量 ADMIN_PASSWORD 是空的。设一个非空值后重启，` +
-          `再用 ${adminEmail()} 登录。`,
-      );
+      throw new ApiError(503, "admin_not_configured", "api.login.adminNotConfigured", undefined, {
+        email: adminEmail(),
+      });
     }
 
-    throw new ApiError(401, "invalid_credentials", "邮箱或密码不正确");
+    throw new ApiError(401, "invalid_credentials", "api.login.badCredentials");
   }
 
   await clearLoginFailures(input.email);

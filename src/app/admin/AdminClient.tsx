@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api-client";
+import { useT, type TFunction } from "@/i18n";
 import { humanizeError } from "@/lib/error-text";
 import { toast } from "@/lib/toast";
 import type { AdminNode, AdminUser } from "@/lib/api-types";
@@ -26,6 +27,7 @@ import {
 type Panel = "nodes" | "users" | "services" | "site";
 
 export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string }) {
+  const t = useT();
   const [panel, setPanel] = useState<Panel>("nodes");
   const [nodes, setNodes] = useState<AdminNode[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -39,11 +41,11 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
       setNodes(res.nodes);
       setUsers(res.users);
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -54,7 +56,7 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
       await api(`/api/admin?nodeId=${nodeId}`, { method: "PATCH", json: body });
       await load();
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     }
   }
 
@@ -63,7 +65,7 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
       await api(`/api/admin/users/${id}`, { method: "PATCH", json: body });
       await load();
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     }
   }
 
@@ -82,43 +84,48 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
     <AppShell
       user={user}
       loading={loading}
-      loadingLabel="正在加载全站数据…"
-      heading={<span>管理后台</span>}
+      loadingLabel={t("admin.loading")}
+      heading={<span>{t("admin.heading")}</span>}
       status={
         <>
-          <span className="mx-statusbar__item">节点 {nodes.length}</span>
+          <span className="mx-statusbar__item">
+            {t("admin.stat.nodes", { count: nodes.length })}
+          </span>
           <span className="mx-statusbar__divider" />
-          <span className="mx-statusbar__item">用户 {users.length}</span>
+          <span className="mx-statusbar__item">
+            {t("admin.stat.users", { count: users.length })}
+          </span>
           <span className="mx-statusbar__divider" />
-          <span className="mx-statusbar__item">管理员 {admins}</span>
+          <span className="mx-statusbar__item">
+            {t("admin.stat.admins", { count: admins })}
+          </span>
         </>
       }
     >
       <section className="mx-section">
         <header className="mx-section__header">
           <div className="mx-section__heading">
-            <h1 className="mx-section__title">管理后台</h1>
-            <p className="mx-section__subtitle">全站节点与用户。只有管理员能看到这一页。</p>
+            <h1 className="mx-section__title">{t("admin.heading")}</h1>
+            <p className="mx-section__subtitle">{t("admin.subtitle")}</p>
           </div>
           <span className="mx-section__spacer" />
           <div className="mx-section__actions">
             <Button variant="secondary" size="sm" onClick={() => void load()}>
               <Icon name="refresh" size={14} />
-              刷新
+              {t("common.refresh")}
             </Button>
           </div>
         </header>
 
-
         <Tabs
-          label="管理分区"
+          label={t("admin.tabs")}
           value={panel}
           onChange={setPanel}
           items={[
-            { value: "nodes", label: "节点", icon: "node", count: nodes.length },
-            { value: "users", label: "用户", icon: "users", count: users.length },
-            { value: "services", label: "第三方服务", icon: "key" },
-            { value: "site", label: "站点设置", icon: "settings" },
+            { value: "nodes", label: t("admin.tab.nodes"), icon: "node", count: nodes.length },
+            { value: "users", label: t("admin.tab.users"), icon: "users", count: users.length },
+            { value: "services", label: t("admin.tab.services"), icon: "key" },
+            { value: "site", label: t("admin.tab.site"), icon: "settings" },
           ]}
         />
 
@@ -144,14 +151,9 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
       <ConfirmDialog
         open={promoting !== null}
         busy={promoteBusy}
-        title="设为全站内置节点"
-        confirmLabel="设为内置"
-        body={
-          <>
-            把「{promoting?.name}」设为全站内置节点？现有的内置节点会降为普通节点，
-            所有没接自己凭据的用户之后都会用这一个。
-          </>
-        }
+        title={t("admin.promote.title")}
+        confirmLabel={t("admin.promote.confirm")}
+        body={t("admin.promote.body", { name: promoting?.name ?? "" })}
         onConfirm={() => void confirmPromote()}
         onClose={() => setPromoting(null)}
       />
@@ -168,39 +170,37 @@ function NodesPanel({
   onPatch: (id: string, body: Record<string, unknown>) => void;
   onPromote: (node: AdminNode) => void;
 }) {
+  const t = useT();
   if (nodes.length === 0) {
     return (
-      <EmptyState icon="node" title="还没有任何节点">
-        先到「LiveKit 节点」页用「接入节点」加一个，再回来把它设为全站内置节点。
+      <EmptyState icon="node" title={t("admin.nodes.emptyTitle")}>
+        {t("admin.nodes.emptyBody")}
       </EmptyState>
     );
   }
 
   return (
-    <Card
-      title="节点"
-      description="内置节点是全站共享的那一个 —— 用户不接自己的凭据也能建房，额度烧的是它。任何节点都可以被提升为内置，同时只能有一个。"
-    >
+    <Card title={t("admin.nodes.title")} description={t("admin.nodes.desc")}>
       <div className="mx-table-wrap">
         <table className="mx-table">
           <thead>
             <tr>
-              <th>节点</th>
-              <th data-shrink="true">类型</th>
-              <th data-shrink="true">活跃房间</th>
+              <th>{t("admin.nodes.col.node")}</th>
+              <th data-shrink="true">{t("admin.nodes.col.kind")}</th>
+              <th data-shrink="true">{t("admin.nodes.col.activeRooms")}</th>
               <th data-shrink="true" data-align="center">
-                启用
+                {t("admin.nodes.col.enabled")}
               </th>
               <th data-shrink="true" data-align="center">
-                开放
+                {t("admin.nodes.col.public")}
               </th>
-              <th data-shrink="true">房间上限</th>
+              <th data-shrink="true">{t("admin.nodes.col.maxRooms")}</th>
               <th data-shrink="true" data-align="right" />
             </tr>
           </thead>
           <tbody>
             {nodes.map((node) => {
-              const health = healthLabel(node.lastCheckOk);
+              const health = healthLabel(t, node.lastCheckOk);
               const builtin = node.kind === "builtin";
               return (
                 <tr key={node.id}>
@@ -212,7 +212,7 @@ function NodesPanel({
                       </span>
                       {node.lastCheckOk === false && (
                         <span className="mx-cell__hint mx-text-error">
-                          {node.lastCheckError ?? "体检失败"}
+                          {node.lastCheckError ?? t("admin.nodes.checkFailed")}
                         </span>
                       )}
                     </span>
@@ -220,9 +220,9 @@ function NodesPanel({
                   <td data-shrink="true">
                     <span className="mx-inline">
                       {builtin ? (
-                        <Badge tone="accent">内置</Badge>
+                        <Badge tone="accent">{t("admin.nodes.kindBuiltin")}</Badge>
                       ) : (
-                        <Badge tone="neutral">用户</Badge>
+                        <Badge tone="neutral">{t("admin.nodes.kindUser")}</Badge>
                       )}
                       <Badge tone={health.tone} dot={node.lastCheckOk !== null}>
                         {health.text}
@@ -238,7 +238,7 @@ function NodesPanel({
                   <td data-shrink="true" data-align="center">
                     <Checkbox
                       checked={node.isEnabled}
-                      aria-label={`启用 ${node.name}`}
+                      aria-label={t("admin.nodes.enableAria", { name: node.name })}
                       onChange={(event) => onPatch(node.id, { isEnabled: event.target.checked })}
                     />
                   </td>
@@ -246,13 +246,13 @@ function NodesPanel({
                     {builtin ? (
                       <Checkbox
                         checked={node.allowPublic}
-                        aria-label={`开放 ${node.name}`}
+                        aria-label={t("admin.nodes.publicAria", { name: node.name })}
                         onChange={(event) =>
                           onPatch(node.id, { allowPublic: event.target.checked })
                         }
                       />
                     ) : (
-                      <span className="mx-text-muted">—</span>
+                      <span className="mx-text-muted">{t("common.dash")}</span>
                     )}
                   </td>
                   <td data-shrink="true">
@@ -261,9 +261,9 @@ function NodesPanel({
                         type="number"
                         min={1}
                         className="mx-input"
-                        aria-label={`${node.name} 房间上限`}
+                        aria-label={t("admin.nodes.maxRoomsAria", { name: node.name })}
                         defaultValue={node.maxRooms ?? ""}
-                        placeholder="不限"
+                        placeholder={t("admin.nodes.maxRoomsPlaceholder")}
                         style={{ width: 96 }}
                         onBlur={(event) =>
                           onPatch(node.id, {
@@ -275,13 +275,13 @@ function NodesPanel({
                         }
                       />
                     ) : (
-                      <span className="mx-text-muted">—</span>
+                      <span className="mx-text-muted">{t("common.dash")}</span>
                     )}
                   </td>
                   <td data-shrink="true" data-align="right">
                     {!builtin && (
                       <Button variant="secondary" size="sm" onClick={() => onPromote(node)}>
-                        设为内置
+                        {t("admin.nodes.makeBuiltin")}
                       </Button>
                     )}
                   </td>
@@ -304,15 +304,16 @@ function UsersPanel({
   selfId: string;
   onPatch: (id: string, body: Record<string, unknown>) => void;
 }) {
+  const t = useT();
   return (
-    <Card title="用户" description="停用后该账号立刻签不出 token，也进不了任何房间。">
+    <Card title={t("admin.users.title")} description={t("admin.users.desc")}>
       <div className="mx-table-wrap">
         <table className="mx-table">
           <thead>
             <tr>
-              <th>用户</th>
-              <th data-shrink="true">角色</th>
-              <th data-shrink="true">状态</th>
+              <th>{t("admin.users.col.user")}</th>
+              <th data-shrink="true">{t("admin.users.col.role")}</th>
+              <th data-shrink="true">{t("admin.users.col.status")}</th>
               <th data-shrink="true" data-align="right" />
             </tr>
           </thead>
@@ -327,7 +328,7 @@ function UsersPanel({
                         {row.displayName}
                         {isSelf && (
                           <span style={{ marginLeft: "var(--mx-space-sm)" }}>
-                            <Badge tone="info">我</Badge>
+                            <Badge tone="info">{t("admin.users.me")}</Badge>
                           </span>
                         )}
                       </span>
@@ -336,19 +337,19 @@ function UsersPanel({
                   </td>
                   <td data-shrink="true">
                     {row.role === "admin" ? (
-                      <Badge tone="accent">管理员</Badge>
+                      <Badge tone="accent">{t("admin.users.admin")}</Badge>
                     ) : (
-                      <Badge tone="neutral">用户</Badge>
+                      <Badge tone="neutral">{t("admin.users.user")}</Badge>
                     )}
                   </td>
                   <td data-shrink="true">
                     {row.isDisabled ? (
                       <Badge tone="error" dot>
-                        已停用
+                        {t("admin.users.disabled")}
                       </Badge>
                     ) : (
                       <Badge tone="success" dot>
-                        正常
+                        {t("admin.users.ok")}
                       </Badge>
                     )}
                   </td>
@@ -362,14 +363,16 @@ function UsersPanel({
                             onPatch(row.id, { role: row.role === "admin" ? "user" : "admin" })
                           }
                         >
-                          {row.role === "admin" ? "降为用户" : "设为管理员"}
+                          {row.role === "admin"
+                            ? t("admin.users.demote")
+                            : t("admin.users.promote")}
                         </Button>
                         <Button
                           variant={row.isDisabled ? "secondary" : "danger"}
                           size="sm"
                           onClick={() => onPatch(row.id, { isDisabled: !row.isDisabled })}
                         >
-                          {row.isDisabled ? "启用" : "停用"}
+                          {row.isDisabled ? t("admin.users.enable") : t("admin.users.disable")}
                         </Button>
                       </span>
                     )}

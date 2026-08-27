@@ -9,8 +9,10 @@
 /** 项目名 = 网站名。刻意用仓库名本身，不另起一个中文品牌名。 */
 export const APP_NAME = "MX-Desktop-Sharing-NEXT";
 
-/** 一句话定位。首页 metadata 和登录页副标题共用。 */
-export const APP_TAGLINE = "一房一节点，一人一推流地址";
+/**
+ * 一句话定位曾经也放在这里，现在挪进了语言包（`brand.tagline`）——
+ * 它是要翻译的文案，而这个文件是「不随语言变的专有名词」。
+ */
 
 export const COMPANY = "Maishan Inc.";
 

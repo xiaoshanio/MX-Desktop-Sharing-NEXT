@@ -30,7 +30,7 @@ export async function loadRoomByCode(code: string): Promise<{ room: Room; node: 
     .where(eq(rooms.code, code))
     .limit(1);
 
-  if (!row) throw notFound("房间不存在");
+  if (!row) throw notFound("api.room.notFound");
   return row;
 }
 
@@ -56,7 +56,7 @@ export async function requireMember(code: string, user: User): Promise<RoomConte
 
   if (!membership && user.role !== "admin") {
     // 故意用 404 而不是 403：不让非成员探测房间是否存在
-    throw notFound("房间不存在");
+    throw notFound("api.room.notFound");
   }
   return { room, node, membership };
 }
@@ -64,7 +64,7 @@ export async function requireMember(code: string, user: User): Promise<RoomConte
 export async function requireRoomOwner(code: string, user: User): Promise<RoomContext> {
   const ctx = await requireMember(code, user);
   const isOwner = ctx.room.ownerId === user.id || ctx.membership?.role === "owner";
-  if (!isOwner && user.role !== "admin") throw forbidden("只有房主可以做这个操作");
+  if (!isOwner && user.role !== "admin") throw forbidden("api.room.ownerOnly");
   return ctx;
 }
 
@@ -86,7 +86,7 @@ export async function isBanned(roomId: string, userId: string): Promise<boolean>
 
 export async function assertNotBanned(roomId: string, userId: string): Promise<void> {
   if (await isBanned(roomId, userId)) {
-    throw forbidden("这个用户已被移入该房间的黑名单，需要先解除拉黑。");
+    throw forbidden("api.room.userBanned");
   }
 }
 

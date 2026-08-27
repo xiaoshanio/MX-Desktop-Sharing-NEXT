@@ -18,6 +18,9 @@ export type IconName =
   | "key"
   | "sun"
   | "moon"
+  | "monitor"
+  | "globe"
+  | "chevronDown"
   | "panelLeft"
   | "panelLeftClose"
   | "menu"
@@ -193,6 +196,30 @@ export function Icon({ name, size = 16 }: IconProps): ReactNode {
       return (
         <svg {...common}>
           <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+        </svg>
+      );
+    case "monitor":
+      // A display on a stand — "follow the system theme".
+      return (
+        <svg {...common}>
+          <rect x="3" y="4.5" width="18" height="12" rx="2" />
+          <path d="M9 20.5h6M12 16.5v4" />
+        </svg>
+      );
+    case "globe":
+      // Marks the language switcher. A globe rather than a flag: flags stand for
+      // countries, and a language is not a country (there is no flag for "English").
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3.2 9.5h17.6M3.2 14.5h17.6" />
+          <path d="M12 3c-2.4 2.4-3.6 5.4-3.6 9s1.2 6.6 3.6 9c2.4-2.4 3.6-5.4 3.6-9S14.4 5.4 12 3Z" />
+        </svg>
+      );
+    case "chevronDown":
+      return (
+        <svg {...common}>
+          <path d="m6 9.5 6 6 6-6" />
         </svg>
       );
     case "panelLeft":

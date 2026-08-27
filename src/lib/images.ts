@@ -25,29 +25,35 @@ export type DecodedImage = { mimeType: string; base64: string; byteSize: number 
  */
 export function decodeDataUrl(input: string, limit: number): DecodedImage {
   const match = /^data:([a-z]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i.exec(input.trim());
-  if (!match) throw badRequest("图片格式不对：需要 base64 的 data URL");
+  if (!match) throw badRequest("api.image.badFormat");
 
   const mimeType = match[1]!.toLowerCase();
   const base64 = match[2]!;
   if (!ALLOWED.has(mimeType)) {
-    throw badRequest(`不支持这种图片格式（${mimeType}），请用 PNG / JPEG / WebP`);
+    throw badRequest("api.image.unsupportedType", undefined, { mimeType });
   }
 
   // 先按 base64 长度估算，避免为了知道大小而把一个超大串真的解出来占内存
   const estimated = Math.floor((base64.length * 3) / 4);
   if (estimated > limit) {
-    throw badRequest(`图片太大了（约 ${Math.round(estimated / 1024)} KB），上限 ${Math.round(limit / 1024)} KB`);
+    throw badRequest("api.image.tooBigEstimated", undefined, {
+      size: Math.round(estimated / 1024),
+      limit: Math.round(limit / 1024),
+    });
   }
 
   const buf = Buffer.from(base64, "base64");
-  if (buf.byteLength === 0) throw badRequest("图片是空的");
+  if (buf.byteLength === 0) throw badRequest("api.image.empty");
   if (buf.byteLength > limit) {
-    throw badRequest(`图片太大了（${Math.round(buf.byteLength / 1024)} KB），上限 ${Math.round(limit / 1024)} KB`);
+    throw badRequest("api.image.tooBig", undefined, {
+      size: Math.round(buf.byteLength / 1024),
+      limit: Math.round(limit / 1024),
+    });
   }
 
   // 校验魔数：光看 mime 声明不够，改个前缀就能把任意文件当图片塞进来
   if (!looksLikeImage(buf, mimeType)) {
-    throw badRequest("文件内容不是声明的图片格式");
+    throw badRequest("api.image.contentMismatch");
   }
 
   return { mimeType, base64, byteSize: buf.byteLength };

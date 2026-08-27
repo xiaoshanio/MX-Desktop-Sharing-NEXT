@@ -1,6 +1,7 @@
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { badRequest, forbidden, json, route } from "@/lib/http";
+import { badRequest, forbidden, json } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { accentFor, encodeParticipantMeta } from "@/lib/identity";
 import { ensureRoom, mintJoinToken } from "@/lib/livekit";
 import { resolve } from "@/lib/nodes";
@@ -19,8 +20,8 @@ export const POST = route(async (_req, ctx: { params: Promise<{ code: string }> 
   const { code } = await ctx.params;
 
   const roomCtx = await requireMember(code, user);
-  if (!roomCtx.room.isActive) throw badRequest("房间已关闭");
-  if (!roomCtx.node.isEnabled) throw badRequest("该房间所在节点已停用");
+  if (!roomCtx.room.isActive) throw badRequest("api.token.roomClosed");
+  if (!roomCtx.node.isEnabled) throw badRequest("api.token.nodeDisabled");
 
   /**
    * 黑名单也在这里守一道。
@@ -31,7 +32,7 @@ export const POST = route(async (_req, ctx: { params: Promise<{ code: string }> 
    * 少一道检查的代价是被拉黑的人还能看。
    */
   if (await isBanned(roomCtx.room.id, user.id)) {
-    throw forbidden("你已被移出这个房间。");
+    throw forbidden("api.token.removed");
   }
 
   const node = await resolve(roomCtx.node);

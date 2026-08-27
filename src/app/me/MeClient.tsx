@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api-client";
 import type { MyProfile } from "@/lib/api-types";
+import { useT, type MessageKey } from "@/i18n";
 import { prepareImage, type ImageKind } from "@/lib/client-image";
 import { humanizeError } from "@/lib/error-text";
 import { toast } from "@/lib/toast";
@@ -11,18 +12,19 @@ import { CARD_ACCENTS, initialOf, userImageUrl, type CardAccent } from "@/lib/id
 import { AppShell, type ShellUser } from "@/components/AppShell";
 import { Badge, Button, Card, Icon, TextField } from "@/ui";
 
-const ACCENT_LABELS: Record<CardAccent, string> = {
-  iris: "鸢尾",
-  azure: "天青",
-  teal: "松绿",
-  lime: "柳绿",
-  amber: "琥珀",
-  rose: "绯红",
-  magenta: "洋红",
-  slate: "石板",
+const ACCENT_KEYS: Record<CardAccent, MessageKey> = {
+  iris: "me.accent.iris",
+  azure: "me.accent.azure",
+  teal: "me.accent.teal",
+  lime: "me.accent.lime",
+  amber: "me.accent.amber",
+  rose: "me.accent.rose",
+  magenta: "me.accent.magenta",
+  slate: "me.accent.slate",
 };
 
 export function MeClient({ user }: { user: ShellUser }) {
+  const t = useT();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState<"name" | "avatar" | "banner" | "accent" | null>(null);
@@ -36,9 +38,9 @@ export function MeClient({ user }: { user: ShellUser }) {
       setProfile(res.profile);
       setDisplayName(res.profile.displayName);
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -54,19 +56,18 @@ export function MeClient({ user }: { user: ShellUser }) {
     async (patch: Record<string, unknown>, kind: NonNullable<typeof busy>, message: string) => {
       setBusy(kind);
       try {
-        const res = await api<{ profile: Omit<MyProfile, "id" | "email" | "role" | "hasPassword" | "emailVerified"> }>(
-          "/api/me/profile",
-          { method: "PATCH", json: patch },
-        );
+        const res = await api<{
+          profile: Omit<MyProfile, "id" | "email" | "role" | "hasPassword" | "emailVerified">;
+        }>("/api/me/profile", { method: "PATCH", json: patch });
         setProfile((previous) => (previous ? { ...previous, ...res.profile } : previous));
         toast.success(message);
       } catch (error) {
-        toast.error(humanizeError(error));
+        toast.error(humanizeError(t, error));
       } finally {
         setBusy(null);
       }
     },
-    [],
+    [t],
   );
 
   async function pickImage(kind: ImageKind, file: File | undefined) {
@@ -77,16 +78,16 @@ export function MeClient({ user }: { user: ShellUser }) {
       await save(
         { [kind]: dataUrl },
         kind,
-        kind === "avatar" ? "头像已更新" : "卡片背景已更新",
+        kind === "avatar" ? t("me.avatarSaved") : t("me.bannerSaved"),
       );
     } catch (error) {
-      toast.error(humanizeError(error));
+      toast.error(humanizeError(t, error));
     }
   }
 
   if (!profile) {
     return (
-      <AppShell user={user} loading loadingLabel="正在加载资料…" heading={<span>个人中心</span>}>
+      <AppShell user={user} loading loadingLabel={t("me.loading")} heading={<span>{t("me.heading")}</span>}>
         <span />
       </AppShell>
     );
@@ -96,21 +97,16 @@ export function MeClient({ user }: { user: ShellUser }) {
   const avatarUrl = userImageUrl(profile.id, "avatar", profile.avatarAt);
 
   return (
-    <AppShell user={user} heading={<span>个人中心</span>}>
+    <AppShell user={user} heading={<span>{t("me.heading")}</span>}>
       <section className="mx-section">
         <header className="mx-section__header">
           <div className="mx-section__heading">
-            <h1 className="mx-section__title">个人中心</h1>
-            <p className="mx-section__subtitle">
-              这里改的是房间里那张成员卡片 —— 别人在画面左侧看到的就是它。
-            </p>
+            <h1 className="mx-section__title">{t("me.heading")}</h1>
+            <p className="mx-section__subtitle">{t("me.subtitle")}</p>
           </div>
         </header>
 
-        <Card
-          title="卡片预览"
-          description="进房后你在别人画面左侧长这样。背景没上传时用按账号分配的底色。"
-        >
+        <Card title={t("me.preview.title")} description={t("me.preview.desc")}>
           <div className="mx-cardpreview">
             <div className="mx-pcard" data-accent={profile.cardAccent} data-preview="true">
               <span
@@ -128,7 +124,7 @@ export function MeClient({ user }: { user: ShellUser }) {
                 </span>
                 <span className="mx-pcard__text">
                   <span className="mx-pcard__name">{profile.displayName}</span>
-                  <span className="mx-pcard__meta">你</span>
+                  <span className="mx-pcard__meta">{t("me.preview.you")}</span>
                 </span>
               </span>
               <span className="mx-pcard__live">
@@ -139,11 +135,11 @@ export function MeClient({ user }: { user: ShellUser }) {
         </Card>
 
         <div className="mx-split">
-          <Card title="头像" description="正方形显示，会自动裁成圆形。上传前浏览器会缩到 256px。">
+          <Card title={t("me.avatar.title")} description={t("me.avatar.desc")}>
             <div className="mx-uploader">
               <span className="mx-uploader__preview" data-accent={profile.cardAccent}>
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt="当前头像" width={72} height={72} />
+                  <img src={avatarUrl} alt={t("me.avatar.current")} width={72} height={72} />
                 ) : (
                   <span aria-hidden="true">{initialOf(profile.displayName)}</span>
                 )}
@@ -166,23 +162,23 @@ export function MeClient({ user }: { user: ShellUser }) {
                   onClick={() => avatarInputRef.current?.click()}
                 >
                   <Icon name="upload" size={15} />
-                  {busy === "avatar" ? "上传中…" : "选择图片"}
+                  {busy === "avatar" ? t("me.uploading") : t("me.pick")}
                 </Button>
                 {profile.avatarAt && (
                   <Button
                     variant="subtle"
                     disabled={busy !== null}
-                    onClick={() => void save({ avatar: null }, "avatar", "头像已恢复默认。")}
+                    onClick={() => void save({ avatar: null }, "avatar", t("me.avatarReset"))}
                   >
                     <Icon name="trash" size={15} />
-                    恢复默认
+                    {t("me.reset")}
                   </Button>
                 )}
               </div>
             </div>
           </Card>
 
-          <Card title="卡片背景" description="卡片顶部那条横幅。会缩到 960×540 并居中裁切。">
+          <Card title={t("me.banner.title")} description={t("me.banner.desc")}>
             <div className="mx-uploader">
               <span
                 className="mx-uploader__banner"
@@ -209,16 +205,16 @@ export function MeClient({ user }: { user: ShellUser }) {
                   onClick={() => bannerInputRef.current?.click()}
                 >
                   <Icon name="upload" size={15} />
-                  {busy === "banner" ? "上传中…" : "选择图片"}
+                  {busy === "banner" ? t("me.uploading") : t("me.pick")}
                 </Button>
                 {profile.bannerAt && (
                   <Button
                     variant="subtle"
                     disabled={busy !== null}
-                    onClick={() => void save({ banner: null }, "banner", "背景已恢复默认底色。")}
+                    onClick={() => void save({ banner: null }, "banner", t("me.bannerReset"))}
                   >
                     <Icon name="trash" size={15} />
-                    恢复默认
+                    {t("me.reset")}
                   </Button>
                 )}
               </div>
@@ -226,10 +222,7 @@ export function MeClient({ user }: { user: ShellUser }) {
           </Card>
         </div>
 
-        <Card
-          title="卡片底色"
-          description="没上传背景图时用这个颜色。默认按账号随机分配一档。"
-        >
+        <Card title={t("me.accent.title")} description={t("me.accent.desc")}>
           <div className="mx-swatches">
             {CARD_ACCENTS.map((accent) => (
               <button
@@ -239,28 +232,34 @@ export function MeClient({ user }: { user: ShellUser }) {
                 data-accent={accent}
                 data-active={profile.cardAccent === accent}
                 aria-pressed={profile.cardAccent === accent}
-                title={ACCENT_LABELS[accent]}
+                title={t(ACCENT_KEYS[accent])}
                 disabled={busy !== null}
-                onClick={() => void save({ cardAccent: accent }, "accent", "底色已更新。")}
+                onClick={() =>
+                  void save({ cardAccent: accent }, "accent", t("me.accent.saved"))
+                }
               >
                 <span className="mx-swatch__chip" />
-                <span className="mx-swatch__label">{ACCENT_LABELS[accent]}</span>
+                <span className="mx-swatch__label">{t(ACCENT_KEYS[accent])}</span>
               </button>
             ))}
           </div>
         </Card>
 
-        <Card title="账号" description="显示名会出现在成员列表和卡片上。">
+        <Card title={t("me.account.title")} description={t("me.account.desc")}>
           <form
             className="mx-field-row"
             onSubmit={(event) => {
               event.preventDefault();
-              void save({ displayName: displayName.trim() }, "name", "显示名已更新。");
+              void save(
+                { displayName: displayName.trim() },
+                "name",
+                t("me.account.nameSaved"),
+              );
             }}
           >
             <div style={{ flex: 1, minWidth: 220 }}>
               <TextField
-                label="显示名"
+                label={t("auth.displayName")}
                 required
                 maxLength={60}
                 value={displayName}
@@ -274,7 +273,7 @@ export function MeClient({ user }: { user: ShellUser }) {
                 busy !== null || displayName.trim() === "" || displayName === profile.displayName
               }
             >
-              {busy === "name" ? "保存中…" : "保存"}
+              {busy === "name" ? t("common.saving") : t("common.save")}
             </Button>
           </form>
 
@@ -284,34 +283,31 @@ export function MeClient({ user }: { user: ShellUser }) {
             <span className="mx-text-caption">{profile.email}</span>
             {profile.emailVerified ? (
               <Badge tone="success" dot>
-                邮箱已验证
+                {t("me.account.emailVerified")}
               </Badge>
             ) : (
-              <Badge tone="neutral">邮箱未验证</Badge>
+              <Badge tone="neutral">{t("me.account.emailUnverified")}</Badge>
             )}
             <Badge tone={profile.hasPassword ? "info" : "neutral"}>
-              {profile.hasPassword ? "已设密码" : "仅第三方 / 验证码登录"}
+              {profile.hasPassword ? t("me.account.hasPassword") : t("me.account.noPassword")}
             </Badge>
           </div>
         </Card>
 
-        <Card
-          title="新手引导"
-          description="第一次进房时那个「推流地址在哪」的提示。"
-        >
+        <Card title={t("me.tour.title")} description={t("me.tour.desc")}>
           <Button
             variant="secondary"
             onClick={async () => {
               try {
                 await api("/api/me/ingress-tip", { method: "DELETE" });
-                toast.success("已重置，下次进房会再弹一次引导");
+                toast.success(t("me.tour.done"));
               } catch (error) {
-                toast.error(humanizeError(error));
+                toast.error(humanizeError(t, error));
               }
             }}
           >
             <Icon name="sparkle" size={15} />
-            再看一次引导
+            {t("me.tour.reset")}
           </Button>
         </Card>
       </section>

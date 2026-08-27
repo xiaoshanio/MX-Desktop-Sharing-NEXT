@@ -47,7 +47,7 @@ export async function sendMail(input: MailInput): Promise<{ id: string }> {
       signal: AbortSignal.timeout(12_000),
     });
   } catch {
-    throw new ApiError(502, "mail_unreachable", "邮件服务连不上，请稍后再试。");
+    throw new ApiError(502, "mail_unreachable", "api.mail.unreachable");
   }
 
   const raw = await res.text();
@@ -58,7 +58,7 @@ export async function sendMail(input: MailInput): Promise<{ id: string }> {
     // 原文往前端抛出去反而有用 —— 管理员照着那句话就知道去改哪里。
     // 但不带上 Key 本身，也不带整个响应体。
     const detail = payload.message ?? payload.name ?? `HTTP ${res.status}`;
-    throw new ApiError(502, "mail_failed", `邮件没发出去：${detail}`);
+    throw new ApiError(502, "mail_failed", "api.mail.failed", undefined, { detail });
   }
 
   return { id: payload.id ?? "" };

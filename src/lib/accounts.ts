@@ -87,7 +87,7 @@ export async function resolveOauthLogin(identity: OauthIdentity): Promise<User> 
 
   if (linked) {
     if (linked.user.isDisabled) {
-      throw new ApiError(403, "account_disabled", "这个账号已被停用。");
+      throw new ApiError(403, "account_disabled", "api.account.disabled");
     }
     return linked.user;
   }
@@ -105,12 +105,13 @@ export async function resolveOauthLogin(identity: OauthIdentity): Promise<User> 
       throw new ApiError(
         409,
         "email_not_verified",
-        `${email} 在本站已经有账号了，但${identity.provider === "github" ? "GitHub" : "Google"}` +
-          `没有确认这个邮箱归你所有，所以不能自动关联。请先用密码或邮箱验证码登录，再去个人中心绑定。`,
+        "api.account.unverifiedLink",
+        undefined,
+        { email, provider: identity.provider === "github" ? "GitHub" : "Google" },
       );
     }
     if (existing.isDisabled) {
-      throw new ApiError(403, "account_disabled", "这个账号已被停用。");
+      throw new ApiError(403, "account_disabled", "api.account.disabled");
     }
 
     await db.insert(oauthAccounts).values({
@@ -186,7 +187,7 @@ export async function resolveEmailCodeLogin(email: string): Promise<User> {
 
   if (existing) {
     if (existing.isDisabled) {
-      throw new ApiError(403, "account_disabled", "这个账号已被停用。");
+      throw new ApiError(403, "account_disabled", "api.account.disabled");
     }
     if (!existing.emailVerifiedAt) {
       await db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, existing.id));

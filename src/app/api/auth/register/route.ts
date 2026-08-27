@@ -5,7 +5,8 @@ import { users } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { createSession } from "@/lib/auth";
 import { requireBootstrapped } from "@/lib/bootstrap";
-import { conflict, json, readJson, route, parseOr400 } from "@/lib/http";
+import { conflict, json, readJson, parseOr400 } from "@/lib/http";
+import { route } from "@/lib/api-route";
 import { hashPassword } from "@/lib/password";
 import { assertRegistrationOpen } from "@/lib/site-settings";
 import { assertHuman } from "@/lib/turnstile";
@@ -33,7 +34,7 @@ export const POST = route(async (req) => {
     .from(users)
     .where(sql`lower(${users.email}) = ${input.email}`)
     .limit(1);
-  if (existing.length > 0) throw conflict("该邮箱已注册");
+  if (existing.length > 0) throw conflict("api.auth.emailTaken");
 
   const [user] = await db
     .insert(users)

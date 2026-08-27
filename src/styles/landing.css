@@ -107,6 +107,27 @@ html:has(.mx-land) {
 }
 
 /* ============================================================
+   Bar priority.
+
+   `data-compact` is set by LandingBarFit when the wordmark starts getting truncated —
+   see that component for why this is measured rather than pinned to a breakpoint.
+   Everything inside `.mx-land__secondary` goes at once (theme toggle + sign-in CTA),
+   which is what keeps the mark, the wordmark and the GitHub link intact on a phone.
+   ============================================================ */
+.mx-land__secondary {
+  display: contents;
+}
+.mx-land__bar-inner[data-compact="true"] .mx-land__secondary {
+  display: none;
+}
+/* The wordmark is the thing we are protecting, so stop it shrinking any further once
+   the secondary items are gone. */
+.mx-land__bar-inner[data-compact="true"] .mx-land__brand-name {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* ============================================================
    Section scaffolding
    ============================================================ */
 .mx-land__section {
@@ -962,6 +983,15 @@ html:has(.mx-land) {
 /* Anchor nav is the first thing to go — the CTA and theme toggle matter more. */
 @media (max-width: 860px) {
   .mx-land__nav {
+    display: none;
+  }
+}
+
+/* No language switcher in the landing bar on phones: the bar's job there is the mark,
+   the wordmark and the GitHub link. Signed-in users get the switcher in the app shell's
+   top bar, and an unrecognised system language already falls back sensibly. */
+@media (max-width: 767px) {
+  .mx-land__bar-actions .mx-lang {
     display: none;
   }
 }

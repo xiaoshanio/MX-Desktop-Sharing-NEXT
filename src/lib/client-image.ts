@@ -7,6 +7,9 @@
  *
  * 输出 WebP：同画质下比 JPEG 小三成左右，且服务端和所有目标浏览器都认。
  * 不支持 WebP 编码的老浏览器上 toDataURL 会静默回退成 PNG —— 那也在服务端的白名单里。
+ *
+ * 抛出来的 Error 消息是**消息键**（`img.*`），由 humanizeError 按当前语言渲染 ——
+ * 这个模块没有 React 上下文，拿不到 t。
  */
 
 export type ImageKind = "avatar" | "banner";
@@ -28,7 +31,7 @@ function loadImage(file: File): Promise<HTMLImageElement> {
     };
     image.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error("这个文件不是浏览器能解码的图片"));
+      reject(new Error("img.notDecodable"));
     };
     image.src = url;
   });
@@ -43,11 +46,11 @@ function loadImage(file: File): Promise<HTMLImageElement> {
  */
 export async function prepareImage(file: File, kind: ImageKind): Promise<string> {
   if (!file.type.startsWith("image/")) {
-    throw new Error("请选择图片文件");
+    throw new Error("img.notImage");
   }
   // 先卡一道极端大小：50MB 的文件光解码就能把标签页搞崩
   if (file.size > 25 * 1024 * 1024) {
-    throw new Error("图片太大了（超过 25MB），先压一下再上传");
+    throw new Error("img.tooBig");
   }
 
   const target = TARGETS[kind];
@@ -69,7 +72,7 @@ export async function prepareImage(file: File, kind: ImageKind): Promise<string>
   canvas.height = canvasHeight;
 
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("浏览器不支持 canvas，换个浏览器试试");
+  if (!context) throw new Error("img.noCanvas");
 
   context.imageSmoothingQuality = "high";
   // 居中裁切：把缩放后的图画在画布中间，超出的部分自然被裁掉
@@ -83,7 +86,7 @@ export async function prepareImage(file: File, kind: ImageKind): Promise<string>
 
   const dataUrl = canvas.toDataURL("image/webp", target.quality);
   if (!dataUrl.startsWith("data:image/")) {
-    throw new Error("图片编码失败");
+    throw new Error("img.encodeFailed");
   }
   return dataUrl;
 }
