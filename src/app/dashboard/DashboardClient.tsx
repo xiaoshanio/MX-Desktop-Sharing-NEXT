@@ -73,15 +73,15 @@ export function DashboardClient({ user }: { user: ShellUser }) {
       loading={loading}
       loadingLabel={t("dash.loading")}
       heading={<span>{t("dash.heading")}</span>}
-      sidebarAction={
-        <button
-          type="button"
-          className="mx-sidebar__create"
+      actions={
+        <Button
+          size="sm"
+          variant="primary"
           onClick={() => setCreating(true)}
         >
           <Icon name="plus" size={16} />
           <span>{t("dash.create")}</span>
-        </button>
+        </Button>
       }
       status={
         <>

@@ -746,11 +746,13 @@
   align-items: center;
   gap: var(--mx-space-md);
   padding: var(--mx-space-lg) 0 var(--mx-space-xs);
+  flex-wrap: wrap;
 }
 /* Anchor for the dropdown, which must match the field's width exactly. */
 .mx-finder__box {
   position: relative;
   width: min(100%, 720px);
+  flex: 1;
 }
 
 .mx-finder__field {
@@ -905,6 +907,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--mx-space-xl);
+}
+
+@media (min-width: 1400px) {
+  .mx-roomgrid {
+    grid-template-columns: repeat(5, 1fr);
+  }
 }
 
 /* The whole card is the "enter room" target — hence <button>, not a div with a link inside. */

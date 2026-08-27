@@ -583,7 +583,7 @@ function RoomWorkspace({
 }) {
   const participants = useParticipants();
   const t = useT();
-  const [stageMode, setStageMode] = useState<"screen" | "player">("screen");
+  // 移除 stageMode，改用左侧房间列表选择
 
   /**
    * 只有房里不止一个人时才开始对时。
@@ -639,24 +639,10 @@ function RoomWorkspace({
         viewerCanPublish={detail.viewerCanPublish}
         code={code}
         canManage={canManage}
-        stageMode={stageMode}
-        onStageModeChange={setStageMode}
         currentRoom={currentRoom}
         syncActive={syncActive}
         onCloseSyncPlayer={onCloseSyncPlayer}
         onSyncSourceChange={onSyncSourceChange}
-              onQuickPlay={(url) => {
-                if (currentRoom) {
-            onSyncSourceChange(currentRoom.id, url);
-            // Persist to server
-            void api(`/api/rooms/${code}/sync-players/${currentRoom.id}`, {
-              method: "PATCH",
-              json: { sourceUrl: url },
-            }).catch(() => {
-              /* toast is handled by the panel */
-            });
-          }
-        }}
       />
     </div>
   );
@@ -676,25 +662,19 @@ function Stage({
   viewerCanPublish,
   code,
   canManage,
-  stageMode,
-  onStageModeChange,
   currentRoom,
   syncActive,
   onCloseSyncPlayer,
   onSyncSourceChange,
-  onQuickPlay,
 }: {
   selected: string | null;
   viewerCanPublish: boolean;
   code: string;
   canManage: boolean;
-  stageMode: "screen" | "player";
-  onStageModeChange: (mode: "screen" | "player") => void;
   currentRoom: SyncPlayerRow | null;
   syncActive: boolean;
   onCloseSyncPlayer: (id: string) => void;
   onSyncSourceChange: (id: string, sourceUrl: string | null) => void;
-  onQuickPlay: (url: string) => void;
 }) {
   const t = useT();
   const room = useRoomContext();
@@ -724,7 +704,8 @@ function Stage({
     () => room.localParticipant.permissions?.canPublish ?? false,
   );
 
-  const [quickUrl, setQuickUrl] = useState("");
+  // 根据是否选中房间自动切换模式
+  const stageMode = currentRoom ? "player" : "screen";
 
   useEffect(() => {
     const sync = () => setCanPublish(room.localParticipant.permissions?.canPublish ?? false);
@@ -742,6 +723,8 @@ function Stage({
     : everyTrack;
   const live = tracks.length > 0;
 
+  const stageMode = currentRoom ? "player" : "screen";
+
   return (
     <div className="mx-stage" data-fill="true" data-mode={stageMode}>
       <div className="mx-stage__bar">
@@ -751,55 +734,8 @@ function Stage({
         </span>
         <div className="mx-stage__presence">
           <span>{t("room.stage.inRoom", { count: participants.length })}</span>
-
-          <div className="mx-stage__mode-switch" role="group" aria-label={t("room.stage.modePlayer")}>
-            <button
-              type="button"
-              className={`mx-stage__mode-btn ${stageMode === "screen" ? "active" : ""}`}
-              aria-pressed={stageMode === "screen"}
-              onClick={() => onStageModeChange("screen")}
-            >
-              <Icon name="monitor" size={14} />
-              {t("room.stage.modeScreen")}
-            </button>
-            <button
-              type="button"
-              className={`mx-stage__mode-btn ${stageMode === "player" ? "active" : ""}`}
-              aria-pressed={stageMode === "player"}
-              onClick={() => onStageModeChange("player")}
-            >
-              <Icon name="film" size={14} />
-              {t("room.stage.modePlayer")}
-            </button>
-          </div>
         </div>
         {selected && <Badge tone="info">{t("room.stage.onlySelected")}</Badge>}
-
-        {stageMode === "player" && currentRoom && canManage && (
-          <form
-            className="mx-stage__url"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const trimmed = quickUrl.trim();
-              if (trimmed) {
-                onQuickPlay(trimmed);
-              }
-            }}
-          >
-            <input
-              type="url"
-              className="mx-stage__url-input"
-              placeholder={t("room.stage.urlPlaceholder")}
-              value={quickUrl}
-              onChange={(event) => setQuickUrl(event.target.value)}
-            />
-            <Button type="submit" size="sm" variant="primary" disabled={!quickUrl.trim()}>
-              <Icon name="play" size={13} />
-              {t("room.stage.urlPlay")}
-            </Button>
-          </form>
-        )}
-
         <span className="mx-stage__spacer" />
         {stageMode === "screen" && canPublish ? (
           <ShareControls />
@@ -865,8 +801,7 @@ function Stage({
             {selected ? t("room.stage.idleSelectedBody") : t("room.stage.idleBody")}
           </span>
         </div>
-        ) : stageMode === "player" ? (
-        currentRoom ? (
+        ) : currentRoom ? (
           <SyncPlayerPanel
             key={currentRoom.id}
             code={code}
@@ -876,15 +811,7 @@ function Stage({
             onClose={() => onCloseSyncPlayer(currentRoom.id)}
             onSourceChange={(sourceUrl) => onSyncSourceChange(currentRoom.id, sourceUrl)}
           />
-        ) : (
-          <div className="mx-stage__player-placeholder">
-            <div className="mx-stage__player-hint">
-              <Icon name="film" size={48} />
-              <p>{t("room.stage.urlPlaceholder")}</p>
-            </div>
-          </div>
-        )
-      ) : null}
+        ) : null}
     </div>
   );
 }
@@ -1913,7 +1840,16 @@ function CreateSyncPlayerModal({
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
-        <Select label="播放器连接权限" value={access} onChange={(event) => setAccess(event.target.value as typeof access)} options={[{ value: "members", label: "所有频道成员" }, { value: "publishers", label: "可发布成员" }, { value: "owner", label: "仅房主" }]} />
+        <Select
+          label={t("sync.new.accessLabel")}
+          value={access}
+          onChange={(event) => setAccess(event.target.value as typeof access)}
+          options={[
+            { value: "members", label: t("sync.accessMembers") },
+            { value: "publishers", label: t("sync.accessPublishers") },
+            { value: "owner", label: t("sync.accessOwner") }
+          ]}
+        />
 
         <Button type="submit" variant="primary" full disabled={busy || name.trim() === ""}>
           <Icon name="film" size={15} />
@@ -1925,6 +1861,7 @@ function CreateSyncPlayerModal({
 }
 
 function RoomNodesPanel({ code, isOwner }: { code: string; isOwner: boolean }) {
+  const t = useT();
   const [nodes, setNodes] = useState<RoomNodeRow[]>([]);
   const [available, setAvailable] = useState<{ id: string; name: string }[]>([]);
   const [nodeId, setNodeId] = useState("");
@@ -1937,17 +1874,131 @@ function RoomNodesPanel({ code, isOwner }: { code: string; isOwner: boolean }) {
     setAvailable(mine.nodes.filter((n) => n.isMine));
   }, [code]);
   useEffect(() => { void load(); }, [load]);
-  async function add() { if (!nodeId) return; await api(`/api/rooms/${code}/nodes`, { method: "POST", json: { nodeId } }); setNodeId(""); await load(); }
-  async function primary(id: string) { await api(`/api/rooms/${code}/nodes`, { method: "PATCH", json: { nodeId: id } }); await load(); }
-  return <div className="mx-form"><Select label="频道线路" options={available.map((n) => ({ value: n.id, label: n.name }))} value={nodeId} onChange={(e) => setNodeId(e.target.value)} /><Button variant="secondary" onClick={() => void add()}>添加线路</Button>{nodes.map((n) => <div key={n.id} className="mx-row__meta"><span>{n.name}</span>{n.isPrimary ? <Badge tone="accent">主线路</Badge> : isOwner && <Button size="sm" variant="subtle" onClick={() => void primary(n.id)}>设为主线路</Button>}</div>)}</div>;
+  async function add() {
+    if (!nodeId) return;
+    try {
+      await api(`/api/rooms/${code}/nodes`, { method: "POST", json: { nodeId } });
+      setNodeId("");
+      await load();
+      toast.success(t("room.nodes.added"));
+    } catch (error) {
+      toast.error(humanizeError(t, error));
+    }
+  }
+  async function primary(id: string) {
+    try {
+      await api(`/api/rooms/${code}/nodes`, { method: "PATCH", json: { nodeId: id } });
+      await load();
+      toast.success(t("room.nodes.primarySet"));
+    } catch (error) {
+      toast.error(humanizeError(t, error));
+    }
+  }
+  return (
+    <Card title={t("room.nodes.title")} description={t("room.nodes.desc")}>
+      <div className="mx-field-row">
+        <div style={{ flex: 1 }}>
+          <Select
+            label={t("room.nodes.selectLabel")}
+            options={available.map((n) => ({ value: n.id, label: n.name }))}
+            value={nodeId}
+            onChange={(e) => setNodeId(e.target.value)}
+          />
+        </div>
+        <Button variant="primary" onClick={() => void add()} disabled={!nodeId}>
+          <Icon name="plus" size={15} />
+          {t("room.nodes.add")}
+        </Button>
+      </div>
+      {nodes.length > 0 && (
+        <div className="mx-table-wrap">
+          <table className="mx-table">
+            <thead>
+              <tr>
+                <th>{t("room.nodes.col.name")}</th>
+                <th data-shrink="true">{t("room.nodes.col.status")}</th>
+                <th data-shrink="true" data-align="right" />
+              </tr>
+            </thead>
+            <tbody>
+              {nodes.map((n) => (
+                <tr key={n.id}>
+                  <td>{n.name}</td>
+                  <td data-shrink="true">
+                    {n.isPrimary ? (
+                      <Badge tone="accent">{t("room.nodes.primary")}</Badge>
+                    ) : (
+                      <Badge tone="neutral">{t("room.nodes.secondary")}</Badge>
+                    )}
+                  </td>
+                  <td data-shrink="true" data-align="right">
+                    {!n.isPrimary && isOwner && (
+                      <Button size="sm" variant="secondary" onClick={() => void primary(n.id)}>
+                        {t("room.nodes.setPrimary")}
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
 }
 
 function GrantNodeModal({ code, entry, onClose }: { code: string; entry: RailEntry | null; onClose: () => void }) {
+  const t = useT();
   const [nodes, setNodes] = useState<RoomNodeRow[]>([]);
   const [nodeId, setNodeId] = useState("");
-  useEffect(() => { if (entry) void api<{ nodes: RoomNodeRow[] }>(`/api/rooms/${code}/nodes`).then((r) => setNodes(r.nodes)); }, [code, entry]);
-  async function grant() { if (!entry || !nodeId) return; await api(`/api/rooms/${code}/node-access`, { method: "POST", json: { nodeId, userId: entry.userId } }); onClose(); }
-  return <Modal open={entry !== null} title="授权访问私人节点" onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>取消</Button><Button variant="primary" onClick={() => void grant()} disabled={!nodeId}>授权</Button></>}><Select label="选择授权线路" options={nodes.map((n) => ({ value: n.id, label: n.name }))} value={nodeId} onChange={(e) => setNodeId(e.target.value)} /></Modal>;
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (entry) {
+      void api<{ nodes: RoomNodeRow[] }>(`/api/rooms/${code}/nodes`).then((r) => setNodes(r.nodes));
+    }
+  }, [code, entry]);
+
+  async function grant() {
+    if (!entry || !nodeId) return;
+    setBusy(true);
+    try {
+      await api(`/api/rooms/${code}/node-access`, { method: "POST", json: { nodeId, userId: entry.userId } });
+      toast.success(t("room.nodes.granted", { name: entry.displayName }));
+      onClose();
+    } catch (error) {
+      toast.error(humanizeError(t, error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={entry !== null}
+      title={t("room.nodes.grantTitle")}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={busy}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" onClick={() => void grant()} disabled={!nodeId || busy}>
+            {busy ? t("common.working") : t("room.nodes.grant")}
+          </Button>
+        </>
+      }
+    >
+      <p className="mx-text-caption">{t("room.nodes.grantDesc", { name: entry?.displayName ?? "" })}</p>
+      <Select
+        label={t("room.nodes.selectLabel")}
+        options={nodes.map((n) => ({ value: n.id, label: n.name }))}
+        value={nodeId}
+        onChange={(e) => setNodeId(e.target.value)}
+      />
+    </Modal>
+  );
 }
 
 /**

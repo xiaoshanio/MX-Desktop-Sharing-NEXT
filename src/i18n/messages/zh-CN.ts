@@ -595,6 +595,24 @@ const zhCN: Messages = {
   "obs.revokeBody": "撤销后 OBS 会立刻推不上来，需要重新生成并在 OBS 里改一遍。确定？",
   "obs.ownerHint": "想彻底关掉这个频道的 OBS 通道？在「频道」标签里。",
   /* ============================================================
+     Room — nodes panel
+     ============================================================ */
+  "room.nodes.title": "频道线路",
+  "room.nodes.desc": "频道可以使用多个节点，用户可以选择最快的线路。",
+  "room.nodes.selectLabel": "选择线路",
+  "room.nodes.add": "添加线路",
+  "room.nodes.added": "线路已添加",
+  "room.nodes.col.name": "线路名称",
+  "room.nodes.col.status": "状态",
+  "room.nodes.primary": "主线路",
+  "room.nodes.secondary": "备用线路",
+  "room.nodes.setPrimary": "设为主线路",
+  "room.nodes.primarySet": "主线路已更新",
+  "room.nodes.grantTitle": "授权访问私人节点",
+  "room.nodes.grantDesc": "授权「{name}」访问你的私人节点",
+  "room.nodes.grant": "授权",
+  "room.nodes.granted": "已授权「{name}」访问节点",
+  /* ============================================================
      Room — owner settings
      ============================================================ */
   "rset.share.title": "谁能共享屏幕",

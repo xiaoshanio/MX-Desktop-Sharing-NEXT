@@ -117,8 +117,6 @@ export interface SyncPlayerPanelProps {
   player: SyncPlayerRow;
   /** 我能不能换片源 / 关掉它（创建者或房主） */
   canControl: boolean;
-  /** The room stage can provide the source input in its header. */
-  hideSourceForm?: boolean;
   /**
    * 房里有没有第二个人。false 时不发心跳、不探时钟、不纠偏。
    *
@@ -135,7 +133,6 @@ export function SyncPlayerPanel({
   code,
   player,
   canControl,
-  hideSourceForm = false,
   syncActive,
   onClose,
   onSourceChange,
@@ -537,9 +534,29 @@ export function SyncPlayerPanel({
 
         <span className="mx-syncplayer__spacer" />
 
-        {canControl && (
-          <Select label="连接权限" value={access} options={[{ value: "members", label: "所有频道成员" }, { value: "publishers", label: "可发布成员" }, { value: "owner", label: "仅房主" }]} onChange={async (event) => { const value = event.target.value as typeof access; setAccess(value); await api(`/api/rooms/${code}/sync-players/${player.id}`, { method: "PATCH", json: { access: value } }); }} />
-        )}
+        <Select
+          label={t("sync.accessLabel")}
+          value={access}
+          options={[
+            { value: "members", label: t("sync.accessMembers") },
+            { value: "publishers", label: t("sync.accessPublishers") },
+            { value: "owner", label: t("sync.accessOwner") }
+          ]}
+          onChange={async (event) => {
+            const value = event.target.value as typeof access;
+            setAccess(value);
+            try {
+              await api(`/api/rooms/${code}/sync-players/${player.id}`, {
+                method: "PATCH",
+                json: { access: value }
+              });
+              toast.success(t("sync.accessUpdated"));
+            } catch (error) {
+              toast.error(humanizeError(t, error));
+              setAccess(player.access);
+            }
+          }}
+        />
 
         {canControl && (
           <IconButton size="sm" tone="danger" label={t("sync.close")} onClick={onClose}>
@@ -593,11 +610,10 @@ export function SyncPlayerPanel({
         </div>
       )}
 
-      {(!canControl || !hideSourceForm) && (
-        <footer className="mx-syncplayer__foot">
+      <footer className="mx-syncplayer__foot">
         {canControl ? (
           <form className="mx-syncplayer__form" onSubmit={saveSource}>
-        <div className="mx-syncplayer__input" style={{ minWidth: 420, flex: 1 }}>
+            <div className="mx-syncplayer__input" style={{ minWidth: 420, flex: 1 }}>
               <TextField
                 label={t("sync.urlLabel")}
                 placeholder="https://example.com/video.m3u8"
@@ -629,8 +645,7 @@ export function SyncPlayerPanel({
             )}
           </div>
         )}
-        </footer>
-      )}
+      </footer>
     </section>
   );
 }

@@ -166,6 +166,13 @@
   background: var(--mx-bg-subtle);
   color: var(--mx-text-primary);
   font-size: var(--mx-font-size-body);
+  font-family: inherit;
+  appearance: none;
+  background-image: url('data:image/svg+xml,<svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right var(--mx-space-md) center;
+  padding-right: calc(var(--mx-space-md) * 2 + 12px);
+  cursor: pointer;
   transition:
     border-color var(--mx-duration-fast) var(--mx-ease-standard),
     box-shadow var(--mx-duration-fast) var(--mx-ease-standard),
