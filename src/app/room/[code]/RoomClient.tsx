@@ -581,83 +581,54 @@ function RoomWorkspace({
   // 当前激活的房间对象
   const currentRoom = activeRoom ? syncPlayers.find((p) => p.id === activeRoom) : null;
 
-  // 如果没有选中房间，显示房间列表
-  if (!activeRoom) {
-    return (
-      <div className="mx-room-list">
-        <header className="mx-room-list__header">
-          <h2 className="mx-room-list__title">{t("channel.rooms.title")}</h2>
-          {canManage && (
-            <Button size="sm" variant="primary" onClick={onCreateRoom}>
-              <Icon name="plus" size={14} />
-              {t("channel.rooms.create")}
-            </Button>
-          )}
-        </header>
+  return (
+    <div className="mx-room__grid">
+      {/* 左侧：房间列表 + 成员栏 */}
+      <div className="mx-room__side">
+        {/* 房间列表 */}
+        <aside className="mx-room__rooms">
+          <div className="mx-room__rooms-header">
+            <h3 className="mx-room__rooms-title">{t("channel.rooms.title")}</h3>
+            {canManage && (
+              <button
+                type="button"
+                className="mx-room__rooms-add"
+                onClick={onCreateRoom}
+                title={t("channel.rooms.create")}
+              >
+                <Icon name="plus" size={16} />
+              </button>
+            )}
+          </div>
 
-        {syncPlayers.length === 0 ? (
-          <EmptyState
-            icon="film"
-            title={t("channel.rooms.emptyTitle")}
-            actions={
-              canManage ? (
-                <Button variant="primary" onClick={onCreateRoom}>
-                  <Icon name="plus" size={16} />
-                  {t("channel.rooms.create")}
-                </Button>
-              ) : undefined
-            }
-          >
-            {t("channel.rooms.emptyBody")}
-          </EmptyState>
-        ) : (
-          <div className="mx-room-list__grid">
+          <div className="mx-room__rooms-list">
             {syncPlayers.map((player) => (
               <button
                 key={player.id}
                 type="button"
-                className="mx-room-card"
+                className={`mx-room__rooms-item ${activeRoom === player.id ? "active" : ""}`}
                 onClick={() => onActiveRoomChange(player.id)}
               >
-                <div className="mx-room-card__icon">
-                  <Icon name="film" size={24} />
-                </div>
-                <h3 className="mx-room-card__name">{player.name}</h3>
-                <p className="mx-room-card__meta">
-                  {t("channel.rooms.creator", { name: player.creatorName })}
-                </p>
-                {player.sourceUrl && (
-                  <p className="mx-room-card__source">{player.sourceUrl}</p>
-                )}
+                <Icon name="film" size={16} />
+                <span className="mx-room__rooms-item-name">{player.name}</span>
               </button>
             ))}
           </div>
-        )}
-      </div>
-    );
-  }
 
-  // 选中了房间，显示工作区
-  return (
-    <div className="mx-room__grid">
-      <div className="mx-room__side">
-        <aside className="mx-room__nav">
-          <button
-            type="button"
-            className="mx-room__back"
-            onClick={() => onActiveRoomChange(null)}
-          >
-            <Icon name="chevronLeft" size={16} />
-            {t("channel.rooms.backToList")}
-          </button>
-          {currentRoom && (
-            <div className="mx-room__current">
-              <Icon name="film" size={14} />
-              <span>{currentRoom.name}</span>
+          {syncPlayers.length === 0 && (
+            <div className="mx-room__rooms-empty">
+              <p>{t("channel.rooms.emptyTitle")}</p>
+              {canManage && (
+                <Button size="sm" variant="subtle" onClick={onCreateRoom}>
+                  <Icon name="plus" size={14} />
+                  {t("channel.rooms.create")}
+                </Button>
+              )}
             </div>
           )}
         </aside>
 
+        {/* 成员栏 */}
         <ParticipantRail
           selected={selected}
           onSelect={onSelect}
@@ -668,6 +639,7 @@ function RoomWorkspace({
           onKick={onKick}
         />
 
+        {/* 当前房间的播放器控制面板 */}
         {currentRoom && (
           <div className="mx-room__sync">
             <SyncPlayerPanel
@@ -683,6 +655,7 @@ function RoomWorkspace({
         )}
       </div>
 
+      {/* 右侧：大屏幕播放器 */}
       <Stage
         selected={selected}
         viewerCanPublish={detail.viewerCanPublish}
