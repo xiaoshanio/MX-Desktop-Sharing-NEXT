@@ -38,6 +38,7 @@ export function NodesClient({ user }: { user: ShellUser }) {
   const [deleting, setDeleting] = useState<NodeSummary | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [details, setDetails] = useState<NodeSummary | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -146,6 +147,7 @@ export function NodesClient({ user }: { user: ShellUser }) {
                 onRecheck={() => void recheck(node)}
                 onRotate={() => setRotating(node)}
                 onDelete={() => setDeleting(node)}
+                onDetails={() => setDetails(node)}
               />
             ))}
           </div>
@@ -182,6 +184,12 @@ export function NodesClient({ user }: { user: ShellUser }) {
         onConfirm={() => void confirmDelete()}
         onClose={() => setDeleting(null)}
       />
+      <Modal open={details !== null} title={details?.name ?? "Node"} onClose={() => setDetails(null)}>
+        <p className="mx-text-caption">Bound channels</p>
+        {details?.bindings?.length ? details.bindings.map((binding) => (
+          <div key={binding.code} className="mx-row__meta"><code>{binding.code}</code> · {binding.name} {binding.isPrimary ? "(primary)" : ""}</div>
+        )) : <p className="mx-text-caption">No channel bindings.</p>}
+      </Modal>
     </AppShell>
   );
 }
@@ -192,12 +200,14 @@ function NodeListRow({
   onRecheck,
   onRotate,
   onDelete,
+  onDetails,
 }: {
   node: NodeSummary;
   checking: boolean;
   onRecheck: () => void;
   onRotate: () => void;
   onDelete: () => void;
+  onDetails: () => void;
 }) {
   const t = useT();
   const [showWebhook, setShowWebhook] = useState(false);
@@ -205,7 +215,7 @@ function NodeListRow({
   const editable = node.isMine && node.kind === "user";
 
   return (
-    <div className="mx-row" data-stacked={showWebhook ? "true" : undefined}>
+    <div className="mx-row" data-stacked={showWebhook ? "true" : undefined} onDoubleClick={onDetails}>
       <div className="mx-inline" style={{ width: "100%", gap: "var(--mx-space-lg)" }}>
         <span className="mx-row__lead" data-tone={node.kind === "builtin" ? "accent" : undefined}>
           <Icon name="node" size={19} />
@@ -231,6 +241,7 @@ function NodeListRow({
             <span>·</span>
             <span>{node.capabilities?.ingress ? t("nodes.ingressOk") : t("nodes.ingressBad")}</span>
           </div>
+          {node.bindings?.map((binding) => <Badge key={binding.code} tone={binding.isPrimary ? "accent" : "neutral"}>{binding.name}{binding.isPrimary ? " · primary" : " · bound"}</Badge>)}
         </div>
 
         <div className="mx-row__actions">

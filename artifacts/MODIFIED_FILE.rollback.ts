@@ -337,7 +337,6 @@ export const syncPlayers = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     /** 当前片源。存下来是为了后进房的人在房主心跳到达之前就能先把源加载上。 */
     sourceUrl: text("source_url"),
-    access: text("access", { enum: ["members", "publishers", "owner"] }).notNull().default("members"),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

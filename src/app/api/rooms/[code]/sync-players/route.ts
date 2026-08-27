@@ -28,14 +28,16 @@ export const GET = route(async (_req, ctx: { params: Promise<{ code: string }> }
       createdBy: syncPlayers.createdBy,
       createdAt: syncPlayers.createdAt,
       creatorName: users.displayName,
+      access: syncPlayers.access,
     })
     .from(syncPlayers)
     .innerJoin(users, eq(users.id, syncPlayers.createdBy))
     .where(and(eq(syncPlayers.roomId, roomCtx.room.id), isNull(syncPlayers.closedAt)))
     .orderBy(asc(syncPlayers.createdAt));
 
+  const visible = rows.filter((r) => r.access === "members" || (r.access === "publishers" && (roomCtx.membership?.role === "publisher" || roomCtx.membership?.role === "owner")) || (r.access === "owner" && (roomCtx.room.ownerId === user.id || roomCtx.membership?.role === "owner")) || r.createdBy === user.id || user.role === "admin");
   return json({
-    players: rows.map((r) => ({
+    players: visible.map((r) => ({
       id: r.id,
       name: r.name,
       sourceUrl: r.sourceUrl,
@@ -44,6 +46,7 @@ export const GET = route(async (_req, ctx: { params: Promise<{ code: string }> }
       createdAt: r.createdAt.toISOString(),
       /** 谁是「房主」（同步的时钟基准）由前端据此判断 */
       isMine: r.createdBy === user.id,
+      access: r.access,
     })),
   });
 });
@@ -72,7 +75,7 @@ export const POST = route(async (req, ctx: { params: Promise<{ code: string }> }
 
   const [created] = await db
     .insert(syncPlayers)
-    .values({ roomId: roomCtx.room.id, name: input.name, createdBy: user.id })
+    .values({ roomId: roomCtx.room.id, name: input.name, createdBy: user.id, access: input.access })
     .returning();
 
   audit({
@@ -92,6 +95,7 @@ export const POST = route(async (req, ctx: { params: Promise<{ code: string }> }
         creatorName: user.displayName,
         createdAt: created!.createdAt.toISOString(),
         isMine: true,
+        access: created!.access,
       },
     },
     { status: 201 },

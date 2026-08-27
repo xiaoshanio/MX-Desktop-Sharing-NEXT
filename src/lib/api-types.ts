@@ -12,7 +12,10 @@ export type NodeSummary = {
   lastCheckOk: boolean | null;
   capabilities: { listRooms: boolean; ingress: boolean } | null;
   webhookUrl: string;
+  bindings?: Array<{ code: string; name: string; isPrimary: boolean }>;
 };
+
+export type RoomNodeRow = { id: string; name: string; kind: string; isPrimary: boolean; isMine: boolean };
 
 export type RoomRow = {
   code: string;
@@ -70,6 +73,7 @@ export type SyncPlayerRow = {
   createdAt: string;
   /** 我是不是创建者 —— 决定我是同步的时钟基准还是跟随者 */
   isMine: boolean;
+  access: "members" | "publishers" | "owner";
 };
 
 export type MyProfile = {

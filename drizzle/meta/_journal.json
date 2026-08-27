@@ -29,6 +29,13 @@
       "when": 1787736842899,
       "tag": "0003_social_profiles_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787800000000,
+      "tag": "0004_channel_node_access",
+      "breakpoints": true
     }
   ]
 }

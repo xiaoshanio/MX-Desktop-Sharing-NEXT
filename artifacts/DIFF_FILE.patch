@@ -1,0 +1,14 @@
+ drizzle/meta/_journal.json                         |   9 +-
+ src/app/admin/AdminClient.tsx                      |   2 +-
+ src/app/api/nodes/route.ts                         |   4 +-
+ .../api/rooms/[code]/sync-players/[id]/route.ts    |   5 +-
+ src/app/api/rooms/[code]/sync-players/route.ts     |   8 +-
+ src/app/nodes/NodesClient.tsx                      |  13 ++-
+ src/app/room/[code]/RoomClient.tsx                 | 128 ++++++++++++---------
+ src/components/room/ParticipantRail.tsx            |   7 +-
+ src/components/room/SyncPlayerPanel.tsx            |  16 ++-
+ src/db/schema.ts                                   |  55 +++++++++
+ src/lib/api-types.ts                               |   4 +
+ src/lib/validation.ts                              |  14 ++-
+ src/ui/Icon.tsx                                    |   9 ++
+ 13 files changed, 206 insertions(+), 68 deletions(-)

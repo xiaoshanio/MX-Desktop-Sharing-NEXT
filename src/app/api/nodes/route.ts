@@ -1,7 +1,7 @@
 import { and, desc, eq, or } from "drizzle-orm";
 
 import { db } from "@/db";
-import { livekitNodes } from "@/db/schema";
+import { livekitNodes, roomNodes, rooms } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
 import { json, readJson, parseOr400 } from "@/lib/http";
@@ -33,11 +33,13 @@ export const GET = route(async (req) => {
     )
     .orderBy(desc(livekitNodes.createdAt));
 
+  const bindings = await db.select({ nodeId: roomNodes.nodeId, code: rooms.code, name: rooms.name, isPrimary: roomNodes.isPrimary }).from(roomNodes).innerJoin(rooms, eq(rooms.id, roomNodes.roomId));
   return json({
     nodes: rows.map((n) => ({
       ...toSummary(n, user.id),
       // 每个节点的回调地址都不同：验签要用该节点自己的密钥
       webhookUrl: webhookUrlFor(req, n.id),
+      bindings: bindings.filter((b) => b.nodeId === n.id).map(({ code, name, isPrimary }) => ({ code, name, isPrimary })),
     })),
   });
 });

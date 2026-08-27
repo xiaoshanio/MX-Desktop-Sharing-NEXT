@@ -59,9 +59,10 @@ export const PATCH = route(
     const { user, roomCtx, player } = await requireController(code, id);
     const input = await readJson(req, (raw) => parseOr400(updateSyncPlayerSchema, raw));
 
+    if (input.sourceUrl === undefined && input.access === undefined) return json({ ok: true, sourceUrl: player.sourceUrl, access: player.access });
     await db
       .update(syncPlayers)
-      .set({ sourceUrl: input.sourceUrl, updatedAt: new Date() })
+      .set({ ...(input.sourceUrl !== undefined ? { sourceUrl: input.sourceUrl } : {}), ...(input.access ? { access: input.access } : {}), updatedAt: new Date() })
       .where(eq(syncPlayers.id, player.id));
 
     audit({
@@ -72,7 +73,7 @@ export const PATCH = route(
       detail: { playerId: player.id, sourceUrl: input.sourceUrl },
     });
 
-    return json({ ok: true, sourceUrl: input.sourceUrl });
+    return json({ ok: true, sourceUrl: input.sourceUrl ?? player.sourceUrl, access: input.access ?? player.access });
   },
 );
 

@@ -1,0 +1,9 @@
+BASELINE: npm test -> 139 passed, exit 0
+MODIFIED: npm run typecheck -> exit 0; npm test -> 139 passed, exit 0
+ROLLBACK: powershell -File artifacts/ROLLBACK.sh (copy operation) -> restored copy; node --check exit 0
+CHANGED BRANCH/FIELD: room_nodes and node_access_grants; room node bindings, primary route, per-channel grants
+MODIFIED_FILE: artifacts/MODIFIED_FILE.ts
+DIFF_FILE: artifacts/DIFF_FILE.patch
+VERIFICATION: artifacts/VERIFICATION.txt
+ROLLBACK: artifacts/ROLLBACK.sh
+RESTORED BEHAVIOR: rollback copy matches original schema and parses successfully; working tree remains modified.

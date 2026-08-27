@@ -46,6 +46,7 @@ export interface ParticipantRailProps {
   ownerId: string | null;
   onChangeRole: (entry: RailEntry, role: "publisher" | "viewer") => void;
   onKick: (entry: RailEntry, ban: boolean) => void;
+  onGrant?: (entry: RailEntry) => void;
 }
 
 /**
@@ -63,6 +64,7 @@ export function ParticipantRail({
   ownerId,
   onChangeRole,
   onKick,
+  onGrant,
 }: ParticipantRailProps) {
   const { locale, t } = useI18n();
   const participants = useParticipants();
@@ -186,7 +188,7 @@ export function ParticipantRail({
         onClose={() => setMenu(null)}
         title={menu?.entry.displayName}
       >
-        {menu && <RailMenu entry={menu.entry} ownerId={ownerId} onChangeRole={onChangeRole} onKick={onKick} onDone={() => setMenu(null)} />}
+        {menu && <RailMenu entry={menu.entry} ownerId={ownerId} onChangeRole={onChangeRole} onKick={onKick} onGrant={onGrant} onDone={() => setMenu(null)} />}
       </ContextMenu>
     </aside>
   );
@@ -197,12 +199,14 @@ function RailMenu({
   ownerId,
   onChangeRole,
   onKick,
+  onGrant,
   onDone,
 }: {
   entry: RailEntry;
   ownerId: string | null;
   onChangeRole: (entry: RailEntry, role: "publisher" | "viewer") => void;
   onKick: (entry: RailEntry, ban: boolean) => void;
+  onGrant?: (entry: RailEntry) => void;
   onDone: () => void;
 }) {
   const t = useT();
@@ -239,6 +243,7 @@ function RailMenu({
       </ContextMenuItem>
 
       <ContextMenuSeparator />
+      {onGrant && <ContextMenuItem icon={<Icon name="key" size={14} />} onSelect={wrap(() => onGrant(entry))}>授权访问私人节点</ContextMenuItem>}
 
       <ContextMenuItem
         tone="danger"

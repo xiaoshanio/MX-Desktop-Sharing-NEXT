@@ -113,6 +113,16 @@ export const updateRoomSchema = z
     { message: "valid.atLeastOneSetting" },
   );
 
+export const addRoomNodeSchema = z.object({
+  nodeId: z.string().uuid(),
+  primary: z.boolean().optional().default(false),
+});
+
+export const grantNodeAccessSchema = z.object({
+  nodeId: z.string().uuid(),
+  userId: z.string().uuid(),
+});
+
 export const addMemberSchema = z.object({
   email: emailSchema,
   role: z.enum(["publisher", "viewer"]).default("viewer"),
@@ -208,6 +218,7 @@ export const updateProfileSchema = z.object({
 
 export const createSyncPlayerSchema = z.object({
   name: z.string().trim().min(1, "valid.playerName").max(60),
+  access: z.enum(["members", "publishers", "owner"]).default("members"),
 });
 
 /**
@@ -224,7 +235,8 @@ export const updateSyncPlayerSchema = z.object({
     .max(2048)
     .refine((v) => v === "" || /^https?:\/\//i.test(v), "valid.sourceUrlScheme")
     .transform((v) => (v === "" ? null : v))
-    .nullable(),
+    .nullable().optional(),
+  access: z.enum(["members", "publishers", "owner"]).optional(),
 });
 
 /* ============================================================

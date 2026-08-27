@@ -21,7 +21,7 @@ import {
   type SyncMessage,
   type SyncStateMessage,
 } from "@/lib/sync-protocol";
-import { Badge, Banner, Button, Icon, IconButton, Switch, TextField } from "@/ui";
+import { Badge, Banner, Button, Icon, IconButton, Switch, TextField, Select } from "@/ui";
 
 /* ============================================================
    MX Player Pro — 从 CDN 按 ESM 加载
@@ -155,6 +155,7 @@ export function SyncPlayerPanel({
   const [urlDraft, setUrlDraft] = useState(player.sourceUrl ?? "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [access, setAccess] = useState(player.access);
 
   /**
    * 播放器出错要同时做两件事：弹一个右上角提示（用户可能正看着别处），
@@ -195,6 +196,11 @@ export function SyncPlayerPanel({
   useEffect(() => {
     onSourceChangeRef.current = onSourceChange;
   }, [onSourceChange]);
+
+  useEffect(() => {
+    setUrlDraft(player.sourceUrl ?? "");
+    setAccess(player.access);
+  }, [player.sourceUrl, player.access]);
 
   /* ---- 发消息 ---- */
   const publish = useCallback(
@@ -532,6 +538,10 @@ export function SyncPlayerPanel({
         <span className="mx-syncplayer__spacer" />
 
         {canControl && (
+          <Select label="连接权限" value={access} options={[{ value: "members", label: "所有频道成员" }, { value: "publishers", label: "可发布成员" }, { value: "owner", label: "仅房主" }]} onChange={async (event) => { const value = event.target.value as typeof access; setAccess(value); await api(`/api/rooms/${code}/sync-players/${player.id}`, { method: "PATCH", json: { access: value } }); }} />
+        )}
+
+        {canControl && (
           <IconButton size="sm" tone="danger" label={t("sync.close")} onClick={onClose}>
             <Icon name="x" size={15} />
           </IconButton>
@@ -587,10 +597,10 @@ export function SyncPlayerPanel({
         <footer className="mx-syncplayer__foot">
         {canControl ? (
           <form className="mx-syncplayer__form" onSubmit={saveSource}>
-            <div className="mx-syncplayer__input">
+        <div className="mx-syncplayer__input" style={{ minWidth: 420, flex: 1 }}>
               <TextField
                 label={t("sync.urlLabel")}
-                placeholder="https://example.com/video.mkv"
+                placeholder="https://example.com/video.m3u8"
                 hint={t("sync.urlHint")}
                 value={urlDraft}
                 onChange={(event) => setUrlDraft(event.target.value)}

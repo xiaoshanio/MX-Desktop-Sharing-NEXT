@@ -36,6 +36,7 @@ export type IconName =
   | "signal"
   | "broadcast"
   | "settings"
+  | "sliders"
   | "film"
   | "ban"
   | "upload"
@@ -311,6 +312,14 @@ export function Icon({ name, size = 16 }: IconProps): ReactNode {
         <svg {...common}>
           <circle cx="12" cy="12" r="3" />
           <path d="M12 3.5v2.2M12 18.3v2.2M4.6 7.8l1.9 1.1M17.5 15.1l1.9 1.1M4.6 16.2l1.9-1.1M17.5 8.9l1.9-1.1" />
+        </svg>
+      );
+    case "sliders":
+      return (
+        <svg {...common}>
+          <path d="M4 7h16M4 17h16" />
+          <circle cx="9" cy="7" r="2" fill="currentColor" stroke="none" />
+          <circle cx="15" cy="17" r="2" fill="currentColor" stroke="none" />
         </svg>
       );
     case "film":

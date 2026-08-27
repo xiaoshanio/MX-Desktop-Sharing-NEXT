@@ -125,7 +125,7 @@ export function AdminClient({ user, selfId }: { user: ShellUser; selfId: string 
             { value: "nodes", label: t("admin.tab.nodes"), icon: "node", count: nodes.length },
             { value: "users", label: t("admin.tab.users"), icon: "users", count: users.length },
             { value: "services", label: t("admin.tab.services"), icon: "key" },
-            { value: "site", label: t("admin.tab.site"), icon: "settings" },
+            { value: "site", label: t("admin.tab.site"), icon: "sliders" },
           ]}
         />
 
