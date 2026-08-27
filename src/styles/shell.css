@@ -232,7 +232,7 @@
   border-radius: var(--mx-radius-md);
   background: var(--mx-bg-overlay);
   box-shadow: var(--mx-shadow-16);
-  animation: mx-menu-in var(--mx-duration-normal) var(--mx-ease-emphasized) both;
+  /* 弹出动画归 GSAP（lib/motion.ts 的 .mx-menu 一条） */
 }
 .mx-menu__head {
   padding: var(--mx-space-sm) var(--mx-space-md);
@@ -279,16 +279,6 @@
 }
 .mx-menu__item[data-tone="danger"]:hover {
   background: var(--mx-error-soft);
-}
-@keyframes mx-menu-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }
 
 /* ============================================================
@@ -362,7 +352,8 @@
   grid-template-columns: var(--mx-current-sidebar-width) minmax(0, 1fr);
   min-height: 0;
   background: var(--mx-bg-base);
-  transition: grid-template-columns var(--mx-duration-slow) var(--mx-ease-emphasized);
+  /* 收起 / 展开的补间由 GSAP 直接改 --mx-current-sidebar-width 完成
+     （lib/shell-motion.ts）—— 这里再挂一条 transition 就会变成两套动画抢同一个值。 */
 }
 
 .mx-sidebar {
@@ -374,7 +365,35 @@
   overflow-x: hidden;
   overflow-y: auto;
   min-width: 0;
+  /* 选中指示条是绝对定位的，坐标系必须是这一栏 */
+  position: relative;
 }
+
+/* 整栏共用的选中指示条：位置和高度由 GSAP 在条目之间滑动。
+   平时透明，落位过一次之后才可见 —— 没有 JS 就一直不出现，选中项仍有底色可辨。 */
+.mx-sidebar__indicator {
+  position: absolute;
+  left: var(--mx-space-sm);
+  top: 0;
+  width: 2px;
+  height: 20px;
+  border-radius: var(--mx-radius-pill);
+  background: var(--mx-accent);
+  opacity: 0;
+  pointer-events: none;
+}
+[data-sidebar="collapsed"] .mx-app .mx-sidebar__indicator {
+  /* 收起态条目居中且只有 38px 宽，指示条跟着挪到那颗图标的左边缘外侧 */
+  left: calc(var(--mx-space-sm) + 8px);
+}
+
+/* 条目的进场（lib/shell-motion.ts 的 introSidebar）在 GSAP 接手之前先藏好，
+   否则服务端渲染出来的那一列会先被画出来再被拽回起点。约定见 base.css。 */
+html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__group-label,
+html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
+  opacity: 0;
+}
+
 .mx-sidebar__group-label {
   padding: var(--mx-space-xs) var(--mx-space-md) var(--mx-space-sm);
   max-height: 32px;
@@ -383,10 +402,6 @@
   font-weight: var(--mx-weight-semibold);
   overflow: hidden;
   white-space: nowrap;
-  transition:
-    max-height var(--mx-duration-normal) var(--mx-ease-decelerate),
-    opacity var(--mx-duration-normal) var(--mx-ease-standard),
-    transform var(--mx-duration-normal) var(--mx-ease-decelerate);
 }
 [data-sidebar="collapsed"] .mx-app .mx-sidebar__group-label {
   max-height: 0;
@@ -418,21 +433,6 @@
     color var(--mx-duration-fast) var(--mx-ease-standard),
     transform var(--mx-duration-fast) var(--mx-ease-standard);
 }
-.mx-sidebar__item::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 9px;
-  bottom: 9px;
-  width: 2px;
-  border-radius: var(--mx-radius-pill);
-  background: var(--mx-accent);
-  opacity: 0;
-  transform: scaleY(0.55);
-  transition:
-    opacity var(--mx-duration-fast) var(--mx-ease-standard),
-    transform var(--mx-duration-normal) var(--mx-ease-emphasized);
-}
 .mx-sidebar__item:hover {
   background: var(--mx-bg-hover);
   transform: translateX(1px);
@@ -441,10 +441,6 @@
 .mx-sidebar__item[data-active="true"] {
   background: var(--mx-bg-selected);
   font-weight: var(--mx-weight-semibold);
-}
-.mx-sidebar__item[data-active="true"]::before {
-  opacity: 1;
-  transform: scaleY(1);
 }
 .mx-sidebar__item-icon {
   width: 22px;
@@ -465,9 +461,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 160px;
-  transition:
-    max-width var(--mx-duration-slow) var(--mx-ease-emphasized),
-    opacity var(--mx-duration-normal) var(--mx-ease-standard);
+  /* 收起时先被 GSAP 收走，再翻 data-sidebar —— 见 lib/shell-motion.ts */
 }
 .mx-sidebar__item-badge {
   flex-shrink: 0;
@@ -484,11 +478,6 @@
   place-items: center;
   gap: 0;
   padding-inline: 0;
-}
-[data-sidebar="collapsed"] .mx-app .mx-sidebar__item::before {
-  left: 4px;
-  top: 10px;
-  bottom: 10px;
 }
 [data-sidebar="collapsed"] .mx-app .mx-sidebar__item-label,
 [data-sidebar="collapsed"] .mx-app .mx-sidebar__item-badge {
@@ -616,22 +605,8 @@
   gap: var(--mx-space-xl);
   width: 100%;
   min-width: 0;
-  animation: mx-section-enter 260ms var(--mx-ease-emphasized) both;
-}
-.mx-section > * {
-  animation: mx-section-child-enter 280ms var(--mx-ease-emphasized) both;
-}
-.mx-section > *:nth-child(2) {
-  animation-delay: 32ms;
-}
-.mx-section > *:nth-child(3) {
-  animation-delay: 64ms;
-}
-.mx-section > *:nth-child(4) {
-  animation-delay: 96ms;
-}
-.mx-section > *:nth-child(n + 5) {
-  animation-delay: 128ms;
+  /* 进场：整块的孩子一个个淌进来，由 GSAP 编排（lib/motion.ts 的 .mx-section 一条）。
+     原来是 nth-child 手写四段 animation-delay —— 超过第 5 个就只能一律 128ms。 */
 }
 
 .mx-section__header {
@@ -732,25 +707,6 @@
   justify-content: center;
 }
 
-@keyframes mx-section-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes mx-section-child-enter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* ============================================================
    Responsive: sidebar becomes an off-canvas drawer
    ============================================================ */
@@ -784,7 +740,8 @@
     border-right: 1px solid var(--mx-stroke-subtle);
     box-shadow: var(--mx-shadow-16);
     transform: translateX(-100%);
-    transition: transform var(--mx-duration-slow) var(--mx-ease-emphasized);
+    /* 推入 / 收回归 GSAP（lib/shell-motion.ts）。下面那条 [data-drawer="open"] 是
+       兜底：没有 JS 或用户要求减少动效时，抽屉仍然能瞬间打开。 */
   }
   .mx-app[data-drawer="open"] .mx-sidebar {
     transform: translateX(0);
@@ -816,7 +773,7 @@
     inset: var(--mx-toolbar-height) 0 var(--mx-statusbar-height) 0;
     z-index: calc(var(--mx-z-sticky) - 1);
     background: rgba(16, 18, 23, 0.45);
-    animation: mx-modal-fade-in var(--mx-duration-normal) var(--mx-ease-standard) both;
+    /* 淡入淡出归 GSAP；收回时它会用行内 display 撑住这一层直到淡完 */
   }
   .mx-main {
     padding: var(--mx-space-lg);

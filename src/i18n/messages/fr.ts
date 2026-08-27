@@ -979,6 +979,10 @@ const fr: Messages = {
   "landing.closing.body":
     "L'inscription vous donne votre propre espace de travail, où vous pouvez connecter vos propres nœuds LiveKit. Si on vous a envoyé un lien d'invitation, ouvrez-le et connectez-vous — vous rejoindrez la salle automatiquement.",
   "landing.closing.source": "Lire les sources",
+  "landing.closing.badge": "07 · Commencer",
+  "landing.closing.step1": "Créer une salle",
+  "landing.closing.step2": "Envoyer le lien d'invitation",
+  "landing.closing.step3": "Envoyer votre écran",
   "landing.footer.links": "Liens utiles",
   "landing.footer.docs": "Documentation",
   "landing.footer.deploy": "Guide de déploiement",

@@ -34,6 +34,10 @@ export function nextThemePreference(current: ThemePreference): ThemePreference {
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
+/** 动效总开关的判据。引导脚本和 lib/motion.ts 读的是同一条查询。 */
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+
 /** 系统当前是深色还是浅色。读不到（老浏览器 / 服务端）时按浅色算。 */
 export function systemTheme(): Theme {
   try {
@@ -71,11 +75,19 @@ export function readStoredSidebar(): SidebarState {
 }
 
 /**
- * 首帧之前把 `data-theme` / `data-theme-pref` / `data-sidebar` 一起盖到 <html> 上。
+ * 首帧之前把 `data-theme` / `data-theme-pref` / `data-sidebar` / `data-motion`
+ * 一起盖到 <html> 上。
  *
  * 侧栏状态为什么必须在这里定：原来它是在 AppShell 挂载后的 useEffect 里读的，
  * 于是每次刷新都先按「展开」画一帧，再动画收起 —— 也就是「刷新页面会再次收起」
  * 那个 bug。属性提前盖好之后，React 首次渲染拿到的就已经是终态，没有任何过渡。
+ *
+ * `data-motion="js"` 是给 GSAP 动效层用的开关：盖上它，base.css 就会把「等着被动画
+ * 带进来」的元素先藏起来，免得服务端渲染的内容先闪一下完成态。三条约束：
+ *   - 用户要求减少动效时不盖 —— 那样一条预隐藏规则都不生效，页面是静态的；
+ *   - MotionProvider 挂载后会盖上 data-motion-ready，表示 GSAP 真的接上了；
+ *   - 兜底定时器：2.5 秒还没等到 ready（分包挂了、脚本被拦），自己把 data-motion
+ *     摘掉，让内容无条件可见。动效可以没有，内容不能看不见。
  *
  * 放在 <html> 而不是 AppShell 的根 div 上是为了避开 hydration 不匹配：
  * <html> 已经带了 suppressHydrationWarning，而服务端渲染时读不到 localStorage。
@@ -96,6 +108,12 @@ var immersive=location.pathname.indexOf("/room/")===0;
 var s=immersive?"collapsed":(localStorage.getItem("${SIDEBAR_STORAGE_KEY}")==="collapsed"?"collapsed":"expanded");
 d.setAttribute("data-sidebar",s);
 }catch(e){d.setAttribute("data-sidebar","expanded");}
+try{
+if(!window.matchMedia("${REDUCED_MOTION_QUERY}").matches){
+d.setAttribute("data-motion","js");
+setTimeout(function(){if(!d.hasAttribute("data-motion-ready"))d.removeAttribute("data-motion")},2500);
+}
+}catch(e){}
 })();`;
 
 export function readStoredThemePreference(): ThemePreference {

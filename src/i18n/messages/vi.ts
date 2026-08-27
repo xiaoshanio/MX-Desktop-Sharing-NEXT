@@ -952,6 +952,10 @@ const vi: Messages = {
   "landing.closing.body":
     "Đăng ký để có không gian làm việc riêng, nơi bạn kết nối node LiveKit của mình. Nếu ai gửi bạn liên kết mời, chỉ cần mở rồi đăng nhập — bạn sẽ vào phòng tự động.",
   "landing.closing.source": "Đọc mã nguồn",
+  "landing.closing.badge": "07 · Bắt đầu",
+  "landing.closing.step1": "Tạo phòng",
+  "landing.closing.step2": "Gửi liên kết mời",
+  "landing.closing.step3": "Đưa màn hình sang",
   "landing.footer.links": "Liên kết liên quan",
   "landing.footer.docs": "Tài liệu",
   "landing.footer.deploy": "Hướng dẫn triển khai",

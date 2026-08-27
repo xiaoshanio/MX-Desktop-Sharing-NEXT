@@ -960,6 +960,10 @@ const ru: Messages = {
   "landing.closing.body":
     "После регистрации у вас появится своя рабочая область, где можно подключить свои узлы LiveKit. Если вам прислали ссылку-приглашение, просто откройте её и войдите — вы попадёте в комнату автоматически.",
   "landing.closing.source": "Читать исходники",
+  "landing.closing.badge": "07 · Начните здесь",
+  "landing.closing.step1": "Создать комнату",
+  "landing.closing.step2": "Отправить ссылку-приглашение",
+  "landing.closing.step3": "Отправить экран",
   "landing.footer.links": "Полезные ссылки",
   "landing.footer.docs": "Документация",
   "landing.footer.deploy": "Руководство по развёртыванию",

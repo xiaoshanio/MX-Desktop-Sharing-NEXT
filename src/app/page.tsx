@@ -6,7 +6,9 @@ import { RichText, type MessageKey } from "@/i18n";
 import { serverT } from "@/i18n/server";
 import { APP_NAME, COPYRIGHT } from "@/lib/brand";
 import { BrandMark } from "@/components/BrandMark";
+import { ClosingStage } from "@/components/ClosingStage";
 import { LandingBarFit } from "@/components/LandingBarFit";
+import { LandingMotion } from "@/components/LandingMotion";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Icon, LinkButton, type IconName } from "@/ui";
@@ -127,6 +129,10 @@ export default async function HomePage() {
 
   return (
     <div className="mx-land">
+      {/* 首屏那条时间线 + 顶栏投影 + 在线点呼吸，全在这个组件里（不渲染任何标记）。
+          「滚到就淌进来」那部分是全站通用的，由 layout 里的 MotionProvider 负责。 */}
+      <LandingMotion />
+
       <header className="mx-land__bar mx-acrylic">
         {/* 顶栏的「装不下就砍次要项」由 LandingBarFit 量着办，见那个组件的注释 */}
         <LandingBarFit>
@@ -259,13 +265,13 @@ export default async function HomePage() {
         {/* ---------- 两条推流路线 ---------- */}
         <section className="mx-land__section" id="paths">
           <div className="mx-land__measure">
-            <div className="mx-land__head">
+            <div className="mx-land__head" data-mx-reveal="rise">
               <span className="mx-land__eyebrow">{t("landing.paths.eyebrow")}</span>
               <h2 className="mx-land__h2">{t("landing.paths.h2")}</h2>
               <p className="mx-land__lead">{t("landing.paths.lead")}</p>
             </div>
 
-            <div className="mx-land__paths">
+            <div className="mx-land__paths" data-mx-stagger>
               <article className="mx-land__path">
                 <div className="mx-land__path-top">
                   <Icon name="share" size={18} />
@@ -318,7 +324,7 @@ export default async function HomePage() {
         {/* ---------- 免费额度实算 ---------- */}
         <section className="mx-land__section" id="quota" data-tint="true">
           <div className="mx-land__measure">
-            <div className="mx-land__head">
+            <div className="mx-land__head" data-mx-reveal="rise">
               <span className="mx-land__eyebrow">{t("landing.quota.eyebrow")}</span>
               <h2 className="mx-land__h2">{t("landing.quota.h2")}</h2>
             </div>
@@ -327,7 +333,7 @@ export default async function HomePage() {
               <div>
                 <p className="mx-land__lead">{t("landing.quota.lead")}</p>
 
-                <div className="mx-land__tiles">
+                <div className="mx-land__tiles" data-mx-stagger>
                   <div className="mx-land__tile">
                     <span className="mx-land__tile-value">5,000</span>
                     <span className="mx-land__tile-label">{t("landing.quota.tile1Label")}</span>
@@ -346,7 +352,7 @@ export default async function HomePage() {
               </div>
 
               <div>
-                <div className="mx-table-wrap">
+                <div className="mx-table-wrap" data-mx-reveal="rise">
                   <table className="mx-table">
                     <thead>
                       <tr>
@@ -386,13 +392,13 @@ export default async function HomePage() {
         {/* ---------- 功能 ---------- */}
         <section className="mx-land__section" id="features">
           <div className="mx-land__measure">
-            <div className="mx-land__head">
+            <div className="mx-land__head" data-mx-reveal="rise">
               <span className="mx-land__eyebrow">{t("landing.features.eyebrow")}</span>
               <h2 className="mx-land__h2">{t("landing.features.h2")}</h2>
               <p className="mx-land__lead">{t("landing.features.lead")}</p>
             </div>
 
-            <div className="mx-land__features">
+            <div className="mx-land__features" data-mx-stagger>
               {FEATURES.map((feature) => (
                 <article className="mx-land__feature" key={feature.title}>
                   <span className="mx-land__feature-icon">
@@ -411,13 +417,13 @@ export default async function HomePage() {
         {/* ---------- 快速开始 ---------- */}
         <section className="mx-land__section" id="start">
           <div className="mx-land__measure">
-            <div className="mx-land__head">
+            <div className="mx-land__head" data-mx-reveal="rise">
               <span className="mx-land__eyebrow">{t("landing.start.eyebrow")}</span>
               <h2 className="mx-land__h2">{t("landing.start.h2")}</h2>
               <p className="mx-land__lead">{t("landing.start.lead")}</p>
             </div>
 
-            <div className="mx-land__steps">
+            <div className="mx-land__steps" data-mx-stagger>
               <article className="mx-land__step">
                 <span className="mx-land__step-num">1</span>
                 <div className="mx-land__step-body">
@@ -467,7 +473,7 @@ export default async function HomePage() {
         {/* ---------- 桌面端预告 ---------- */}
         <section className="mx-land__section" id="app" data-tint="true">
           <div className="mx-land__measure">
-            <div className="mx-land__head">
+            <div className="mx-land__head" data-mx-reveal="rise">
               <span className="mx-land__eyebrow">{t("landing.app.eyebrow")}</span>
               <h2 className="mx-land__h2">
                 {t("landing.app.h2a")}
@@ -477,7 +483,7 @@ export default async function HomePage() {
             </div>
 
             <div className="mx-land__teaser">
-              <div className="mx-land__teaser-note">
+              <div className="mx-land__teaser-note" data-mx-reveal="rise">
                 <span className="mx-land__teaser-badge">
                   <Icon name="sparkle" size={13} />
                   {t("landing.app.badge")}
@@ -487,7 +493,7 @@ export default async function HomePage() {
                 </p>
               </div>
 
-              <div className="mx-land__teaser-grid">
+              <div className="mx-land__teaser-grid" data-mx-stagger>
                 {APP_IDEAS.map((idea) => (
                   <article className="mx-land__teaser-card" key={idea.title}>
                     <span className="mx-land__teaser-icon">
@@ -499,7 +505,7 @@ export default async function HomePage() {
                 ))}
               </div>
 
-              <div className="mx-land__teaser-foot">
+              <div className="mx-land__teaser-foot" data-mx-reveal="rise">
                 <p>
                   <RichText text={t("landing.app.footNote")} />
                 </p>
@@ -527,7 +533,7 @@ export default async function HomePage() {
         {/* ---------- Q&A ---------- */}
         <section className="mx-land__section" id="qa">
           <div className="mx-land__measure">
-            <div className="mx-land__head">
+            <div className="mx-land__head" data-mx-reveal="rise">
               <span className="mx-land__eyebrow">{t("landing.qa.eyebrow")}</span>
               <h2 className="mx-land__h2">{t("landing.qa.h2")}</h2>
               <p className="mx-land__lead">{t("landing.qa.lead")}</p>
@@ -537,7 +543,7 @@ export default async function HomePage() {
               原生 <details> 而不是自己写一套折叠：这是服务端组件，没有 JS 也要能展开，
               键盘和读屏器的行为浏览器已经做对了。
             */}
-            <div className="mx-land__qa">
+            <div className="mx-land__qa" data-mx-stagger>
               {QA.map((item) => (
                 <details className="mx-land__qa-item" key={item.q}>
                   <summary className="mx-land__qa-q">
@@ -556,12 +562,34 @@ export default async function HomePage() {
         </section>
 
         {/* ---------- 收尾 ---------- */}
-        <section className="mx-land__section">
+        <section className="mx-land__section" id="closing">
           <div className="mx-land__measure">
-            <div className="mx-land__closing">
-              <BrandMark size={48} />
-              <h2>{t("landing.closing.h2")}</h2>
-              <p>{t("landing.closing.body")}</p>
+            <ClosingStage>
+              <span className="mx-land__stage-badge">
+                <BrandMark size={16} />
+                {t("landing.closing.badge")}
+              </span>
+
+              <h2 className="mx-land__stage-title">{t("landing.closing.h2")}</h2>
+
+              <p className="mx-land__stage-lead">{t("landing.closing.body")}</p>
+
+              {/* 真的就是这三步 —— 房间码发出去，对方打开链接就在同一个房间里了 */}
+              <ol className="mx-land__stage-steps">
+                <li className="mx-land__stage-step">
+                  <b>1</b>
+                  {t("landing.closing.step1")}
+                </li>
+                <li className="mx-land__stage-step">
+                  <b>2</b>
+                  {t("landing.closing.step2")}
+                </li>
+                <li className="mx-land__stage-step">
+                  <b>3</b>
+                  {t("landing.closing.step3")}
+                </li>
+              </ol>
+
               <div className="mx-land__cta">
                 <LinkButton href={entryHref} variant="primary" size="lg">
                   {entryLabel}
@@ -572,7 +600,7 @@ export default async function HomePage() {
                   {t("landing.closing.source")}
                 </LinkButton>
               </div>
-            </div>
+            </ClosingStage>
           </div>
         </section>
       </main>

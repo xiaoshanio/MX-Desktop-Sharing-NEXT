@@ -5,6 +5,7 @@ import { serverLocale } from "@/i18n/server";
 import { getT } from "@/i18n/translate";
 import { APP_NAME } from "@/lib/brand";
 import { themeBootstrapScript } from "@/lib/theme";
+import { MotionProvider } from "@/components/MotionProvider";
 import { Toaster } from "@/components/Toaster";
 
 import "@/styles/tokens.css";
@@ -61,6 +62,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <I18nProvider locale={locale}>
+          {/* 全站动效层的启动器：初始化 GSAP、每次换页重新扫一遍要进场的元素。
+              自己不渲染任何标记，怎么动全在 lib/motion.ts 那张表里。 */}
+          <MotionProvider />
           {children}
           {/* 全站共用的右上角提示栈。挂在最外层，弹窗里报的错也盖不住它。 */}
           <Toaster />

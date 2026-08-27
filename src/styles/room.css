@@ -409,7 +409,7 @@
   border-radius: var(--mx-radius-md);
   background: var(--mx-bg-overlay);
   box-shadow: var(--mx-shadow-16);
-  animation: mx-menu-in var(--mx-duration-normal) var(--mx-ease-emphasized) both;
+  /* 弹出归 GSAP（lib/motion.ts 的 .mx-context 一条） */
 }
 .mx-context__head {
   padding: var(--mx-space-sm) var(--mx-space-md) var(--mx-space-xs);
@@ -493,7 +493,7 @@
   border-radius: var(--mx-radius-md);
   background: var(--mx-bg-overlay);
   box-shadow: var(--mx-shadow-16);
-  animation: mx-coach-in var(--mx-duration-slow) var(--mx-ease-emphasized) both;
+  /* 进场归 GSAP（lib/motion.ts 的 .mx-coach__bubble 一条） */
 }
 .mx-coach__arrow {
   position: absolute;
@@ -536,17 +536,6 @@
     transform: translate(-50%, 0) scale(1.25);
   }
 }
-@keyframes mx-coach-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
 /* ============================================================
    Auth extras — OAuth buttons, method switch, captcha
    ============================================================ */
@@ -813,10 +802,6 @@
   }
   .mx-pcard__live-dot,
   .mx-coach__halo {
-    animation: none;
-  }
-  .mx-context,
-  .mx-coach__bubble {
     animation: none;
   }
 }

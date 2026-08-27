@@ -946,6 +946,10 @@ const en = {
   "landing.closing.body":
     "Signing up gives you your own workspace, where you can connect your own LiveKit nodes. If you were sent an invite link, just open it and sign in — you'll join the room automatically.",
   "landing.closing.source": "Read the source",
+  "landing.closing.badge": "07 · Start here",
+  "landing.closing.step1": "Create a room",
+  "landing.closing.step2": "Send the invite link",
+  "landing.closing.step3": "Push your screen",
   "landing.footer.links": "Related links",
   "landing.footer.docs": "Docs",
   "landing.footer.deploy": "Deployment guide",

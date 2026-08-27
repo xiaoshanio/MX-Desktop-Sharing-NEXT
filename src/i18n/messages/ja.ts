@@ -889,6 +889,10 @@ const ja: Messages = {
   "landing.closing.body":
     "登録すると自分専用のワークスペースができ、自分の LiveKit ノードを接続できます。招待リンクを受け取った場合は、開いてログインすれば自動でルームに入ります。",
   "landing.closing.source": "ソースを読む",
+  "landing.closing.badge": "07 · はじめる",
+  "landing.closing.step1": "ルームを作る",
+  "landing.closing.step2": "招待リンクを送る",
+  "landing.closing.step3": "画面を送る",
   "landing.footer.links": "関連リンク",
   "landing.footer.docs": "ドキュメント",
   "landing.footer.deploy": "デプロイ手順",

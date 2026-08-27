@@ -47,7 +47,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--mx-space-xl);
-  animation: mx-auth-rise var(--mx-duration-slow) var(--mx-ease-emphasized) both;
+  /* 进场归 GSAP（lib/motion.ts 的 .mx-auth__inner 一条） */
 }
 .mx-auth__inner[data-size="wide"] {
   width: min(100%, 520px);
@@ -75,7 +75,7 @@
 }
 .mx-auth__mark {
   display: block;
-  animation: mx-auth-pop 260ms var(--mx-ease-emphasized) both;
+  /* 弹入归 GSAP（lib/motion.ts 的 .mx-auth__mark 一条） */
 }
 /* The mark + title double as the way back to the landing page. */
 .mx-auth__home {
@@ -196,26 +196,6 @@
   font-size: var(--mx-font-size-caption);
 }
 
-@keyframes mx-auth-rise {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@keyframes mx-auth-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.86);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
 
 /* ============================================================
    Stat tiles
@@ -309,7 +289,7 @@
   border-radius: var(--mx-radius-md);
   background: var(--mx-bg-layer);
   min-width: 0;
-  animation: mx-row-enter var(--mx-duration-normal) var(--mx-ease-decelerate) both;
+  /* 进场归 GSAP（lib/motion.ts 的 .mx-row, .mx-roomcard 一条） */
   transition:
     background var(--mx-duration-fast) var(--mx-ease-standard),
     border-color var(--mx-duration-fast) var(--mx-ease-standard),
@@ -394,16 +374,6 @@
   gap: var(--mx-space-sm);
 }
 
-@keyframes mx-row-enter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 /* ============================================================
    Video stage — always dark, regardless of theme
@@ -477,7 +447,7 @@
   aspect-ratio: 16 / 9;
   background: #000;
   overflow: hidden;
-  animation: mx-motion-enter var(--mx-duration-slow) var(--mx-ease-decelerate) both;
+  /* 进场归 GSAP（lib/motion.ts 的 .mx-stage__tile 一条） */
 }
 .mx-stage__tile video {
   width: 100%;
@@ -563,7 +533,7 @@
   border: 1px solid var(--mx-stroke-subtle);
   border-radius: var(--mx-radius-md);
   background: var(--mx-bg-subtle);
-  animation: mx-motion-enter var(--mx-duration-normal) var(--mx-ease-decelerate) both;
+  /* 进场归 GSAP（lib/motion.ts 的 .mx-guide 一条） */
 }
 .mx-guide__title {
   font-size: var(--mx-font-size-body);
@@ -718,7 +688,7 @@
   border-radius: var(--mx-radius-md);
   background: var(--mx-bg-overlay);
   box-shadow: var(--mx-shadow-16);
-  animation: mx-menu-in var(--mx-duration-normal) var(--mx-ease-emphasized) both;
+  /* 弹出归 GSAP（lib/motion.ts 的 .mx-finder__menu 一条） */
 }
 .mx-finder__hint {
   padding: var(--mx-space-md);
@@ -821,7 +791,7 @@
   text-align: left;
   cursor: pointer;
   overflow: hidden;
-  animation: mx-row-enter var(--mx-duration-normal) var(--mx-ease-decelerate) both;
+  /* 进场归 GSAP（lib/motion.ts 的 .mx-row, .mx-roomcard 一条） */
   transition:
     background var(--mx-duration-fast) var(--mx-ease-standard),
     border-color var(--mx-duration-fast) var(--mx-ease-standard),
@@ -945,10 +915,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mx-roomcard,
-  .mx-finder__menu {
-    animation: none;
-  }
   .mx-roomcard:hover {
     transform: none;
   }
@@ -959,13 +925,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mx-auth__inner,
-  .mx-auth__mark,
-  .mx-row,
-  .mx-stage__tile,
-  .mx-guide {
-    animation: none;
-  }
   .mx-row:hover,
   .mx-stat:hover {
     transform: none;

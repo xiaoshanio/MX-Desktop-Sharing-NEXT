@@ -50,6 +50,12 @@ html:has(.mx-land) {
   top: 0;
   z-index: var(--mx-z-sticky);
   border-bottom: 1px solid var(--mx-stroke-subtle);
+  transition: box-shadow var(--mx-duration-normal) var(--mx-ease-standard);
+}
+/* 离开页顶之后加一道投影，让顶栏看起来是浮在内容上面的。
+   `data-scrolled` 由滚动位置驱动（GSAP ScrollTrigger，见 components/LandingMotion.tsx）。 */
+.mx-land__bar[data-scrolled] {
+  box-shadow: var(--mx-shadow-8);
 }
 .mx-land__bar-inner {
   height: var(--land-bar-height);
@@ -221,7 +227,8 @@ html:has(.mx-land) {
 }
 
 .mx-land__hero-copy {
-  animation: mx-land-rise var(--mx-duration-slow) var(--mx-ease-emphasized) both;
+  /* 首屏的进场顺序由 GSAP 编排（components/LandingMotion.tsx）—— 标签、标题、说明、
+     按钮、事实条是一条有先后的时间线，CSS 只能给每个元素各写一条 delay。 */
 }
 
 .mx-land__tag {
@@ -302,8 +309,6 @@ html:has(.mx-land) {
   background: var(--mx-bg-card);
   box-shadow: var(--mx-shadow-16);
   overflow: hidden;
-  animation: mx-land-rise var(--mx-duration-slower) var(--mx-ease-emphasized) both;
-  animation-delay: 80ms;
 }
 .mx-land__topo-bar {
   display: flex;
@@ -397,7 +402,7 @@ html:has(.mx-land) {
 }
 .mx-land__room[data-live="true"] .mx-land__room-dot {
   background: var(--mx-success);
-  animation: mx-land-pulse 2.4s var(--mx-ease-standard) infinite;
+  /* 呼吸由 GSAP 驱动，每颗错开起拍（components/LandingMotion.tsx） */
 }
 
 .mx-land__topo-foot {
@@ -844,36 +849,225 @@ html:has(.mx-land) {
 }
 
 /* ============================================================
-   Closing call to action + footer
+   Closing call to action — 着色器舞台
+
+   最后这块以前是一张白卡片：白底、深字、居中，和上面六节的语气一模一样，读到这儿
+   已经没有「该动手了」的分量。现在换成一块自带背景的舞台 —— 背景是 WebGL 算出来的
+   马赛克波纹（lib/mosaic-shader.ts），配色取自主色鸢尾紫，和站点其余部分同一族。
+
+   分层（z-index 从下到上）：
+     0  .mx-land__stage-shader   canvas + 兜底条纹。比卡片高 12%,好让它上下推做视差
+     1  .mx-land__stage-wash     从左下往右上淡出的暗色渐变 —— 白字的可读性靠它
+     1  .mx-land__stage-grain    极轻噪点，压掉大色块的塑料感
+     2  .mx-land__stage-content  文案
+
+   wash 和 grain 刻意留在视差层外面：背景可以动，压在文字底下的那层暗色不能动,
+   否则滚动时对比度会跟着晃。
    ============================================================ */
-.mx-land__closing {
+.mx-land__stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: clamp(400px, 46vw, 520px);
+  /* 网格 + 下面那条 justify-content: center，让文案在舞台里垂直居中：
+     内容比 min-height 短的时候不会全挤在顶上。 */
+  display: grid;
+  border-radius: 28px;
+  /* WebGL 起不来时露出来的底色：主色的深调，不是灰 */
+  background: #2b2168;
+  box-shadow: var(--mx-shadow-16);
+  /* Safari 在 canvas + 圆角时 overflow 有时裁不住,clip-path 是补刀 */
+  clip-path: inset(0 round 28px);
+  transform: translateZ(0);
+}
+
+.mx-land__stage-shader,
+.mx-land__stage-shader canvas,
+.mx-land__stage-fallback,
+.mx-land__stage-wash,
+.mx-land__stage-grain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.mx-land__stage-shader {
+  /* 比舞台高一截，视差推动时不会露出边 */
+  top: -6%;
+  height: 112%;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.mx-land__stage-shader canvas {
+  display: block;
+}
+/* 兜底条纹：拿不到 webgl2、着色器编译失败、或者用户要求减少动效时露出来。
+   色带顺序和着色器里那三条光带一致，所以两条路径看起来是同一个设计。 */
+.mx-land__stage-fallback {
+  display: none;
+  background: repeating-linear-gradient(
+    0deg,
+    #5c95ee 0,
+    #5c95ee 9%,
+    #2d6fd6 9%,
+    #2d6fd6 17%,
+    #291b6a 17%,
+    #291b6a 26%,
+    #120c26 26%,
+    #120c26 34%,
+    #b7abe8 34%,
+    #b7abe8 43%,
+    #7e6ddd 43%,
+    #7e6ddd 52%,
+    #241a5a 52%,
+    #241a5a 61%,
+    #120c26 61%,
+    #120c26 69%,
+    #d167bd 69%,
+    #d167bd 77%,
+    #6754c9 77%,
+    #6754c9 86%,
+    #1c1440 86%,
+    #1c1440 100%
+  );
+}
+.mx-land__stage-fallback[data-on] {
+  display: block;
+}
+
+.mx-land__stage-wash {
+  z-index: 1;
+  pointer-events: none;
+  /* 文案压在着色器最亮的那一格上时，白字的对比度只有 4.4:1（AA 要 4.5）——
+     所以这层暗色在文案列（左半边）压得比参考稿更实，右侧四分之一仍然是原色。
+     实测：最差 6.5:1，最好 19:1。 */
+  background:
+    linear-gradient(
+      104deg,
+      rgba(14, 10, 34, 0.86) 0%,
+      rgba(14, 10, 34, 0.6) 46%,
+      rgba(14, 10, 34, 0) 78%
+    ),
+    linear-gradient(0deg, rgba(14, 10, 34, 0.46), rgba(14, 10, 34, 0) 58%);
+}
+.mx-land__stage-grain {
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.14;
+  mix-blend-mode: multiply;
+  /* 内联 SVG 的 feTurbulence：没有额外请求，也不受「不联网取字体/图片」那条约束影响 */
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.36'/%3E%3C/svg%3E");
+}
+
+.mx-land__stage-content {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: center;
   gap: var(--mx-space-lg);
-  padding: clamp(var(--mx-space-2xl), 5vw, 68px) var(--mx-space-xl);
-  border: 1px solid var(--mx-stroke-default);
-  border-radius: var(--mx-radius-xl);
-  background: var(--mx-bg-card);
-  box-shadow: var(--mx-shadow-8);
-  text-align: center;
+  padding: clamp(var(--mx-space-xl), 4.6vw, 64px);
+  color: #ffffff;
 }
-.mx-land__closing h2 {
-  margin: 0;
-  font-size: var(--land-h2);
-  line-height: 1.24;
+
+.mx-land__stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  height: 30px;
+  padding-inline: var(--mx-space-md);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: var(--mx-radius-pill);
+  background: rgba(255, 255, 255, 0.94);
+  color: #2b2160;
+  font-size: var(--mx-font-size-caption);
   font-weight: var(--mx-weight-semibold);
-  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.mx-land__stage-title {
+  margin: 0;
+  max-width: 22ch;
+  /* 比页内 h2 再大一档：这是全页最后一句话，得压得住整块背景 */
+  font-size: clamp(28px, 3.9vw, 46px);
+  line-height: 1.14;
+  font-weight: var(--mx-weight-semibold);
+  letter-spacing: -0.035em;
   text-wrap: balance;
 }
-.mx-land__closing p {
+.mx-land__stage-lead {
   margin: 0;
-  max-width: 52ch;
-  color: var(--mx-text-secondary);
+  max-width: 50ch;
+  color: rgba(255, 255, 255, 0.88);
   font-size: var(--land-lead);
-  line-height: 1.7;
+  line-height: 1.68;
   text-wrap: pretty;
 }
+
+/* 三步走：建房间 → 发链接 → 推屏幕。玻璃质感的胶囊，落在马赛克上仍然读得清。 */
+.mx-land__stage-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mx-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mx-land__stage-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  min-height: 34px;
+  padding: 0 var(--mx-space-md) 0 7px;
+  border: 1px solid rgba(255, 255, 255, 0.44);
+  border-radius: var(--mx-radius-pill);
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: #ffffff;
+  font-size: var(--mx-font-size-caption);
+  font-weight: var(--mx-weight-medium);
+  white-space: nowrap;
+}
+.mx-land__stage-step b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2b2160;
+  font-size: 11px;
+  font-weight: var(--mx-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 舞台上的按钮换一套配色：主按钮是白底深字（对着紫色背景最响），
+   次按钮是磨砂玻璃。形状、尺寸、间距仍然是 .mx-button 那一套。 */
+.mx-land__stage .mx-button[data-variant="primary"] {
+  background: #ffffff;
+  border-color: transparent;
+  color: #241c4d;
+}
+.mx-land__stage .mx-button[data-variant="primary"]:hover:not(:disabled) {
+  background: #f1ecfd;
+}
+.mx-land__stage .mx-button[data-variant="secondary"] {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.46);
+  color: #ffffff;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.mx-land__stage .mx-button[data-variant="secondary"]:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+
 
 .mx-land__footer {
   border-top: 1px solid var(--mx-stroke-subtle);
@@ -940,26 +1134,11 @@ html:has(.mx-land) {
 /* ============================================================
    Motion
    ============================================================ */
-@keyframes mx-land-rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@keyframes mx-land-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.45;
-    transform: scale(0.82);
-  }
+/* 首屏是服务端渲染的，JS 之前就会被画出来 —— 等着被 GSAP 带进来的元素先藏好，
+   否则会先闪一下完成态。data-motion / data-mx-shown 的约定见 base.css。 */
+html[data-motion="js"] .mx-land__hero-copy:not([data-mx-shown]) > *,
+html[data-motion="js"] .mx-land__topo:not([data-mx-shown]) {
+  opacity: 0;
 }
 
 /* ============================================================
@@ -1027,19 +1206,23 @@ html:has(.mx-land) {
   .mx-land__cta > * {
     flex: 1 1 100%;
   }
+  /* 手机上舞台的圆角收小一点，不然弧线会吃掉本来就不多的横向空间 */
+  .mx-land__stage {
+    min-height: 0;
+    border-radius: 20px;
+    clip-path: inset(0 round 20px);
+  }
+  /* 舞台的文案层是 align-items: flex-start 的纵向 flex，按钮组默认按内容收窄；
+     手机上要让上面那条「每个按钮占满一行」的规则真的占满，得先把按钮组撑开。 */
+  .mx-land__stage-content .mx-land__cta {
+    align-self: stretch;
+  }
   .mx-land__footer-links {
     margin-inline-start: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mx-land__hero-copy,
-  .mx-land__topo {
-    animation: none !important;
-  }
-  .mx-land__room[data-live="true"] .mx-land__room-dot {
-    animation: none !important;
-  }
   .mx-land__feature:hover {
     transform: none;
   }

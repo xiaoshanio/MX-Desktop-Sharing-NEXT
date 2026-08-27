@@ -8,6 +8,12 @@ import { api } from "@/lib/api-client";
 import { useT } from "@/i18n";
 import { APP_NAME, POWERED_BY } from "@/lib/brand";
 import {
+  animateDrawer,
+  animateSidebar,
+  introSidebar,
+  moveIndicator,
+} from "@/lib/shell-motion";
+import {
   applySidebar,
   isImmersivePath,
   readStoredSidebar,
@@ -97,6 +103,12 @@ export function AppShell({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [online, setOnline] = useState(true);
 
+  /** 动效要摸的四个节点。宽度动画写在 .mx-app 上，因为 CSS 变量声明在那里。 */
+  const appRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+  const scrimRef = useRef<HTMLDivElement>(null);
+
   const immersive = isImmersivePath(pathname);
 
   // Hydrate persisted chrome state after mount — the attribute is already on <html>
@@ -105,18 +117,57 @@ export function AppShell({
     setCollapsed(document.documentElement.getAttribute("data-sidebar") === "collapsed");
   }, []);
 
+  // 侧栏自己的进场，只跑一次
+  useEffect(() => {
+    introSidebar(sidebarRef.current);
+  }, []);
+
+  /**
+   * 选中指示条跟着当前页走。
+   *
+   * 除了路由变化，还有两件事会让它错位，都得重新对齐（而且是直接对齐，不补间 ——
+   * 那时候侧栏本身正在变形，再滑一次只会显得拖沓）：
+   *   - 收起 / 展开：「工作区」那行标题会被收掉，下面的条目整体上移；
+   *   - 改窗口大小：宽屏 ↔ 抽屉两套布局的条目位置不一样。
+   */
+  useEffect(() => {
+    const nav = sidebarRef.current;
+    const bar = indicatorRef.current;
+    if (!nav || !bar) return;
+
+    moveIndicator(nav, bar);
+
+    const align = () => moveIndicator(nav, bar, true);
+    const sidebarAttr = new MutationObserver(align);
+    sidebarAttr.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-sidebar"],
+    });
+    window.addEventListener("resize", align);
+    return () => {
+      sidebarAttr.disconnect();
+      window.removeEventListener("resize", align);
+    };
+  }, [pathname, user.role]);
+
+  // 窄屏抽屉的推入 / 收回
+  useEffect(() => {
+    animateDrawer(sidebarRef.current, scrimRef.current, drawerOpen);
+  }, [drawerOpen]);
+
   /**
    * 客户端路由切换时套用「进房收起、出房恢复」。
    *
    * 引导脚本只在整页加载时跑，从列表页点进房间是软导航，所以这一条 effect 是必需的。
-   * 它在首帧之后执行，于是这里**会**有一次过渡动画 —— 那正是想要的效果
-   * （侧栏平滑收起）。刷新时不走这条路径，所以也不会有闪烁。
+   * 只有目标状态和当前不一样时才走动画那条路 —— 刷新时两者一致，于是没有任何过渡
+   * （那正是「刷新后不该再收起一次」的要求），而软导航进出房间时侧栏会平滑收起 / 展开。
    */
   useEffect(() => {
     const next: SidebarState = immersive ? "collapsed" : readStoredSidebar();
-    // 房间里的收起是临时的，不写 localStorage：退出房间要能回到用户自己的偏好
-    applySidebar(next, false);
     setCollapsed(next === "collapsed");
+    if (document.documentElement.getAttribute("data-sidebar") === next) return;
+    // 房间里的收起是临时的，不写 localStorage：退出房间要能回到用户自己的偏好
+    animateSidebar(appRef.current, next === "collapsed", () => applySidebar(next, false));
   }, [immersive, pathname]);
 
   useEffect(() => {
@@ -136,18 +187,18 @@ export function AppShell({
   }, [pathname]);
 
   const toggleSidebar = useCallback(() => {
-    setCollapsed((previous) => {
-      const next: SidebarState = previous ? "expanded" : "collapsed";
-      // 在房间里手动展开只对当次有效，不覆盖列表页的长期偏好
-      applySidebar(next, !immersive);
-      return next === "collapsed";
-    });
-  }, [immersive]);
+    // 刻意不在 setState 的更新函数里做这件事：那个函数在开发模式下会被调用两遍，
+    // 动画因此会起两次（旧代码在里面改 <html> 属性也是同样的问题，只是看不出来）。
+    const next: SidebarState = collapsed ? "expanded" : "collapsed";
+    setCollapsed(next === "collapsed");
+    // 在房间里手动展开只对当次有效，不覆盖列表页的长期偏好
+    animateSidebar(appRef.current, next === "collapsed", () => applySidebar(next, !immersive));
+  }, [collapsed, immersive]);
 
   const items = NAV.filter((item) => !item.adminOnly || user.role === "admin");
 
   return (
-    <div className="mx-app" data-drawer={drawerOpen ? "open" : "closed"}>
+    <div className="mx-app" ref={appRef} data-drawer={drawerOpen ? "open" : "closed"}>
       <header className="mx-topbar">
         <IconButton
           className="mx-topbar__menu"
@@ -195,7 +246,10 @@ export function AppShell({
       </header>
 
       <div className="mx-body">
-        <nav className="mx-sidebar" aria-label={t("shell.mainNav")}>
+        <nav className="mx-sidebar" ref={sidebarRef} aria-label={t("shell.mainNav")}>
+          {/* 整栏共用一根选中指示条，由 GSAP 在条目之间滑动（lib/shell-motion.ts）。
+              没有 JS 时它不会出现，选中项仍然靠底色和图标颜色区分。 */}
+          <span className="mx-sidebar__indicator" ref={indicatorRef} aria-hidden="true" />
           <div className="mx-sidebar__group-label">{t("shell.workspace")}</div>
           {items.map((item) => {
             const active =
@@ -231,7 +285,13 @@ export function AppShell({
           </div>
         </nav>
 
-        <div className="mx-scrim" role="presentation" onClick={() => setDrawerOpen(false)} />
+        <div
+          className="mx-scrim"
+          ref={scrimRef}
+          role="presentation"
+          onClick={() => setDrawerOpen(false)}
+        />
+
 
         <main
           className="mx-main"

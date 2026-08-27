@@ -166,34 +166,27 @@ pre {
     fill var(--mx-duration-slow) var(--mx-ease-standard) !important;
 }
 
-/* Motion utilities for view-level entrances. Keep these compositor-only. */
-.mx-motion-enter {
-  animation: mx-motion-enter var(--mx-duration-normal) var(--mx-ease-decelerate) both;
-}
-.mx-motion-panel {
-  animation: mx-motion-panel var(--mx-duration-slow) var(--mx-ease-emphasized) both;
-}
+/* ============================================================
+   GSAP 交接位。
 
-@keyframes mx-motion-enter {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+   进场动画不再写在 CSS 里 —— 谁怎么动统一由 lib/motion.ts 那张表说，这里只负责
+   「在 GSAP 接手之前先把它藏好」，否则服务端渲染出来的内容会先被画成完成态，
+   然后才被拽回起点闪一下。
 
-@keyframes mx-motion-panel {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+   html[data-motion="js"] 由 <head> 里的引导脚本在首帧之前盖上，且只在用户没有要求
+   减少动效时才盖 —— 所以 prefers-reduced-motion 下面这些规则一条都不生效。
+   同一个脚本还留了个兜底定时器：JS 没能起来（分包 404、脚本被拦）就把属性摘掉，
+   页面照样能读。见 lib/theme.ts。
+
+   data-mx-shown 是 GSAP 接手的标记，一打上这条规则就失效，可见性改由行内样式说话。
+   ============================================================ */
+html[data-motion="js"] [data-mx-reveal]:not([data-mx-shown]),
+html[data-motion="js"] [data-mx-stagger]:not([data-mx-shown]) > *,
+html[data-motion="js"] .mx-section:not([data-mx-shown]) > *,
+html[data-motion="js"] .mx-row:not([data-mx-shown]),
+html[data-motion="js"] .mx-roomcard:not([data-mx-shown]),
+html[data-motion="js"] .mx-auth__inner:not([data-mx-shown]) {
+  opacity: 0;
 }
 
 /* Visually hidden but announced. */
@@ -216,11 +209,6 @@ pre {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
-  }
-
-  .mx-motion-enter,
-  .mx-motion-panel {
-    animation: none !important;
   }
 
   .mx-theme-switching,

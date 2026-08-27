@@ -641,7 +641,7 @@ textarea.mx-input {
   background: var(--mx-info-soft);
   color: var(--mx-info-text);
   border: 1px solid transparent;
-  animation: mx-motion-enter var(--mx-duration-normal) var(--mx-ease-decelerate) both;
+  /* 进场归 GSAP（lib/motion.ts 的 .mx-banner 一条） */
 }
 .mx-banner[data-tone="warning"] {
   background: var(--mx-warning-soft);
@@ -1052,26 +1052,8 @@ textarea.mx-input {
   gap: var(--mx-space-md);
   min-width: 0;
 }
-.mx-modal__body > *,
-.mx-form > * {
-  animation: mx-field-enter 140ms var(--mx-ease-decelerate) both;
-}
-.mx-modal__body > *:nth-child(2),
-.mx-form > *:nth-child(2) {
-  animation-delay: 16ms;
-}
-.mx-modal__body > *:nth-child(3),
-.mx-form > *:nth-child(3) {
-  animation-delay: 32ms;
-}
-.mx-modal__body > *:nth-child(4),
-.mx-form > *:nth-child(4) {
-  animation-delay: 48ms;
-}
-.mx-modal__body > *:nth-child(n + 5),
-.mx-form > *:nth-child(n + 5) {
-  animation-delay: 64ms;
-}
+/* 弹窗正文 / 表单里的字段逐行进场：交给 GSAP（lib/motion.ts 的 .mx-form, .mx-modal__body
+   一条）。原来是 nth-child 手写四段 animation-delay。 */
 
 @keyframes mx-modal-fade-in {
   from {
@@ -1109,23 +1091,9 @@ textarea.mx-input {
     transform: translateY(10px) scale(0.98);
   }
 }
-@keyframes mx-field-enter {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .mx-modal__backdrop,
-  .mx-modal__panel,
-  .mx-modal__body > *,
-  .mx-form > *,
-  .mx-banner {
+  .mx-modal__panel {
     animation: none;
   }
   .mx-modal__panel {
