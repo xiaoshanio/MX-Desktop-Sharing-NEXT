@@ -568,6 +568,7 @@ function RoomWorkspace({
 }) {
   const participants = useParticipants();
   const t = useT();
+  const [stageMode, setStageMode] = useState<"screen" | "player">("screen");
 
   /**
    * 只有房里不止一个人时才开始对时。
@@ -661,6 +662,8 @@ function RoomWorkspace({
         viewerCanPublish={detail.viewerCanPublish}
         code={code}
         canManage={canManage}
+        stageMode={stageMode}
+        onStageModeChange={setStageMode}
         onQuickPlay={(url) => {
           if (currentRoom) {
             onSyncSourceChange(currentRoom.id, url);
@@ -692,12 +695,16 @@ function Stage({
   viewerCanPublish,
   code,
   canManage,
+  stageMode,
+  onStageModeChange,
   onQuickPlay,
 }: {
   selected: string | null;
   viewerCanPublish: boolean;
   code: string;
   canManage: boolean;
+  stageMode: "screen" | "player";
+  onStageModeChange: (mode: "screen" | "player") => void;
   onQuickPlay: (url: string) => void;
 }) {
   const t = useT();
@@ -756,7 +763,27 @@ function Stage({
         <span>{t("room.stage.inRoom", { count: participants.length })}</span>
         {selected && <Badge tone="info">{t("room.stage.onlySelected")}</Badge>}
 
-        {canManage && (
+        {/* 模式切换按钮 */}
+        <div className="mx-stage__mode-switch">
+          <button
+            type="button"
+            className={`mx-stage__mode-btn ${stageMode === "screen" ? "active" : ""}`}
+            onClick={() => onStageModeChange("screen")}
+          >
+            <Icon name="monitor" size={14} />
+            {t("room.stage.modeScreen")}
+          </button>
+          <button
+            type="button"
+            className={`mx-stage__mode-btn ${stageMode === "player" ? "active" : ""}`}
+            onClick={() => onStageModeChange("player")}
+          >
+            <Icon name="film" size={14} />
+            {t("room.stage.modePlayer")}
+          </button>
+        </div>
+
+        {stageMode === "player" && canManage && (
           <form
             className="mx-stage__url"
             onSubmit={(event) => {
@@ -783,9 +810,9 @@ function Stage({
         )}
 
         <span className="mx-stage__spacer" />
-        {canPublish ? (
+        {stageMode === "screen" && canPublish ? (
           <ShareControls />
-        ) : (
+        ) : stageMode === "screen" && !canPublish ? (
           /**
            * 没有推流权限时给一句解释，而不是干脆什么都不显示。
            * 「为什么我这里没有共享按钮」是最容易让人以为坏了的情况。
@@ -795,10 +822,10 @@ function Stage({
               ? t("room.stage.gettingPermission")
               : t("room.stage.viewerOnly")}
           </span>
-        )}
+        ) : null}
       </div>
 
-      {live ? (
+      {stageMode === "screen" && live ? (
         <div className="mx-stage__grid" data-single={tracks.length === 1 ? "true" : undefined}>
           {tracks.map((ref) => (
             <div
@@ -835,7 +862,7 @@ function Stage({
             </div>
           ))}
         </div>
-      ) : (
+      ) : stageMode === "screen" && !live ? (
         <div className="mx-stage__idle">
           <span className="mx-stage__idle-icon">
             <Icon name="broadcast" size={24} />
@@ -847,7 +874,14 @@ function Stage({
             {selected ? t("room.stage.idleSelectedBody") : t("room.stage.idleBody")}
           </span>
         </div>
-      )}
+      ) : stageMode === "player" ? (
+        <div className="mx-stage__player-placeholder">
+          <div className="mx-stage__player-hint">
+            <Icon name="film" size={48} />
+            <p>{t("room.stage.urlPlaceholder")}</p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

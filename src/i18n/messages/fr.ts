@@ -545,6 +545,8 @@ const fr: Messages = {
   "room.stage.noSignal": "Aucun signal",
   "room.stage.inRoom": "Dans la salle : {count}",
   "room.stage.onlySelected": "Une seule personne affichée",
+  "room.stage.modeScreen": "Partage d'écran",
+  "room.stage.modePlayer": "Lecteur synchronisé",
   "room.stage.gettingPermission": "Obtention de la permission de diffuser…",
   "room.stage.viewerOnly":
     "Vous êtes en lecture seule — demandez au propriétaire de changer votre permission, ou d'activer « tout le monde peut partager »",

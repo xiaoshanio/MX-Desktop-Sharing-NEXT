@@ -490,6 +490,8 @@ const ja: Messages = {
   "room.stage.noSignal": "信号なし",
   "room.stage.inRoom": "ルーム内 {count} 人",
   "room.stage.onlySelected": "選んだ人だけ表示中",
+  "room.stage.modeScreen": "画面共有",
+  "room.stage.modePlayer": "同期プレーヤー",
   "room.stage.gettingPermission": "配信権限を取得中…",
   "room.stage.viewerOnly": "あなたは「閲覧のみ」です。オーナーに権限を変えてもらうか、「全員が共有できる」を有効にしてもらってください",
   "room.stage.tagObs": "OBS",

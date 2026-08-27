@@ -472,6 +472,8 @@ const zhCN: Messages = {
   "room.stage.noSignal": "无信号",
   "room.stage.inRoom": "房内 {count} 人",
   "room.stage.onlySelected": "只看选中的人",
+  "room.stage.modeScreen": "屏幕共享",
+  "room.stage.modePlayer": "同步播放器",
   "room.stage.gettingPermission": "正在获取推流权限…",
   "room.stage.viewerOnly": "你是「仅观看」—— 让频道主在设置里改你的权限，或打开「允许所有人共享」",
   "room.stage.urlPlaceholder": "输入播放地址",

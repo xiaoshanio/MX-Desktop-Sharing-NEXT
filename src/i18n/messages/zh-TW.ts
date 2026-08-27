@@ -476,6 +476,8 @@ const zhTW: Messages = {
   "room.stage.noSignal": "無訊號",
   "room.stage.inRoom": "房內 {count} 人",
   "room.stage.onlySelected": "只看選中的人",
+  "room.stage.modeScreen": "螢幕分享",
+  "room.stage.modePlayer": "同步播放器",
   "room.stage.gettingPermission": "正在取得推流權限…",
   "room.stage.viewerOnly": "你是「僅觀看」—— 讓房主在設定裡改你的權限，或開啟「允許所有人分享」",
   "room.stage.tagObs": "OBS 推流",

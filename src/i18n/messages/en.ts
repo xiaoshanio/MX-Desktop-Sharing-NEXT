@@ -518,6 +518,8 @@ const en = {
   "room.stage.noSignal": "No signal",
   "room.stage.inRoom": "In room: {count}",
   "room.stage.onlySelected": "Showing one person only",
+  "room.stage.modeScreen": "Screen Share",
+  "room.stage.modePlayer": "Sync Player",
   "room.stage.gettingPermission": "Getting publish permission…",
   "room.stage.viewerOnly":
     "You're view-only — ask the owner to change your permission, or to turn on \"anyone can share\"",

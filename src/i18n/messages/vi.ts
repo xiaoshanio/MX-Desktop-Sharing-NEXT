@@ -523,6 +523,8 @@ const vi: Messages = {
   "room.stage.noSignal": "Không có tín hiệu",
   "room.stage.inRoom": "Trong phòng: {count}",
   "room.stage.onlySelected": "Chỉ hiện một người",
+  "room.stage.modeScreen": "Chia sẻ màn hình",
+  "room.stage.modePlayer": "Trình phát đồng bộ",
   "room.stage.gettingPermission": "Đang lấy quyền phát…",
   "room.stage.viewerOnly":
     "Bạn đang ở chế độ chỉ xem — hãy nhờ chủ phòng đổi quyền, hoặc bật « ai cũng chia sẻ được »",

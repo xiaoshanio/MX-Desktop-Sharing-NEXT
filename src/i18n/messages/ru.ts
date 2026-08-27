@@ -529,6 +529,8 @@ const ru: Messages = {
   "room.stage.noSignal": "Нет сигнала",
   "room.stage.inRoom": "В комнате: {count}",
   "room.stage.onlySelected": "Показан только один человек",
+  "room.stage.modeScreen": "Демонстрация экрана",
+  "room.stage.modePlayer": "Синхронный плеер",
   "room.stage.gettingPermission": "Получение права на публикацию…",
   "room.stage.viewerOnly":
     "У вас только просмотр — попросите владельца изменить ваши права или включить «делиться может любой»",
