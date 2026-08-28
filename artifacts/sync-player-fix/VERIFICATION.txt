@@ -1,0 +1,46 @@
+SYNC PLAYER FIX VERIFICATION
+
+Changed branch/field:
+- SyncPlayerPanel media-error branch: SDK owns playback errors; outer toast and overlay removed.
+- RoomWorkspace sync-player selection row: close action moved to the far right.
+- SyncPlayerPanel stage/mount layout: flex-constrained height and absolute media layers keep controls and progress visible.
+- Source hint retained: CORS and Range support are required; changing the URL is broadcast to the room.
+
+Artifacts:
+- MODIFIED_FILE: F:\Kaifa\MX-Desktop-Sharing-NEXT\artifacts\sync-player-fix\MODIFIED_FILE
+- DIFF_FILE: F:\Kaifa\MX-Desktop-Sharing-NEXT\artifacts\sync-player-fix\DIFF_FILE
+- VERIFICATION.txt: F:\Kaifa\MX-Desktop-Sharing-NEXT\artifacts\sync-player-fix\VERIFICATION.txt
+- ROLLBACK.sh: F:\Kaifa\MX-Desktop-Sharing-NEXT\artifacts\sync-player-fix\ROLLBACK.sh
+
+BASELINE
+Command: npm run typecheck
+Input: repository at commit d2a7c07d60732cdb8f473d7493cf9d763d7ff6f9; SyncPlayerPanel SHA-256 10D6496B49AE4F94A1477AAE88E4D8A079ADAB96AA9F2154564AF1D93A4958AA
+Literal output/result: > mx-desktop-sharing-next@0.1.0 typecheck / > tsc --noEmit / TYPECHECK_EXIT=0
+Exit status: 0
+
+Command: npm test
+Input: tests/**/*.test.mts
+Literal output/result: ℹ tests 139 / ℹ suites 41 / ℹ pass 139 / ℹ fail 0 / TEST_EXIT=0
+Exit status: 0
+
+MODIFIED
+Command: npm run typecheck
+Input: modified SyncPlayerPanel.tsx, RoomClient.tsx, room.css; MODIFIED_FILE SHA-256 B404776730E853E2D2DE90A004712CB49CF9FF949E457CD9327D97ABB501B6C7
+Literal output/result: > mx-desktop-sharing-next@0.1.0 typecheck / > tsc --noEmit / TYPECHECK_EXIT=0
+Exit status: 0
+
+Command: npm test
+Input: tests/**/*.test.mts
+Literal output/result: ℹ tests 139 / ℹ suites 41 / ℹ pass 139 / ℹ fail 0 / TEST_EXIT=0
+Exit status: 0
+
+ROLLBACK
+Command: & 'F:\Git\bin\bash.exe' 'artifacts/sync-player-fix/ROLLBACK.sh'; "ROLLBACK_EXIT=$LASTEXITCODE"
+Input: MODIFIED_FILE copied to rollback-test-copy, then overwritten with BASELINE_SyncPlayerPanel.tsx.snapshot
+Literal output/result: ROLLBACK_OK: test copy restored to BASELINE; MODIFIED_FILE remains changed / ROLLBACK_EXIT=0
+Exit status: 0; executable mode -rwxr-xr-x
+
+Restored behavior/status:
+- The rollback test copy matches the original baseline hash.
+- MODIFIED_FILE remains changed after rollback verification.
+- The working source keeps the requested changes.

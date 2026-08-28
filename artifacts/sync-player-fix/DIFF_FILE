@@ -1,0 +1,422 @@
+diff --git a/src/app/room/[code]/RoomClient.tsx b/src/app/room/[code]/RoomClient.tsx
+index 8ec216c..276dcdf 100644
+--- a/src/app/room/[code]/RoomClient.tsx
++++ b/src/app/room/[code]/RoomClient.tsx
+@@ -619,6 +619,16 @@ function RoomWorkspace({
+         <aside className="mx-room__rooms mx-room__rooms--bottom">
+           <div className="mx-room__rooms-header">
+             <h3 className="mx-room__rooms-title">{t("channel.rooms.title")}</h3>
++            {currentRoom && (currentRoom.isMine || canManage) && (
++              <IconButton
++                size="sm"
++                tone="danger"
++                label={t("sync.close")}
++                onClick={() => onCloseSyncPlayer(currentRoom.id)}
++              >
++                <Icon name="x" size={15} />
++              </IconButton>
++            )}
+           </div>
+           <div className="mx-room__rooms-list">
+             {syncPlayers.map((player) => (
+@@ -641,7 +651,6 @@ function RoomWorkspace({
+         canManage={canManage}
+         currentRoom={currentRoom}
+         syncActive={syncActive}
+-        onCloseSyncPlayer={onCloseSyncPlayer}
+         onSyncSourceChange={onSyncSourceChange}
+       />
+     </div>
+@@ -664,7 +673,6 @@ function Stage({
+   canManage,
+   currentRoom,
+   syncActive,
+-  onCloseSyncPlayer,
+   onSyncSourceChange,
+ }: {
+   selected: string | null;
+@@ -673,7 +681,6 @@ function Stage({
+   canManage: boolean;
+   currentRoom: SyncPlayerRow | null;
+   syncActive: boolean;
+-  onCloseSyncPlayer: (id: string) => void;
+   onSyncSourceChange: (id: string, sourceUrl: string | null) => void;
+ }) {
+   const t = useT();
+@@ -810,7 +817,6 @@ function Stage({
+             player={currentRoom}
+             canControl={currentRoom.isMine || canManage}
+             syncActive={syncActive}
+-            onClose={() => onCloseSyncPlayer(currentRoom.id)}
+             onSourceChange={(sourceUrl) => onSyncSourceChange(currentRoom.id, sourceUrl)}
+           />
+         ) : null}
+diff --git a/src/components/room/SyncPlayerPanel.tsx b/src/components/room/SyncPlayerPanel.tsx
+index ccf6773..c9f4104 100644
+--- a/src/components/room/SyncPlayerPanel.tsx
++++ b/src/components/room/SyncPlayerPanel.tsx
+@@ -21,7 +21,7 @@ import {
+   type SyncMessage,
+   type SyncStateMessage,
+ } from "@/lib/sync-protocol";
+-import { Badge, Banner, Button, Icon, IconButton, Switch, Select } from "@/ui";
++import { Badge, Banner, Button, Icon, Switch, Select } from "@/ui";
+ 
+ /* ============================================================
+    MX Player Pro — 从 CDN 按 ESM 加载
+@@ -115,7 +115,7 @@ function loadSdk(): Promise<MXPlayerConstructor> {
+ export interface SyncPlayerPanelProps {
+   code: string;
+   player: SyncPlayerRow;
+-  /** 我能不能换片源 / 关掉它（创建者或房主） */
++  /** 我能不能换片源（创建者或房主） */
+   canControl: boolean;
+   /**
+    * 房里有没有第二个人。false 时不发心跳、不探时钟、不纠偏。
+@@ -123,9 +123,8 @@ export interface SyncPlayerPanelProps {
+    * 一个人看的时候没有对齐目标：观众端收不到任何广播，而放映端每两秒往空房间
+    * 发一次心跳纯属浪费。第二个人进来时他会先发 hello，放映端立刻补一次状态，
+    * 所以「晚启动」不会漏掉任何东西。
+-   */
++  */
+   syncActive: boolean;
+-  onClose: () => void;
+   onSourceChange: (sourceUrl: string | null) => void;
+ }
+ 
+@@ -134,7 +133,6 @@ export function SyncPlayerPanel({
+   player,
+   canControl,
+   syncActive,
+-  onClose,
+   onSourceChange,
+ }: SyncPlayerPanelProps) {
+   const t = useT();
+@@ -152,23 +150,8 @@ export function SyncPlayerPanel({
+   const [ready, setReady] = useState(false);
+   const [urlDraft, setUrlDraft] = useState(player.sourceUrl ?? "");
+   const [saving, setSaving] = useState(false);
+-  const [err, setErr] = useState<string | null>(null);
+   const [access, setAccess] = useState(player.access);
+ 
+-  /**
+-   * 播放器出错要同时做两件事：弹一个右上角提示（用户可能正看着别处），
+-   * 以及在播放器区域内留下一条说明（错误是持续状态，提示卡片会消失，
+-   * 而「这个播放器现在放不了」得一直看得见）。
+-   */
+-  const fail = useCallback(
+-    (error: unknown) => {
+-      const text = humanizeError(t, error);
+-      setErr(text);
+-      toast.error(text);
+-    },
+-    [t],
+-  );
+-
+   /** 观众端：跟不跟放映端。关掉后停止纠偏，用户可以自己拖进度。 */
+   const [following, setFollowing] = useState(true);
+   const followingRef = useRef(true);
+@@ -254,7 +237,9 @@ export function SyncPlayerPanel({
+       onSourceChangeRef.current(state.url);
+       void instance
+         .load({ kind: "url", url: state.url })
+-        .catch((error: unknown) => fail(error));
++        .catch(() => {
++          // 媒体错误由 SDK 的播放器内层展示，外层不再叠加提示。
++        });
+       return; // 加载完之后的心跳会把进度对上
+     }
+ 
+@@ -292,39 +277,6 @@ export function SyncPlayerPanel({
+     if (!state.paused && !local.playing) instance.play();
+   }, []);
+ 
+-  /* ---- 黑屏探测：有声音但画面一直是黑的 ---- */
+-  /**
+-   * 「能听到声音但画面全黑」几乎总是片源问题：视频轨的编码浏览器解不了
+-   * （HEVC/H.265 最常见），音频轨照常播。此时 SDK 不报错 —— 它只知道
+-   * 「在播」，不知道画面是黑的。所以从外面看一眼 <video>：
+-   * 播了三秒还量不出画面宽度、或一帧都没解出来，就认定是「只有声音」。
+-   *
+-   * 注意只查原生视频轨那条路（.video-element）；MKV 走 canvas，解码失败
+-   * SDK 会通过 error 事件报出来，不归这里管。
+-   */
+-  const [audioOnly, setAudioOnly] = useState(false);
+-  useEffect(() => {
+-    if (!ready) return;
+-    const timer = setInterval(() => {
+-      const instance = instanceRef.current;
+-      const holder = holderRef.current;
+-      if (!instance || !holder) return;
+-      const state = instance.getState();
+-      if (!state.playing || state.currentTime < 3) {
+-        setAudioOnly(false);
+-        return;
+-      }
+-      const video = holder.querySelector<HTMLVideoElement>("video.video-element");
+-      if (!video) {
+-        setAudioOnly(false);
+-        return;
+-      }
+-      const frames = video.getVideoPlaybackQuality?.().totalVideoFrames ?? 0;
+-      setAudioOnly(video.videoWidth === 0 || frames === 0);
+-    }, 2000);
+-    return () => clearInterval(timer);
+-  }, [ready]);
+-
+   /* ---- 创建 / 销毁播放器实例 ---- */
+   useEffect(() => {
+     let disposed = false;
+@@ -349,7 +301,6 @@ export function SyncPlayerPanel({
+ 
+         instance.on("ready", () => {
+           setReady(true);
+-          setErr(null);
+           /**
+            * 「播放并同步」按下后要真的播起来。刚 load() 完就调 play() 会被播放器
+            * 静默忽略（内部还没 ready），所以先记下来，等 ready 事件补上这一下。
+@@ -359,8 +310,8 @@ export function SyncPlayerPanel({
+             instanceRef.current?.play();
+           }
+         });
+-        instance.on("error", (payload) => {
+-          fail(typeof payload.message === "string" ? payload.message : t("sync.playbackError"));
++        instance.on("error", () => {
++          // SDK 已经在 player-error 中显示媒体错误，避免外层 toast/卡片重复出现。
+         });
+ 
+         if (isHost) {
+@@ -402,7 +353,7 @@ export function SyncPlayerPanel({
+       }
+     };
+     // player.id 变了就是换了一个播放器，整个重建
+-  }, [player.id, player.name, isHost, broadcastState, retryKey, fail, t]);
++  }, [player.id, player.name, isHost, broadcastState, retryKey]);
+ 
+   /* ---- 放映端：把库里存的片源加载进来 ---- */
+   useEffect(() => {
+@@ -415,8 +366,10 @@ export function SyncPlayerPanel({
+     void instance
+       .load({ kind: "url", url: player.sourceUrl })
+       .then(() => broadcastState())
+-      .catch((error: unknown) => fail(error));
+-  }, [isHost, player.sourceUrl, ready, broadcastState, fail]);
++      .catch(() => {
++        // SDK 负责渲染媒体错误，外层保持安静。
++      });
++  }, [isHost, player.sourceUrl, ready, broadcastState]);
+ 
+   /* ---- 放映端：心跳 ---- */
+   useEffect(() => {
+@@ -519,7 +472,6 @@ export function SyncPlayerPanel({
+   async function saveSource(event: React.FormEvent) {
+     event.preventDefault();
+     setSaving(true);
+-    setErr(null);
+     try {
+       const res = await api<{ sourceUrl: string | null }>(
+         `/api/rooms/${code}/sync-players/${player.id}`,
+@@ -530,15 +482,19 @@ export function SyncPlayerPanel({
+       const instance = instanceRef.current;
+       if (instance && res.sourceUrl) {
+         loadedUrlRef.current = res.sourceUrl;
+-        await instance.load({ kind: "url", url: res.sourceUrl });
+-        // 按钮叫「播放并同步」，所以载入完要自动开播（ready 事件里补那一下 play）
+-        playOnReadyRef.current = true;
+-        instance.play();
+-        broadcastState();
++        try {
++          await instance.load({ kind: "url", url: res.sourceUrl });
++          // 按钮叫「播放并同步」，所以载入完要自动开播（ready 事件里补那一下 play）
++          playOnReadyRef.current = true;
++          instance.play();
++          broadcastState();
++        } catch {
++          // 片源错误由 SDK 内层展示，不在同步播放器外层重复提示。
++        }
+       }
+       toast.success(res.sourceUrl ? t("sync.sourceSwitched") : t("sync.sourceCleared"));
+     } catch (error) {
+-      fail(error);
++      toast.error(humanizeError(t, error));
+     } finally {
+       setSaving(false);
+     }
+@@ -630,12 +586,6 @@ export function SyncPlayerPanel({
+           }}
+         />
+ 
+-        {canControl && (
+-          <IconButton size="sm" tone="danger" label={t("sync.close")} onClick={onClose}>
+-            <Icon name="x" size={15} />
+-          </IconButton>
+-        )}
+-
+         {/* CORS / Range 的要求跟着地址栏走，做成顶栏的第二行小字，不占播放区 */}
+         {canControl && <p className="mx-syncplayer__hint">{t("sync.urlHint")}</p>}
+       </header>
+@@ -661,36 +611,14 @@ export function SyncPlayerPanel({
+       ) : (
+         <div className="mx-syncplayer__stage">
+           <div ref={holderRef} className="mx-syncplayer__mount" />
+-          {audioOnly ? (
+-            /**
+-             * 有声音没画面：片源的视频轨浏览器解不了（HEVC/H.265 最常见）。
+-             * 提示要一直看得见，但不能挡住播放器自己的控件 —— 纯展示，pointer-events:none。
+-             */
+-            <div className="mx-syncplayer__empty" data-tone="warn">
+-              <Icon name="alert" size={22} />
+-              <span className="mx-syncplayer__empty-title">{t("sync.audioOnlyTitle")}</span>
+-              <span className="mx-syncplayer__empty-body">{t("sync.audioOnlyBody")}</span>
+-            </div>
+-          ) : err ? (
+-            /**
+-             * 播放失败是持续状态，所以留在画面里 —— 右上角的提示卡片会自动消失，
+-             * 而「这个片源放不了」需要一直看得见（CORS / Range / 编码不支持之类）。
+-             */
+-            <div className="mx-syncplayer__empty" data-tone="error">
+-              <Icon name="alert" size={22} />
+-              <span className="mx-syncplayer__empty-title">{t("sync.badSourceTitle")}</span>
+-              <span className="mx-syncplayer__empty-body">{err}</span>
++          {!player.sourceUrl && (
++            <div className="mx-syncplayer__empty">
++              <Icon name="film" size={22} />
++              <span className="mx-syncplayer__empty-title">
++                {canControl ? t("sync.noSourceHost") : t("sync.noSourceViewer")}
++              </span>
++              <span className="mx-syncplayer__empty-body">{t("sync.noSourceBody")}</span>
+             </div>
+-          ) : (
+-            !player.sourceUrl && (
+-              <div className="mx-syncplayer__empty">
+-                <Icon name="film" size={22} />
+-                <span className="mx-syncplayer__empty-title">
+-                  {canControl ? t("sync.noSourceHost") : t("sync.noSourceViewer")}
+-                </span>
+-                <span className="mx-syncplayer__empty-body">{t("sync.noSourceBody")}</span>
+-              </div>
+-            )
+           )}
+         </div>
+       )}
+diff --git a/src/styles/room.css b/src/styles/room.css
+index 741743f..11b512e 100644
+--- a/src/styles/room.css
++++ b/src/styles/room.css
+@@ -422,7 +422,10 @@
+   border-radius: var(--mx-radius-lg);
+   background: var(--mx-bg-layer);
+   overflow: hidden;
+-  flex-shrink: 0;
++  flex: 1 1 auto;
++  min-width: 0;
++  min-height: 0;
++  height: 100%;
+ }
+ .mx-syncplayer__bar {
+   display: flex;
+@@ -491,19 +494,59 @@
+ 
+ .mx-syncplayer__stage {
+   position: relative;
++  flex: 1 1 auto;
++  min-width: 0;
++  min-height: 0;
+   background: var(--mx-stage-bg);
+-  aspect-ratio: 16 / 9;
+-  /* 确保播放器有足够的z-index和空间 */
+-  min-height: 400px;
++  overflow: hidden;
+ }
+ /* The SDK mounts its own UI into this node and manages its internals. */
+ .mx-syncplayer__mount {
+   position: absolute;
+   inset: 0;
+   z-index: 1;
+-  /* 确保播放器UI可见 */
+   width: 100%;
+   height: 100%;
++  min-width: 0;
++  min-height: 0;
++  overflow: hidden;
++}
++/* The CDN SDK can briefly fall back to intrinsic video dimensions while it switches
++   backends. Keep every embedded layer constrained to the stage in that interval. */
++.mx-syncplayer__mount .mx-player-embed,
++.mx-syncplayer__mount .mx-player-embed-main,
++.mx-syncplayer__mount .mx-player-embed .player-column,
++.mx-syncplayer__mount .mx-player-embed .player-frame {
++  position: relative;
++  display: block;
++  width: 100%;
++  height: 100%;
++  min-width: 0;
++  min-height: 0;
++  aspect-ratio: auto;
++}
++.mx-syncplayer__mount .mx-player-embed .player-frame {
++  overflow: hidden;
++}
++.mx-syncplayer__mount .player-frame > .video-element,
++.mx-syncplayer__mount .player-frame > .video-canvas {
++  position: absolute;
++  inset: 0;
++  display: block;
++  width: 100%;
++  height: 100%;
++  max-width: 100%;
++  max-height: 100%;
++  object-fit: contain;
++}
++.mx-syncplayer__mount .player-frame > .video-element.is-hidden,
++.mx-syncplayer__mount .player-frame > .video-canvas.is-hidden {
++  display: none !important;
++}
++.mx-syncplayer__mount .player-controls {
++  position: absolute;
++  inset: auto 0 0;
++  z-index: 10;
+ }
+ .mx-syncplayer__empty {
+   position: absolute;
+@@ -531,25 +574,6 @@
+   font-size: var(--mx-font-size-caption);
+   line-height: var(--mx-line-caption);
+ }
+-/* A failed source: the message replaces the "pick a video" hint and stays put. */
+-.mx-syncplayer__empty[data-tone="error"] {
+-  background: rgba(0, 0, 0, 0.55);
+-  color: rgba(255, 255, 255, 0.78);
+-  /* Unlike the idle hint this one is real content, so let it be selectable/copyable. */
+-  pointer-events: auto;
+-}
+-.mx-syncplayer__empty[data-tone="error"] .mx-syncplayer__empty-title {
+-  color: #f0938a;
+-}
+-/* 有声音没画面：同 error 的观感，但不挡播放器控件（音量/进度还能点）。 */
+-.mx-syncplayer__empty[data-tone="warn"] {
+-  background: rgba(0, 0, 0, 0.45);
+-  color: rgba(255, 255, 255, 0.78);
+-}
+-.mx-syncplayer__empty[data-tone="warn"] .mx-syncplayer__empty-title {
+-  color: #e8b06a;
+-}
+-
+ .mx-syncplayer__foot {
+   display: flex;
+   flex-direction: column;
+@@ -966,6 +990,14 @@
+   .mx-stage[data-fill="true"] {
+     height: auto;
+   }
++  .mx-stage[data-fill="true"][data-mode="player"] > .mx-syncplayer {
++    height: auto;
++  }
++  .mx-stage[data-fill="true"][data-mode="player"] .mx-syncplayer__stage {
++    flex: 0 0 auto;
++    aspect-ratio: 16 / 9;
++    min-height: 0;
++  }
+ }
+ 
+ @media (prefers-reduced-motion: reduce) {

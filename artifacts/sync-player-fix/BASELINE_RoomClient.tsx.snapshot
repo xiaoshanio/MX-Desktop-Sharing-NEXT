@@ -619,16 +619,6 @@ function RoomWorkspace({
         <aside className="mx-room__rooms mx-room__rooms--bottom">
           <div className="mx-room__rooms-header">
             <h3 className="mx-room__rooms-title">{t("channel.rooms.title")}</h3>
-            {currentRoom && (currentRoom.isMine || canManage) && (
-              <IconButton
-                size="sm"
-                tone="danger"
-                label={t("sync.close")}
-                onClick={() => onCloseSyncPlayer(currentRoom.id)}
-              >
-                <Icon name="x" size={15} />
-              </IconButton>
-            )}
           </div>
           <div className="mx-room__rooms-list">
             {syncPlayers.map((player) => (
@@ -651,6 +641,7 @@ function RoomWorkspace({
         canManage={canManage}
         currentRoom={currentRoom}
         syncActive={syncActive}
+        onCloseSyncPlayer={onCloseSyncPlayer}
         onSyncSourceChange={onSyncSourceChange}
       />
     </div>
@@ -673,6 +664,7 @@ function Stage({
   canManage,
   currentRoom,
   syncActive,
+  onCloseSyncPlayer,
   onSyncSourceChange,
 }: {
   selected: string | null;
@@ -681,6 +673,7 @@ function Stage({
   canManage: boolean;
   currentRoom: SyncPlayerRow | null;
   syncActive: boolean;
+  onCloseSyncPlayer: (id: string) => void;
   onSyncSourceChange: (id: string, sourceUrl: string | null) => void;
 }) {
   const t = useT();
@@ -817,6 +810,7 @@ function Stage({
             player={currentRoom}
             canControl={currentRoom.isMine || canManage}
             syncActive={syncActive}
+            onClose={() => onCloseSyncPlayer(currentRoom.id)}
             onSourceChange={(sourceUrl) => onSyncSourceChange(currentRoom.id, sourceUrl)}
           />
         ) : null}
