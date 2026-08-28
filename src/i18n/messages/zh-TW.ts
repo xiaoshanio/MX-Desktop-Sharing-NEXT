@@ -513,6 +513,8 @@ const zhTW: Messages = {
   "room.share.presetHQ": "高畫質（2K）",
   "room.share.presetCustom": "自訂",
   "room.share.applyPreset": "套用預設",
+  "room.share.save": "儲存為預設",
+  "room.share.saved": "已儲存，以後每次分享螢幕都直接用這組參數，不用再調",
   /* ============================================================
      Room — participant rail + context menu
      ============================================================ */

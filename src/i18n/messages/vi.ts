@@ -563,6 +563,8 @@ const vi: Messages = {
   "room.share.presetHQ": "Chất lượng cao (2K)",
   "room.share.presetCustom": "Tùy chỉnh",
   "room.share.applyPreset": "Áp dụng cài đặt sẵn",
+  "room.share.save": "Lưu làm mặc định",
+  "room.share.saved": "Đã lưu — bộ tham số này sẽ được dùng cho mọi lần chia sẻ sau này",
   /* ============================================================
      Room — participant rail + context menu
      ============================================================ */

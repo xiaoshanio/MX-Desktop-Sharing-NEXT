@@ -21,7 +21,7 @@ import {
   type SyncMessage,
   type SyncStateMessage,
 } from "@/lib/sync-protocol";
-import { Badge, Banner, Button, Icon, Switch, Select } from "@/ui";
+import { Badge, Banner, Button, Icon, Switch } from "@/ui";
 
 /* ============================================================
    MX Player Pro — 从 CDN 按 ESM 加载
@@ -150,7 +150,6 @@ export function SyncPlayerPanel({
   const [ready, setReady] = useState(false);
   const [urlDraft, setUrlDraft] = useState(player.sourceUrl ?? "");
   const [saving, setSaving] = useState(false);
-  const [access, setAccess] = useState(player.access);
 
   /** 观众端：跟不跟放映端。关掉后停止纠偏，用户可以自己拖进度。 */
   const [following, setFollowing] = useState(true);
@@ -182,8 +181,7 @@ export function SyncPlayerPanel({
 
   useEffect(() => {
     setUrlDraft(player.sourceUrl ?? "");
-    setAccess(player.access);
-  }, [player.sourceUrl, player.access]);
+  }, [player.sourceUrl]);
 
   /* ---- 发消息 ---- */
   const publish = useCallback(
@@ -562,31 +560,8 @@ export function SyncPlayerPanel({
 
         <span className="mx-syncplayer__spacer" />
 
-        <Select
-          label={t("sync.accessLabel")}
-          value={access}
-          options={[
-            { value: "members", label: t("sync.accessMembers") },
-            { value: "publishers", label: t("sync.accessPublishers") },
-            { value: "owner", label: t("sync.accessOwner") }
-          ]}
-          onChange={async (event) => {
-            const value = event.target.value as typeof access;
-            setAccess(value);
-            try {
-              await api(`/api/rooms/${code}/sync-players/${player.id}`, {
-                method: "PATCH",
-                json: { access: value }
-              });
-              toast.success(t("sync.accessUpdated"));
-            } catch (error) {
-              toast.error(humanizeError(t, error));
-              setAccess(player.access);
-            }
-          }}
-        />
-
-        {/* CORS / Range 的要求跟着地址栏走，做成顶栏的第二行小字，不占播放区 */}
+        {/* CORS / Range 的要求跟着地址栏走，做成顶栏的第二行小字，不占播放区。
+            控制权限不在这里直接改 —— 权限统一在「频道成员」里配置。 */}
         {canControl && <p className="mx-syncplayer__hint">{t("sync.urlHint")}</p>}
       </header>
 

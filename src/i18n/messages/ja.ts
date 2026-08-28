@@ -527,6 +527,8 @@ const ja: Messages = {
   "room.share.presetHQ": "高品質（2K）",
   "room.share.presetCustom": "カスタム",
   "room.share.applyPreset": "プリセット適用",
+  "room.share.save": "デフォルトとして保存",
+  "room.share.saved": "保存しました。今後の画面共有では毎回この設定が使われます",
   /* ============================================================
      Room — participant rail + context menu
      ============================================================ */

@@ -89,7 +89,7 @@
   color: var(--mx-text-primary);
 }
 
-/* Room list items */
+/* Room list items — one row = clickable name area + manage button pinned right */
 .mx-room__rooms-list {
   display: flex;
   flex-direction: column;
@@ -100,16 +100,11 @@
 .mx-room__rooms-item {
   display: flex;
   align-items: center;
-  gap: var(--mx-space-sm);
-  padding: var(--mx-space-xs) var(--mx-space-sm);
-  border: none;
+  gap: var(--mx-space-xs);
   border-radius: var(--mx-radius-md);
-  background: transparent;
   color: var(--mx-text-secondary);
   font-size: var(--mx-font-size-body);
   font-weight: var(--mx-weight-medium);
-  text-align: left;
-  cursor: pointer;
   transition: all 120ms var(--mx-ease-standard);
   width: 100%;
 }
@@ -120,6 +115,28 @@
 .mx-room__rooms-item.active {
   background: var(--mx-accent);
   color: var(--mx-text-on-accent);
+}
+.mx-room__rooms-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  padding: var(--mx-space-xs) var(--mx-space-sm);
+  border: none;
+  border-radius: var(--mx-radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+/* The manage (close) button lives in the same row, flush right. */
+.mx-room__rooms-item .mx-icon-button {
+  flex-shrink: 0;
+  margin-right: var(--mx-space-xs);
+  color: inherit;
 }
 .mx-room__rooms-item-name {
   overflow: hidden;
@@ -547,6 +564,20 @@
   position: absolute;
   inset: auto 0 0;
   z-index: 10;
+  /* 进度条/控制条平时收起，鼠标悬停或键盘聚焦时才浮现 ——
+     否则它会一直盖在画面底部不消失。 */
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition:
+    opacity 180ms var(--mx-ease-standard),
+    transform 180ms var(--mx-ease-standard);
+}
+.mx-syncplayer__mount:hover .player-controls,
+.mx-syncplayer__mount:focus-within .player-controls {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 .mx-syncplayer__empty {
   position: absolute;

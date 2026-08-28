@@ -585,6 +585,8 @@ const fr: Messages = {
   "room.share.presetHQ": "Haute qualité (2K)",
   "room.share.presetCustom": "Personnalisé",
   "room.share.applyPreset": "Appliquer le préréglage",
+  "room.share.save": "Enregistrer par défaut",
+  "room.share.saved": "Enregistré — ces paramètres deviennent vos valeurs par défaut à chaque partage",
   /* ============================================================
      Room — participant rail + context menu
      ============================================================ */

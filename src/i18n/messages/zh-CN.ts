@@ -512,6 +512,8 @@ const zhCN: Messages = {
   "room.share.presetHQ": "高清（2K）",
   "room.share.presetCustom": "自定义",
   "room.share.applyPreset": "应用预设",
+  "room.share.save": "保存为默认",
+  "room.share.saved": "已保存，以后每次共享屏幕都直接用这套参数，不用再调",
   /* ============================================================
      Room — participant rail + context menu
      ============================================================ */

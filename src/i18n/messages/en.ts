@@ -559,6 +559,8 @@ const en = {
   "room.share.presetHQ": "High Quality (2K)",
   "room.share.presetCustom": "Custom",
   "room.share.applyPreset": "Apply Preset",
+  "room.share.save": "Save as default",
+  "room.share.saved": "Saved — these settings become your default every time you share",
   /* ============================================================
      Room — participant rail + context menu
      ============================================================ */

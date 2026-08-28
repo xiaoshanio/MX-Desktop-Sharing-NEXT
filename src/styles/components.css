@@ -345,6 +345,43 @@ textarea.mx-input {
 }
 
 /* ============================================================
+   Slider stage marks — every stage on the same baseline,
+   equally spaced, each labelled with its parameter value.
+   ============================================================ */
+.mx-slider-marks {
+  position: relative;
+  height: 26px;
+  margin-top: 2px;
+}
+.mx-slider-marks__item {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: var(--mx-text-tertiary);
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+.mx-slider-marks__item::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--mx-stroke-strong);
+}
+.mx-slider-marks__item[data-active="true"] {
+  color: var(--mx-accent-text);
+  font-weight: var(--mx-weight-semibold);
+}
+.mx-slider-marks__item[data-active="true"]::before {
+  background: var(--mx-accent);
+}
+
+/* ============================================================
    Checkbox / switch (continued)
    ============================================================ */
 .mx-checkbox:checked,

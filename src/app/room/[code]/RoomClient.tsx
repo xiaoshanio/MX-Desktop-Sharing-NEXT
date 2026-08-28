@@ -6,6 +6,7 @@ import {
   RoomAudioRenderer,
   VideoTrack,
   isTrackReference,
+  useLocalParticipant,
   useParticipants,
   useRoomContext,
   useTracks,
@@ -118,11 +119,15 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
     void loadSyncPlayers();
   }, [load, loadMembers, loadSyncPlayers]);
 
+  /**
+   * 播放器被删掉时才清掉选中状态。
+   *
+   * 刻意**不**自动选第一个播放器：默认进入房间先看共享屏幕（自己的画面），
+   * 想看播放器时在左侧房间列表里点名字切换（见 RoomWorkspace）。
+   */
   useEffect(() => {
     setActiveRoom((current) =>
-      current && syncPlayers.some((player) => player.id === current)
-        ? current
-        : (syncPlayers[0]?.id ?? null),
+      current && syncPlayers.some((player) => player.id === current) ? current : null,
     );
   }, [syncPlayers]);
 
@@ -599,6 +604,27 @@ function RoomWorkspace({
     ? (syncPlayers.find((p) => p.id === activeRoom) ?? null)
     : null;
 
+  /** 默认进入房间时选中自己：舞台先显示自己的画面，而不是平铺所有人。 */
+  const localParticipant = useLocalParticipant();
+  const selfPickedRef = useRef(false);
+  useEffect(() => {
+    if (selfPickedRef.current || !localParticipant?.identity) return;
+    selfPickedRef.current = true;
+    onSelect(localParticipant.identity);
+  }, [localParticipant?.identity, onSelect]);
+
+  /**
+   * 左栏两个列表共用右侧舞台：点成员卡片 = 切回共享屏幕模式（看那个人），
+   * 点同步播放器条目 = 播放器模式（见下面 rooms-list 的 onClick）。
+   */
+  const handleSelect = useCallback(
+    (identity: string | null) => {
+      onActiveRoomChange(null);
+      onSelect(identity);
+    },
+    [onActiveRoomChange, onSelect],
+  );
+
   return (
     <div className="mx-room__grid">
       {/* 左侧：同步播放器列表 + 成员栏 */}
@@ -606,7 +632,7 @@ function RoomWorkspace({
         {/* 成员栏 */}
         <ParticipantRail
           selected={selected}
-          onSelect={onSelect}
+          onSelect={handleSelect}
           members={members}
           canManage={canManage}
           ownerId={ownerId}
@@ -615,30 +641,49 @@ function RoomWorkspace({
           onGrant={onGrant}
         />
 
-        {/* 同步播放器列表位于左栏底部 */}
+        {/* 同步播放器列表位于左栏底部。
+            每一行 = 可点击的名称区 + 最右侧的管理（关闭）按钮，同一行内排布。 */}
         <aside className="mx-room__rooms mx-room__rooms--bottom">
           <div className="mx-room__rooms-header">
             <h3 className="mx-room__rooms-title">{t("channel.rooms.title")}</h3>
-            {currentRoom && (currentRoom.isMine || canManage) && (
-              <IconButton
-                size="sm"
-                tone="danger"
-                label={t("sync.close")}
-                onClick={() => onCloseSyncPlayer(currentRoom.id)}
-              >
-                <Icon name="x" size={15} />
+            {canManage && (
+              <IconButton size="sm" label={t("room.action.newPlayer")} onClick={onCreateRoom}>
+                <Icon name="plus" size={15} />
               </IconButton>
             )}
           </div>
           <div className="mx-room__rooms-list">
             {syncPlayers.map((player) => (
-              <button key={player.id} type="button" className={`mx-room__rooms-item ${activeRoom === player.id ? "active" : ""}`} onClick={() => onActiveRoomChange(player.id)}>
-                <Icon name="film" size={16} />
-                <span className="mx-room__rooms-item-name">{player.name}</span>
-              </button>
+              <div
+                key={player.id}
+                className={`mx-room__rooms-item${activeRoom === player.id ? " active" : ""}`}
+              >
+                <button
+                  type="button"
+                  className="mx-room__rooms-item-main"
+                  onClick={() => onActiveRoomChange(player.id)}
+                >
+                  <Icon name="film" size={16} />
+                  <span className="mx-room__rooms-item-name">{player.name}</span>
+                </button>
+                {(player.isMine || canManage) && (
+                  <IconButton
+                    size="sm"
+                    tone="danger"
+                    label={t("sync.close")}
+                    onClick={() => onCloseSyncPlayer(player.id)}
+                  >
+                    <Icon name="x" size={14} />
+                  </IconButton>
+                )}
+              </div>
             ))}
           </div>
-          {syncPlayers.length === 0 && <div className="mx-room__rooms-empty"><p>{t("channel.rooms.emptyTitle")}</p></div>}
+          {syncPlayers.length === 0 && (
+            <div className="mx-room__rooms-empty">
+              <p>{t("channel.rooms.emptyTitle")}</p>
+            </div>
+          )}
         </aside>
 
       </div>
@@ -851,6 +896,37 @@ function OfflineStage({ active }: { active: boolean }) {
   );
 }
 
+/**
+ * 共享设置的离散档位表。滑块按「档位下标」走（0..n-1，step 1），
+ * 这样每个档位在轨道上间距完全相等，刻度、标注也能和滑块的吸附点一一对齐。
+ */
+const SHARE_RESOLUTIONS = [
+  { value: 720, width: 1280, height: 720, label: "720p", info: "1280×720" },
+  { value: 1080, width: 1920, height: 1080, label: "1080p", info: "1920×1080" },
+  { value: 1440, width: 2560, height: 1440, label: "2K", info: "2560×1440" },
+  { value: 2160, width: 3840, height: 2160, label: "4K", info: "3840×2160" },
+] as const;
+
+const SHARE_FRAME_RATES = [15, 30, 45, 60] as const;
+
+/** 码率档位（Mbps）。预设方案用到的 2.5 / 3 / 4 / 5 都在里面。 */
+const SHARE_BITRATES = [1, 1.5, 2.5, 3, 4, 5, 6, 8] as const;
+
+type ShareCodec = "auto" | "vp8" | "vp9" | "h264" | "av1";
+type SharePreset = "presentation" | "balanced" | "smooth" | "hq";
+
+/** localStorage 的 key：存一份默认共享参数，保存过一次以后每次进来都直接用。 */
+const SHARE_SETTINGS_KEY = "mx-share-settings-v1";
+
+type SavedShareSettings = {
+  resolution: number;
+  frameRate: number;
+  bitrateMbps: number;
+  codec: ShareCodec;
+};
+
+const SHARE_CODECS: readonly ShareCodec[] = ["auto", "vp8", "vp9", "h264", "av1"];
+
 /** 浏览器直接共享屏幕。不用 OBS 的那条路。 */
 function ShareControls() {
   const t = useT();
@@ -859,11 +935,11 @@ function ShareControls() {
   const [sharing, setSharing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // 共享参数状态
+  // 共享参数状态（默认值 = 平衡预设；若以前保存过则会被下面的 effect 覆盖）
   const [resolution, setResolution] = useState(1080);
   const [frameRate, setFrameRate] = useState(30);
   const [bitrate, setBitrate] = useState(3000);
-  const [codec, setCodec] = useState<"auto" | "vp8" | "vp9" | "h264" | "av1">("auto");
+  const [codec, setCodec] = useState<ShareCodec>("auto");
 
   useEffect(() => {
     const sync = () => setSharing(room.localParticipant.isScreenShareEnabled);
@@ -876,22 +952,49 @@ function ShareControls() {
     };
   }, [room]);
 
-  const resolutionPresets = [
-    { value: 720, label: "1280×720 (HD)" },
-    { value: 1080, label: "1920×1080 (Full HD)" },
-    { value: 1440, label: "2560×1440 (2K)" },
-    { value: 2160, label: "3840×2160 (4K)" },
-  ];
+  /** 读回上次保存的参数 —— 保存过一次就不用再调第二遍。 */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SHARE_SETTINGS_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as Partial<SavedShareSettings>;
+      if (SHARE_RESOLUTIONS.some((item) => item.value === saved.resolution)) {
+        setResolution(saved.resolution as number);
+      }
+      if ((SHARE_FRAME_RATES as readonly number[]).includes(Number(saved.frameRate))) {
+        setFrameRate(Number(saved.frameRate));
+      }
+      if ((SHARE_BITRATES as readonly number[]).includes(Number(saved.bitrateMbps))) {
+        setBitrate(Number(saved.bitrateMbps) * 1000);
+      }
+      if (saved.codec && SHARE_CODECS.includes(saved.codec)) {
+        setCodec(saved.codec);
+      }
+    } catch {
+      /* localStorage 不可用 / JSON 坏了 —— 用默认值就好 */
+    }
+  }, []);
 
-  const currentResolution = resolutionPresets.find((p) => p.value === resolution);
-  const [width, height] =
-    resolution === 720
-      ? [1280, 720]
-      : resolution === 1080
-        ? [1920, 1080]
-        : resolution === 1440
-          ? [2560, 1440]
-          : [3840, 2160];
+  const currentResolution = SHARE_RESOLUTIONS.find((p) => p.value === resolution);
+  const [width, height] = currentResolution
+    ? [currentResolution.width, currentResolution.height]
+    : [1920, 1080];
+
+  /** 保存为默认参数：下次共享（包括下次进房）直接用这套，不用再调一遍。 */
+  function saveDefaults() {
+    try {
+      const saved: SavedShareSettings = {
+        resolution,
+        frameRate,
+        bitrateMbps: bitrate / 1000,
+        codec,
+      };
+      localStorage.setItem(SHARE_SETTINGS_KEY, JSON.stringify(saved));
+      toast.success(t("room.share.saved"));
+    } catch {
+      toast.error(t("err.unknown"));
+    }
+  }
 
   async function toggle() {
     setBusy(true);
@@ -935,7 +1038,7 @@ function ShareControls() {
     }
   }
 
-  function applyPreset(preset: "presentation" | "balanced" | "smooth" | "hq") {
+  function applyPreset(preset: SharePreset) {
     switch (preset) {
       case "presentation":
         setResolution(1080);
@@ -990,6 +1093,17 @@ function ShareControls() {
         size="md"
         title={t("room.share.settings")}
         onClose={() => setSettingsOpen(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSettingsOpen(false)}>
+              {t("common.close")}
+            </Button>
+            <Button variant="primary" onClick={saveDefaults}>
+              <Icon name="check" size={15} />
+              {t("room.share.save")}
+            </Button>
+          </>
+        }
       >
         <Card title={t("room.share.presets")}>
           <div className="mx-share-presets">
@@ -1025,37 +1139,60 @@ function ShareControls() {
         </Card>
 
         <Card title={t("room.share.quality")}>
+          {/* 三个拖动条都改成「档位下标」滑块（0..n-1）：每个阶段上下位置一致、
+              间距相等，滑块吸附点正好落在刻度上，刻度下方标注对应参数。 */}
           <Slider
             label={t("room.share.resolution")}
             showValue
-            formatValue={(v) => resolutionPresets.find((p) => p.value === v)?.label ?? `${v}p`}
-            min={720}
-            max={2160}
-            step={360}
-            value={resolution}
-            onChange={(e) => setResolution(Number(e.target.value))}
+            formatValue={() =>
+              currentResolution ? `${currentResolution.info} (${currentResolution.label})` : ""
+            }
+            min={0}
+            max={SHARE_RESOLUTIONS.length - 1}
+            step={1}
+            value={Math.max(0, SHARE_RESOLUTIONS.findIndex((item) => item.value === resolution))}
+            marks={SHARE_RESOLUTIONS.map((item, index) => ({
+              value: index,
+              label: item.label,
+            }))}
+            onChange={(event) =>
+              setResolution(SHARE_RESOLUTIONS[Number(event.target.value)].value)
+            }
           />
 
           <Slider
             label={t("room.share.frameRate")}
             showValue
             unit=" fps"
-            min={15}
-            max={60}
-            step={15}
-            value={frameRate}
-            onChange={(e) => setFrameRate(Number(e.target.value))}
+            min={0}
+            max={SHARE_FRAME_RATES.length - 1}
+            step={1}
+            value={Math.max(0, (SHARE_FRAME_RATES as readonly number[]).indexOf(frameRate))}
+            marks={SHARE_FRAME_RATES.map((rate, index) => ({
+              value: index,
+              label: String(rate),
+            }))}
+            onChange={(event) => setFrameRate(SHARE_FRAME_RATES[Number(event.target.value)])}
           />
 
           <Slider
             label={t("room.share.bitrate")}
             showValue
             unit=" Mbps"
-            min={1}
-            max={10}
-            step={0.5}
-            value={bitrate / 1000}
-            onChange={(e) => setBitrate(Number(e.target.value) * 1000)}
+            min={0}
+            max={SHARE_BITRATES.length - 1}
+            step={1}
+            value={Math.max(
+              0,
+              (SHARE_BITRATES as readonly number[]).indexOf(bitrate / 1000),
+            )}
+            marks={SHARE_BITRATES.map((mbps, index) => ({
+              value: index,
+              label: String(mbps),
+            }))}
+            onChange={(event) =>
+              setBitrate(SHARE_BITRATES[Number(event.target.value)] * 1000)
+            }
           />
 
           <Select
