@@ -579,6 +579,12 @@
   pointer-events: auto;
   transform: translateY(0);
 }
+/* SDK 自带的错误卡片（「无法播放此媒体 / 媒体初始化超时… / 重新读取」）。
+   这段文案是 MX Player Pro 内部写死的，不在本站源码里，改不到文字本身 ——
+   只能在我们这层把整块隐藏掉。 */
+.mx-syncplayer__mount .player-error {
+  display: none !important;
+}
 .mx-syncplayer__empty {
   position: absolute;
   inset: 0;

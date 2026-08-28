@@ -309,7 +309,8 @@ export function SyncPlayerPanel({
           }
         });
         instance.on("error", () => {
-          // SDK 已经在 player-error 中显示媒体错误，避免外层 toast/卡片重复出现。
+          // SDK 自带的错误卡片（player-error）已在 room.css 里隐藏，
+          // 这里也保持安静：媒体加载失败时不在外层叠加任何提示。
         });
 
         if (isHost) {
