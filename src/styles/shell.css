@@ -823,7 +823,9 @@ html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
     transform: none;
     padding: var(--mx-space-xs) var(--mx-space-md) var(--mx-space-sm);
   }
-  /* 抽屉里的账户 + 偏好区：头像菜单一整行，主题 / 语言并排一行。 */
+  /* 抽屉里的账户 + 偏好区：
+     第一行 = 头像菜单 + 用户名右侧的语言切换；
+     第二行 = 主题切换 + 右侧的页面动作（房间的分享 / 成员 / 设置 / 新建播放器）。 */
   .mx-sidebar__prefs {
     display: flex;
     flex-direction: column;
@@ -832,7 +834,17 @@ html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
     border-bottom: 1px solid var(--mx-stroke-subtle);
     margin-bottom: var(--mx-space-xs);
   }
-  .mx-sidebar__prefs .mx-user__trigger {
+  .mx-sidebar__prefs-row {
+    display: flex;
+    align-items: center;
+    gap: var(--mx-space-xs);
+    min-width: 0;
+  }
+  .mx-sidebar__prefs-row .mx-user {
+    flex: 1;
+    min-width: 0;
+  }
+  .mx-sidebar__prefs-row .mx-user__trigger {
     width: 100%;
     justify-content: flex-start;
   }
@@ -846,10 +858,10 @@ html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
   .mx-sidebar__prefs .mx-lang__trigger > svg:last-child {
     display: inline;
   }
-  .mx-sidebar__prefs-row {
-    display: flex;
-    align-items: center;
-    gap: var(--mx-space-xs);
+  /* 页面动作（房间的四个按钮）：平时不显示 —— 641-1023px 顶栏标题还在，
+     那里已经有同一排按钮；只有 ≤640px 标题被藏掉后才由这里接管。 */
+  .mx-sidebar__prefs-actions {
+    display: none;
   }
 
   /* 遮罩：定位写在基态上，不挂在 [data-drawer=open] 里 —— GSAP 收回时
@@ -890,6 +902,14 @@ html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
   .mx-lang__current,
   .mx-lang__trigger > svg:last-child {
     display: none;
+  }
+  /* 手机宽度：抽屉里显示页面动作，排在主题切换右侧 */
+  .mx-sidebar__prefs-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+    flex-shrink: 0;
   }
   .mx-main {
     padding: var(--mx-space-md);

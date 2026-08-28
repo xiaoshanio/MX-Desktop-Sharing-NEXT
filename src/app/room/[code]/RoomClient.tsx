@@ -326,6 +326,41 @@ export function RoomClient({ code, user }: { code: string; user: ShellUser }) {
           )}
         </>
       }
+      // 手机抽屉里那一份（主题切换右边）。不带 ref —— 引导气泡要锚顶栏那个设置键。
+      drawerActions={
+        <>
+          <IconButton
+            size="sm"
+            label={t("room.action.share")}
+            onClick={() => setPeopleTab("invites")}
+          >
+            <Icon name="share" size={16} />
+          </IconButton>
+          <IconButton
+            size="sm"
+            label={t("room.action.members")}
+            onClick={() => setPeopleTab("members")}
+          >
+            <Icon name="users" size={16} />
+          </IconButton>
+          <IconButton
+            size="sm"
+            label={t("room.action.settings")}
+            onClick={() => setSettingsTab("publish")}
+          >
+            <Icon name="signal" size={16} />
+          </IconButton>
+          {canManage && (
+            <IconButton
+              size="sm"
+              label={t("room.action.newPlayer")}
+              onClick={() => setCreatingPlayer(true)}
+            >
+              <Icon name="film" size={16} />
+            </IconButton>
+          )}
+        </>
+      }
       status={
         <>
           <span className="mx-statusbar__item">

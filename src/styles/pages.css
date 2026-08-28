@@ -407,6 +407,38 @@
   flex-wrap: nowrap;
   min-width: 0;
 }
+
+/* 手机：舞台顶栏（无信号 / 房内 N 人 / 共享我的屏幕 + 设置）固定一行。
+   信号灯和共享组不缩，人数那格收缩加省略号，整条 overflow 裁住不出框。 */
+@media (max-width: 640px) {
+  .mx-stage__bar {
+    flex-wrap: nowrap;
+    overflow: hidden;
+    gap: var(--mx-space-xs);
+  }
+  .mx-stage__live {
+    flex-shrink: 0;
+  }
+  .mx-stage__presence {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .mx-stage__presence > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* 「仅看某某」徽章让位 —— 一行里放不下它 */
+  .mx-stage__bar .mx-badge {
+    display: none;
+  }
+  .mx-stage__note {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
 .mx-stage__live {
   display: inline-flex;
   align-items: center;

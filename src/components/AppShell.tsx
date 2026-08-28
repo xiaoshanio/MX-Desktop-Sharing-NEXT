@@ -57,6 +57,13 @@ export interface AppShellProps {
   backLabel?: string;
   /** Buttons that sit right of the heading — the room's share / members / settings controls. */
   actions?: ReactNode;
+  /**
+   * 窄屏抽屉里那一份页面动作（放在主题切换右边）。手机上顶栏标题连同 actions
+   * 一起被藏掉，改由这里提供。刻意不和 `actions` 复用同一个节点 —— 顶栏那份
+   * 带着设置按钮的 ref（首次进房引导要锚它），同一节点渲染两遍 ref 会被抽屉
+   * 里那个实例覆盖，引导气泡在桌面上就飘了。
+   */
+  drawerActions?: ReactNode;
   /** Status-bar items, rendered left of the spacer. */
   status?: ReactNode;
   /** Lets a page (the room view) use the full width instead of the 1180px measure. */
@@ -94,6 +101,7 @@ export function AppShell({
   backHref,
   backLabel,
   actions,
+  drawerActions,
   status,
   wide = false,
   contentMax,
@@ -269,12 +277,19 @@ export function AppShell({
           {/* 整栏共用一根选中指示条，由 GSAP 在条目之间滑动（lib/shell-motion.ts）。
               没有 JS 时它不会出现，选中项仍然靠底色和图标颜色区分。 */}
           <span className="mx-sidebar__indicator" ref={indicatorRef} aria-hidden="true" />
-          {/* 抽屉（窄屏）专属：用户身份 + 主题 / 语言开关。宽屏顶栏里已有，整块隐藏。 */}
+          {/* 抽屉（窄屏）专属：第一行 = 头像菜单 + 右侧的语言切换；第二行 = 主题
+              切换 + 右侧的页面动作（房间的分享 / 成员 / 设置 / 新建播放器）。
+              宽屏顶栏里已有这些，整块隐藏。 */}
           <div className="mx-sidebar__prefs">
-            <UserMenu user={user} />
             <div className="mx-sidebar__prefs-row">
+              <UserMenu user={user} />
               <LanguageSwitcher align="start" />
+            </div>
+            <div className="mx-sidebar__prefs-row">
               <ThemeToggle />
+              {drawerActions ? (
+                <div className="mx-sidebar__prefs-actions">{drawerActions}</div>
+              ) : null}
             </div>
           </div>
           <div className="mx-sidebar__group-label">{t("shell.workspace")}</div>
