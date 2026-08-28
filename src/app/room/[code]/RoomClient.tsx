@@ -605,13 +605,13 @@ function RoomWorkspace({
     : null;
 
   /** 默认进入房间时选中自己：舞台先显示自己的画面，而不是平铺所有人。 */
-  const localParticipant = useLocalParticipant();
+  const { localParticipant } = useLocalParticipant();
   const selfPickedRef = useRef(false);
   useEffect(() => {
-    if (selfPickedRef.current || !localParticipant?.identity) return;
+    if (selfPickedRef.current || !localParticipant) return;
     selfPickedRef.current = true;
     onSelect(localParticipant.identity);
-  }, [localParticipant?.identity, onSelect]);
+  }, [localParticipant, onSelect]);
 
   /**
    * 左栏两个列表共用右侧舞台：点成员卡片 = 切回共享屏幕模式（看那个人），
