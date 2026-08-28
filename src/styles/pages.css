@@ -398,6 +398,15 @@
   font-size: var(--mx-font-size-caption);
   flex-wrap: wrap;
 }
+/* 「共享我的屏幕」按钮 + 设置图标是一组：窄屏也不许拆行、不许挤出画面。 */
+.mx-stage__share {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mx-space-sm);
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
 .mx-stage__live {
   display: inline-flex;
   align-items: center;

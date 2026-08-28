@@ -161,6 +161,12 @@
   flex-shrink: 0;
 }
 
+/* 窄屏抽屉顶部的「账户 + 偏好」区（用户头像 / 主题 / 语言）。
+   宽屏顶栏里已经有这三样，这里整块不显示。 */
+.mx-sidebar__prefs {
+  display: none;
+}
+
 /* User chip: avatar initial + name/role, opens a menu. */
 .mx-user {
   position: relative;
@@ -764,6 +770,12 @@ html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
   }
   .mx-topbar__menu {
     display: inline-flex;
+    /* 汉堡键固定在顶栏最右侧：标题 / 品牌在左边自然排，靠这条推到头 */
+    margin-left: auto;
+  }
+  /* 主题 / 语言 / 用户在窄屏收进抽屉（.mx-sidebar__prefs），顶栏那排不再显示 */
+  .mx-topbar__actions {
+    display: none;
   }
   .mx-brand {
     width: auto;
@@ -781,10 +793,13 @@ html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
     border-right: 1px solid var(--mx-stroke-subtle);
     box-shadow: var(--mx-shadow-16);
     transform: translateX(-100%);
-    /* 推入 / 收回归 GSAP（lib/shell-motion.ts）。下面那条 [data-drawer="open"] 是
-       兜底：没有 JS 或用户要求减少动效时，抽屉仍然能瞬间打开。 */
+    /* 推入 / 收回归 GSAP（lib/shell-motion.ts）。位移只能由行内样式说话 ——
+       样式表里绝不能再有一条 [data-drawer=open] 翻成 translateX(0)：GSAP
+       解析起点时行内残值优先，那条规则会让抽屉永远回不来。无 JS 的兜底
+       见下面 html:not([data-motion=js]) 那两条。 */
   }
-  .mx-app[data-drawer="open"] .mx-sidebar {
+  /* 无 JS / 减少动效时的兜底：GSAP 不在场，抽屉靠属性选择器瞬移。 */
+  html:not([data-motion="js"]) .mx-app[data-drawer="open"] .mx-sidebar {
     transform: translateX(0);
   }
   /* The collapse toggle is meaningless in drawer mode. */
@@ -808,13 +823,46 @@ html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
     transform: none;
     padding: var(--mx-space-xs) var(--mx-space-md) var(--mx-space-sm);
   }
-  .mx-app[data-drawer="open"] .mx-scrim {
-    display: block;
+  /* 抽屉里的账户 + 偏好区：头像菜单一整行，主题 / 语言并排一行。 */
+  .mx-sidebar__prefs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mx-space-xs);
+    padding: var(--mx-space-xs) var(--mx-space-xs) var(--mx-space-sm);
+    border-bottom: 1px solid var(--mx-stroke-subtle);
+    margin-bottom: var(--mx-space-xs);
+  }
+  .mx-sidebar__prefs .mx-user__trigger {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  /* 640px 以下顶栏版会把名字藏掉，抽屉里要显示 */
+  .mx-sidebar__prefs .mx-user__label {
+    display: flex;
+  }
+  .mx-sidebar__prefs .mx-lang__current {
+    display: inline;
+  }
+  .mx-sidebar__prefs .mx-lang__trigger > svg:last-child {
+    display: inline;
+  }
+  .mx-sidebar__prefs-row {
+    display: flex;
+    align-items: center;
+    gap: var(--mx-space-xs);
+  }
+
+  /* 遮罩：定位写在基态上，不挂在 [data-drawer=open] 里 —— GSAP 收回时
+     遮罩只剩行内 display 撑着，position 若跟着消失它会掉回流式布局里。 */
+  .mx-scrim {
     position: fixed;
     inset: var(--mx-toolbar-height) 0 var(--mx-statusbar-height) 0;
     z-index: calc(var(--mx-z-sticky) - 1);
     background: rgba(16, 18, 23, 0.45);
-    /* 淡入淡出归 GSAP；收回时它会用行内 display 撑住这一层直到淡完 */
+    /* 淡入淡出归 GSAP；无 JS 时靠下面那条兜底 */
+  }
+  html:not([data-motion="js"]) .mx-app[data-drawer="open"] .mx-scrim {
+    display: block;
   }
   .mx-main {
     padding: var(--mx-space-lg);
@@ -845,6 +893,9 @@ html[data-motion="js"] .mx-sidebar:not([data-mx-shown]) .mx-sidebar__item {
   }
   .mx-main {
     padding: var(--mx-space-md);
+    /* 手机上页面固定宽度：内容再宽也不横向滑动（需要横滑的都在自己的
+       滚动容器里，比如成员卡片那一行）。 */
+    overflow-x: hidden;
   }
   .mx-section {
     gap: var(--mx-space-lg);

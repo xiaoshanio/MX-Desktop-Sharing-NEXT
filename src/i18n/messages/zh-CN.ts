@@ -930,7 +930,7 @@ const zhCN: Messages = {
   "landing.footer.deploy": "部署说明",
   "landing.footer.livekit": "LiveKit 文档",
   "landing.footer.stack":
-    "Next.js 15 · React 19 · Drizzle + Neon Postgres · LiveKit —— 界面自成一套设计系统，没有 UI 框架，也没有 Tailwind。",
+    "同步播放器由 MX Player Pro 提供技术支持 ·",
   /* ============================================================
      Server-side API messages.
 

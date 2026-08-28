@@ -1026,7 +1026,7 @@ const ru: Messages = {
   "landing.footer.deploy": "Руководство по развёртыванию",
   "landing.footer.livekit": "Документация LiveKit",
   "landing.footer.stack":
-    "Next.js 15 · React 19 · Drizzle + Neon Postgres · LiveKit — интерфейс представляет собственную дизайн-систему, без UI-фреймворка и без Tailwind.",
+    "Синхронный плеер с технической поддержкой от MX Player Pro —",
   /* ============================================================
      Server-side API messages.
 

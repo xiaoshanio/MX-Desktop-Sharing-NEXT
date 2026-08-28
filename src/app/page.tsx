@@ -632,7 +632,13 @@ export default async function HomePage() {
           </nav>
 
           <div className="mx-land__footer-note">
-            <p className="mx-land__stack">{t("landing.footer.stack")}</p>
+            <p className="mx-land__stack">
+              {t("landing.footer.stack")}{" "}
+              <a href="https://player.freeanime.org" target="_blank" rel="noreferrer noopener">
+                MX Player Pro
+                <Icon name="external" size={13} />
+              </a>
+            </p>
             <p className="mx-land__copyright">{COPYRIGHT}</p>
           </div>
         </div>

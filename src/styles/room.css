@@ -1011,6 +1011,11 @@
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
+    /* 同一行、间距一致、可以向右滑，但不露出滚动条 */
+    scrollbar-width: none;
+  }
+  .mx-rail__list::-webkit-scrollbar {
+    display: none;
   }
   .mx-pcard {
     width: 190px;
@@ -1023,6 +1028,8 @@
   .mx-room__live {
     display: block;
     overflow-y: auto;
+    /* 手机上页面固定宽度：房间内容再宽也不横向滑出画面 */
+    overflow-x: hidden;
   }
   .mx-stage[data-fill="true"] {
     height: auto;

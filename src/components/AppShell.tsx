@@ -161,6 +161,17 @@ export function AppShell({
     animateDrawer(sidebarRef.current, scrimRef.current, drawerOpen);
   }, [drawerOpen]);
 
+  // 抽屉开着时拖回宽屏：侧栏回到网格里，遮罩的行内 display 也要清 ——
+  // 那些都交给 animateDrawer 的宽屏分支，这里只负责把状态翻回去。
+  useEffect(() => {
+    const onResize = () => {
+      const sidebar = sidebarRef.current;
+      if (sidebar && getComputedStyle(sidebar).position !== "fixed") setDrawerOpen(false);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   /**
    * 客户端路由切换时套用「进房收起、出房恢复」。
    *
@@ -206,14 +217,6 @@ export function AppShell({
   return (
     <div className="mx-app" ref={appRef} data-drawer={drawerOpen ? "open" : "closed"}>
       <header className="mx-topbar">
-        <IconButton
-          className="mx-topbar__menu"
-          label={drawerOpen ? t("shell.closeNav") : t("shell.openNav")}
-          onClick={() => setDrawerOpen((open) => !open)}
-        >
-          <Icon name={drawerOpen ? "x" : "menu"} size={18} />
-        </IconButton>
-
         <Link href="/dashboard" className="mx-brand">
           <BrandMark size={32} className="mx-brand__mark" />
           <span className="mx-brand__text">
@@ -249,6 +252,16 @@ export function AppShell({
           <ThemeToggle />
           <UserMenu user={user} />
         </div>
+
+        {/* 窄屏抽屉开关，顶栏最右（宽屏由样式表藏掉）。主题 / 语言 / 用户
+            在窄屏也一并收进抽屉里的 .mx-sidebar__prefs，顶栏那排不再显示。 */}
+        <IconButton
+          className="mx-topbar__menu"
+          label={drawerOpen ? t("shell.closeNav") : t("shell.openNav")}
+          onClick={() => setDrawerOpen((open) => !open)}
+        >
+          <Icon name={drawerOpen ? "x" : "menu"} size={18} />
+        </IconButton>
       </header>
 
       <div className="mx-body">
@@ -256,6 +269,14 @@ export function AppShell({
           {/* 整栏共用一根选中指示条，由 GSAP 在条目之间滑动（lib/shell-motion.ts）。
               没有 JS 时它不会出现，选中项仍然靠底色和图标颜色区分。 */}
           <span className="mx-sidebar__indicator" ref={indicatorRef} aria-hidden="true" />
+          {/* 抽屉（窄屏）专属：用户身份 + 主题 / 语言开关。宽屏顶栏里已有，整块隐藏。 */}
+          <div className="mx-sidebar__prefs">
+            <UserMenu user={user} />
+            <div className="mx-sidebar__prefs-row">
+              <LanguageSwitcher align="start" />
+              <ThemeToggle />
+            </div>
+          </div>
           <div className="mx-sidebar__group-label">{t("shell.workspace")}</div>
           {items.map((item) => {
             const active =

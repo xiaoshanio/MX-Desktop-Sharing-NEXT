@@ -149,8 +149,12 @@ export function introSidebar(nav: HTMLElement | null): void {
  * 判断「现在是不是抽屉态」不看断点，看侧栏自己 —— CSS 在窄屏把它变成 position: fixed，
  * 那是唯一的判据，断点数字因此只存在于样式表里一处。
  *
- * 遮罩在 CSS 里平时是 display:none，淡出期间需要它还在，所以这段时间由行内样式顶着，
- * 动画结束再摘掉。
+ * 位移用像素 x，不用 xPercent：CSS 里的 translateX(-100%) 被浏览器解析成 matrix
+ * 之后 GSAP 只能读到像素值，百分比那条通道从头就不存在 —— 原来用 xPercent 动画
+ * 等于在另一个坐标上滑，抽屉因此永远进不来（叠加样式表里那条 [data-drawer=open]
+ * 兜底还会被行内残值压住，表现就是「点了没反应」）。
+ *
+ * 遮罩在 CSS 里平时是 display:none，打开期间由行内样式顶着，收回淡完再摘掉。
  */
 export function animateDrawer(
   sidebar: HTMLElement | null,
@@ -166,9 +170,15 @@ export function animateDrawer(
     return;
   }
 
+  // 从没开过就别播「收回」：挂载时 drawerOpen 本来就是 false，这一遍 close
+  // 动画会让遮罩凭空闪一下，还顺带把整页的点击都挡掉。
+  if (!open && sidebar.dataset.mxDrawerOpened === undefined) return;
+  sidebar.dataset.mxDrawerOpened = "";
+
+  const target = open ? 0 : -sidebar.offsetWidth;
   gsap.killTweensOf(sidebar);
   gsap.to(sidebar, {
-    xPercent: open ? 0 : -100,
+    x: target,
     duration: open ? 0.34 : 0.26,
     ease: open ? EASE.emphasized : EASE.accelerate,
   });
@@ -176,13 +186,14 @@ export function animateDrawer(
   if (!scrim) return;
   gsap.killTweensOf(scrim);
   if (open) {
+    scrim.style.setProperty("display", "block");
     gsap.fromTo(scrim, { opacity: 0 }, { opacity: 1, duration: DUR.normal, ease: EASE.standard });
   } else {
     gsap.to(scrim, {
       opacity: 0,
       duration: DUR.normal,
       ease: EASE.accelerate,
-      // data-drawer 已经翻成 closed，CSS 会把它藏掉，所以淡出期间自己撑住 display
+      // data-drawer 已经翻成 closed，样式表不再给 display，淡出期间自己撑住
       onStart: () => scrim.style.setProperty("display", "block"),
       onComplete: () => scrim.style.removeProperty("display"),
     });

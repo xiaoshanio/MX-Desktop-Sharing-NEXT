@@ -1069,24 +1069,27 @@ function ShareControls() {
 
   return (
     <>
-      <Button
-        size="sm"
-        variant={sharing ? "danger" : "primary"}
-        disabled={busy}
-        onClick={() => void toggle()}
-      >
-        <Icon name={sharing ? "stop" : "play"} size={13} />
-        {busy ? t("room.share.busy") : sharing ? t("room.share.stop") : t("room.share.start")}
-      </Button>
-      {!sharing && (
-        <IconButton
+      {/* 按钮和设置图标成组（.mx-stage__share）：窄屏也不换行、不出框。 */}
+      <div className="mx-stage__share">
+        <Button
           size="sm"
-          label={t("room.share.settings")}
-          onClick={() => setSettingsOpen(true)}
+          variant={sharing ? "danger" : "primary"}
+          disabled={busy}
+          onClick={() => void toggle()}
         >
-          <Icon name="sliders" size={14} />
-        </IconButton>
-      )}
+          <Icon name={sharing ? "stop" : "play"} size={13} />
+          {busy ? t("room.share.busy") : sharing ? t("room.share.stop") : t("room.share.start")}
+        </Button>
+        {!sharing && (
+          <IconButton
+            size="sm"
+            label={t("room.share.settings")}
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Icon name="sliders" size={14} />
+          </IconButton>
+        )}
+      </div>
 
       <Modal
         open={settingsOpen}

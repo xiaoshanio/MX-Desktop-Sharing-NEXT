@@ -1018,7 +1018,7 @@ const vi: Messages = {
   "landing.footer.deploy": "Hướng dẫn triển khai",
   "landing.footer.livekit": "Tài liệu LiveKit",
   "landing.footer.stack":
-    "Next.js 15 · React 19 · Drizzle + Neon Postgres · LiveKit — giao diện là một design system riêng, không dùng framework UI và không dùng Tailwind.",
+    "Trình phát đồng bộ được hỗ trợ kỹ thuật bởi MX Player Pro —",
   /* ============================================================
      Server-side API messages.
 

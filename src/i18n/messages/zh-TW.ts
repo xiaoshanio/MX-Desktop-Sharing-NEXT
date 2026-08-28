@@ -928,7 +928,7 @@ const zhTW: Messages = {
   "landing.footer.deploy": "部署說明",
   "landing.footer.livekit": "LiveKit 文件",
   "landing.footer.stack":
-    "Next.js 15 · React 19 · Drizzle + Neon Postgres · LiveKit —— 介面自成一套設計系統，沒有 UI 框架，也沒有 Tailwind。",
+    "同步播放器由 MX Player Pro 提供技術支援 ·",
   /* ============================================================
      Server-side API messages.
 

@@ -136,8 +136,8 @@ export function ParticipantRail({
       });
   }, [participants, memberById, publishing, sharingScreen, locale]);
 
-  const selfEntry = entries.find((entry) => entry.isLocal) ?? null;
-  const otherEntries = entries.filter((entry) => !entry.isLocal);
+  // entries 排序时本人永远在最前，下面直接一列渲染：
+  // 宽屏 = 竖列第一张；窄屏 = 横滑一行的第一张（见 room.css 的 900px 块）。
 
   return (
     <aside className="mx-rail" aria-label={t("rail.label")}>
@@ -151,30 +151,19 @@ export function ParticipantRail({
         )}
       </header>
 
-      {selfEntry && (
-        <div className="mx-rail__self">
-          <RailCard
-            entry={selfEntry}
-            active={selected === selfEntry.identity}
-            onSelect={() => onSelect(selected === selfEntry.identity ? null : selfEntry.identity)}
-            onContextMenu={() => false}
-          />
-        </div>
-      )}
-
       <div className="mx-rail__list">
-        {otherEntries.length === 0 && !selfEntry ? (
+        {entries.length === 0 ? (
           <p className="mx-rail__empty">{t("rail.empty")}</p>
         ) : (
-          otherEntries.map((entry) => (
+          entries.map((entry) => (
             <RailCard
               key={entry.identity}
               entry={entry}
               active={selected === entry.identity}
               onSelect={() => onSelect(selected === entry.identity ? null : entry.identity)}
               onContextMenu={(origin) => {
-                // 不是管理员就不弹菜单，让浏览器自己的右键菜单出来
-                if (!canManage) return false;
+                // 本人卡片不弹管理菜单；不是管理员就放手，让浏览器自己的菜单出来
+                if (entry.isLocal || !canManage) return false;
                 setMenu({ origin, entry });
                 return true;
               }}

@@ -955,7 +955,7 @@ const ja: Messages = {
   "landing.footer.deploy": "デプロイ手順",
   "landing.footer.livekit": "LiveKit ドキュメント",
   "landing.footer.stack":
-    "Next.js 15 · React 19 · Drizzle + Neon Postgres · LiveKit —— UI は独自のデザインシステムで、UI フレームワークも Tailwind も使っていません。",
+    "同期プレーヤーは MX Player Pro による技術サポート ——",
   /* ============================================================
      Server-side API messages.
 

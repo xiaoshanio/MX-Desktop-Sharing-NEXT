@@ -1012,7 +1012,7 @@ const en = {
   "landing.footer.deploy": "Deployment guide",
   "landing.footer.livekit": "LiveKit docs",
   "landing.footer.stack":
-    "Next.js 15 · React 19 · Drizzle + Neon Postgres · LiveKit — the interface is its own design system, with no UI framework and no Tailwind.",
+    "Sync player powered by MX Player Pro —",
   /* ============================================================
      Server-side API messages.
 
