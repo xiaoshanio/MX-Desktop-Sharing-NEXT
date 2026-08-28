@@ -809,8 +809,10 @@ const fr: Messages = {
   "sync.sdkFailedBody": "Erreur en récupérant MX Player Pro depuis le CDN : {message}",
   "sync.sdkFailedHint": "Vérifiez que cdn.jsdelivr.net est joignable depuis votre réseau.",
   "sync.playbackError": "Erreur de lecture",
+  "sync.audioOnlyTitle": "Le son passe, mais l'image est noire",
+  "sync.audioOnlyBody": "La piste vidéo utilise un codec que ce navigateur ne sait pas décoder (le plus souvent HEVC/H.265) : il n'y a donc que le son. Essayez une source en H.264.",
   "sync.badSourceTitle": "Cette source ne se lit pas",
-  "sync.noSourceHost": "Saisissez une URL vidéo ci-dessous",
+  "sync.noSourceHost": "Saisissez une URL vidéo dans la barre ci-dessus",
   "sync.noSourceViewer": "Le projectionniste n'a encore rien choisi",
   "sync.noSourceBody":
     "La vidéo est lue par votre navigateur directement depuis la source via des requêtes Range — elle ne passe jamais par le serveur de ce site, ni par LiveKit.",

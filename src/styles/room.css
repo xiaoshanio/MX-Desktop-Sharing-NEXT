@@ -445,6 +445,49 @@
 .mx-syncplayer__spacer {
   flex: 1;
 }
+/* 房内人数 — 从舞台顶栏搬过来的，样式也保持同样的低调。 */
+.mx-syncplayer__presence {
+  color: var(--mx-text-tertiary);
+  white-space: nowrap;
+}
+/* 地址栏占满顶栏中段：输入框在剩余空间里居中拉长，「播放并同步」贴在后面。 */
+.mx-syncplayer__url {
+  flex: 1 1 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mx-space-sm);
+  min-width: 0;
+}
+.mx-syncplayer__url-input {
+  width: min(560px, 100%);
+  min-width: 180px;
+  height: 28px;
+  padding: 0 var(--mx-space-sm);
+  border: 1px solid var(--mx-stroke-default);
+  border-radius: var(--mx-radius-md);
+  background: var(--mx-bg-subtle);
+  color: var(--mx-text-primary);
+  font-size: var(--mx-font-size-caption);
+  font-family: var(--mx-font-mono);
+  transition: all 120ms var(--mx-ease-standard);
+}
+.mx-syncplayer__url-input::placeholder {
+  color: var(--mx-text-tertiary);
+}
+.mx-syncplayer__url-input:focus {
+  outline: none;
+  border-color: var(--mx-accent);
+  background: var(--mx-bg-card);
+}
+/* CORS / Range 要求：顶栏的第二行小字（flex-basis:100% 换行）。 */
+.mx-syncplayer__hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--mx-text-tertiary);
+  font-size: var(--mx-font-size-caption);
+  line-height: var(--mx-line-caption);
+}
 
 .mx-syncplayer__stage {
   position: relative;
@@ -465,6 +508,8 @@
 .mx-syncplayer__empty {
   position: absolute;
   inset: 0;
+  /* 播放器挂载点带 z-index:1；不压过它的话这层提示会被播放器的黑底整个盖住。 */
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -496,6 +541,14 @@
 .mx-syncplayer__empty[data-tone="error"] .mx-syncplayer__empty-title {
   color: #f0938a;
 }
+/* 有声音没画面：同 error 的观感，但不挡播放器控件（音量/进度还能点）。 */
+.mx-syncplayer__empty[data-tone="warn"] {
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.78);
+}
+.mx-syncplayer__empty[data-tone="warn"] .mx-syncplayer__empty-title {
+  color: #e8b06a;
+}
 
 .mx-syncplayer__foot {
   display: flex;
@@ -503,16 +556,6 @@
   gap: var(--mx-space-sm);
   padding: var(--mx-space-md);
   border-top: 1px solid var(--mx-stroke-subtle);
-}
-.mx-syncplayer__form {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--mx-space-sm);
-  flex-wrap: wrap;
-}
-.mx-syncplayer__input {
-  flex: 1;
-  min-width: 220px;
 }
 .mx-syncplayer__viewer {
   display: flex;

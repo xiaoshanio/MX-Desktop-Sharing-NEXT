@@ -754,6 +754,11 @@
   width: min(100%, 720px);
   flex: 1;
 }
+/* 创建按钮贴着搜索框右侧，不参与下拉定位，也不被挤压。 */
+.mx-finder__create {
+  flex-shrink: 0;
+  height: var(--mx-control-lg);
+}
 
 .mx-finder__field {
   display: flex;
@@ -903,6 +908,7 @@
 }
 
 /* ---- Room cards ---- */
+/* 容器放宽到 1600px（见 AppShell contentMax），5 列时每张正好 ~300px。 */
 .mx-roomgrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

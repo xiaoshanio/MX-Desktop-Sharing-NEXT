@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRoomContext } from "@livekit/components-react";
+import { useParticipants, useRoomContext } from "@livekit/components-react";
 import { RoomEvent } from "livekit-client";
 
 import { api } from "@/lib/api-client";
@@ -21,7 +21,7 @@ import {
   type SyncMessage,
   type SyncStateMessage,
 } from "@/lib/sync-protocol";
-import { Badge, Banner, Button, Icon, IconButton, Switch, TextField, Select } from "@/ui";
+import { Badge, Banner, Button, Icon, IconButton, Switch, Select } from "@/ui";
 
 /* ============================================================
    MX Player Pro — 从 CDN 按 ESM 加载
@@ -139,6 +139,7 @@ export function SyncPlayerPanel({
 }: SyncPlayerPanelProps) {
   const t = useT();
   const room = useRoomContext();
+  const participants = useParticipants();
   const isHost = player.isMine;
 
   const holderRef = useRef<HTMLDivElement>(null);
@@ -183,6 +184,8 @@ export function SyncPlayerPanel({
   const seqRef = useRef(0);
   /** 放映端记住上一次 timeupdate，用来识别「用户拖了进度条」 */
   const lastTickRef = useRef<{ at: number; position: number } | null>(null);
+  /** 「播放并同步」要求载入后自动开播（见 ready 事件里的补播） */
+  const playOnReadyRef = useRef(false);
 
   /**
    * onSourceChange 存进 ref。
@@ -289,6 +292,39 @@ export function SyncPlayerPanel({
     if (!state.paused && !local.playing) instance.play();
   }, []);
 
+  /* ---- 黑屏探测：有声音但画面一直是黑的 ---- */
+  /**
+   * 「能听到声音但画面全黑」几乎总是片源问题：视频轨的编码浏览器解不了
+   * （HEVC/H.265 最常见），音频轨照常播。此时 SDK 不报错 —— 它只知道
+   * 「在播」，不知道画面是黑的。所以从外面看一眼 <video>：
+   * 播了三秒还量不出画面宽度、或一帧都没解出来，就认定是「只有声音」。
+   *
+   * 注意只查原生视频轨那条路（.video-element）；MKV 走 canvas，解码失败
+   * SDK 会通过 error 事件报出来，不归这里管。
+   */
+  const [audioOnly, setAudioOnly] = useState(false);
+  useEffect(() => {
+    if (!ready) return;
+    const timer = setInterval(() => {
+      const instance = instanceRef.current;
+      const holder = holderRef.current;
+      if (!instance || !holder) return;
+      const state = instance.getState();
+      if (!state.playing || state.currentTime < 3) {
+        setAudioOnly(false);
+        return;
+      }
+      const video = holder.querySelector<HTMLVideoElement>("video.video-element");
+      if (!video) {
+        setAudioOnly(false);
+        return;
+      }
+      const frames = video.getVideoPlaybackQuality?.().totalVideoFrames ?? 0;
+      setAudioOnly(video.videoWidth === 0 || frames === 0);
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [ready]);
+
   /* ---- 创建 / 销毁播放器实例 ---- */
   useEffect(() => {
     let disposed = false;
@@ -314,6 +350,14 @@ export function SyncPlayerPanel({
         instance.on("ready", () => {
           setReady(true);
           setErr(null);
+          /**
+           * 「播放并同步」按下后要真的播起来。刚 load() 完就调 play() 会被播放器
+           * 静默忽略（内部还没 ready），所以先记下来，等 ready 事件补上这一下。
+           */
+          if (playOnReadyRef.current) {
+            playOnReadyRef.current = false;
+            instanceRef.current?.play();
+          }
         });
         instance.on("error", (payload) => {
           fail(typeof payload.message === "string" ? payload.message : t("sync.playbackError"));
@@ -487,6 +531,9 @@ export function SyncPlayerPanel({
       if (instance && res.sourceUrl) {
         loadedUrlRef.current = res.sourceUrl;
         await instance.load({ kind: "url", url: res.sourceUrl });
+        // 按钮叫「播放并同步」，所以载入完要自动开播（ready 事件里补那一下 play）
+        playOnReadyRef.current = true;
+        instance.play();
         broadcastState();
       }
       toast.success(res.sourceUrl ? t("sync.sourceSwitched") : t("sync.sourceCleared"));
@@ -532,6 +579,31 @@ export function SyncPlayerPanel({
           )
         )}
 
+        {/* 房内人数原先是舞台顶栏的事；播放模式下顶栏撤了，人数跟着搬进这条栏 */}
+        <span className="mx-syncplayer__presence">
+          {t("room.stage.inRoom", { count: participants.length })}
+        </span>
+
+        {/* 换片源：地址栏就在这条栏里，居中拉长，「播放并同步」紧随其后 */}
+        {canControl && (
+          <form className="mx-syncplayer__url" onSubmit={saveSource}>
+            <input
+              type="url"
+              className="mx-syncplayer__url-input"
+              placeholder="https://example.com/video.m3u8"
+              aria-label={t("sync.urlLabel")}
+              autoComplete="off"
+              spellCheck={false}
+              value={urlDraft}
+              onChange={(event) => setUrlDraft(event.target.value)}
+            />
+            <Button type="submit" size="sm" variant="primary" disabled={saving}>
+              <Icon name="play" size={13} />
+              {saving ? t("sync.switching") : t("sync.play")}
+            </Button>
+          </form>
+        )}
+
         <span className="mx-syncplayer__spacer" />
 
         <Select
@@ -563,6 +635,9 @@ export function SyncPlayerPanel({
             <Icon name="x" size={15} />
           </IconButton>
         )}
+
+        {/* CORS / Range 的要求跟着地址栏走，做成顶栏的第二行小字，不占播放区 */}
+        {canControl && <p className="mx-syncplayer__hint">{t("sync.urlHint")}</p>}
       </header>
 
       {sdkError ? (
@@ -586,7 +661,17 @@ export function SyncPlayerPanel({
       ) : (
         <div className="mx-syncplayer__stage">
           <div ref={holderRef} className="mx-syncplayer__mount" />
-          {err ? (
+          {audioOnly ? (
+            /**
+             * 有声音没画面：片源的视频轨浏览器解不了（HEVC/H.265 最常见）。
+             * 提示要一直看得见，但不能挡住播放器自己的控件 —— 纯展示，pointer-events:none。
+             */
+            <div className="mx-syncplayer__empty" data-tone="warn">
+              <Icon name="alert" size={22} />
+              <span className="mx-syncplayer__empty-title">{t("sync.audioOnlyTitle")}</span>
+              <span className="mx-syncplayer__empty-body">{t("sync.audioOnlyBody")}</span>
+            </div>
+          ) : err ? (
             /**
              * 播放失败是持续状态，所以留在画面里 —— 右上角的提示卡片会自动消失，
              * 而「这个片源放不了」需要一直看得见（CORS / Range / 编码不支持之类）。
@@ -610,24 +695,9 @@ export function SyncPlayerPanel({
         </div>
       )}
 
+      {/* 底栏只留给观众（跟随开关 + 对时读数）。放映端的地址栏已经并进顶栏。 */}
       <footer className="mx-syncplayer__foot">
-        {canControl ? (
-          <form className="mx-syncplayer__form" onSubmit={saveSource}>
-            <div className="mx-syncplayer__input" style={{ minWidth: 420, flex: 1 }}>
-              <TextField
-                label={t("sync.urlLabel")}
-                placeholder="https://example.com/video.m3u8"
-                hint={t("sync.urlHint")}
-                value={urlDraft}
-                onChange={(event) => setUrlDraft(event.target.value)}
-              />
-            </div>
-            <Button type="submit" variant="primary" disabled={saving}>
-              <Icon name="play" size={13} />
-              {saving ? t("sync.switching") : t("sync.play")}
-            </Button>
-          </form>
-        ) : (
+        {canControl ? null : (
           <div className="mx-syncplayer__viewer">
             <Switch
               checked={following}

@@ -61,6 +61,8 @@ export interface AppShellProps {
   status?: ReactNode;
   /** Lets a page (the room view) use the full width instead of the 1180px measure. */
   wide?: boolean;
+  /** Overrides the content measure (px). The dashboard uses this to fit a 5-card row. */
+  contentMax?: number;
   /** Drops the main scroller's padding — the room workspace manages its own gutters. */
   flush?: boolean;
   /** Optional page action shown at the top of the sidebar. */
@@ -94,6 +96,7 @@ export function AppShell({
   actions,
   status,
   wide = false,
+  contentMax,
   flush = false,
   sidebarAction,
   loading = false,
@@ -303,7 +306,7 @@ export function AppShell({
           data-flush={flush ? "true" : undefined}
           data-loading={loading ? "true" : undefined}
         >
-          <div className="mx-main__inner">
+          <div className="mx-main__inner" style={contentMax ? { maxWidth: contentMax } : undefined}>
             {loading ? <PageLoader>{loadingLabel}</PageLoader> : children}
           </div>
         </main>

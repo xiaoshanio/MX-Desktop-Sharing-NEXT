@@ -73,16 +73,8 @@ export function DashboardClient({ user }: { user: ShellUser }) {
       loading={loading}
       loadingLabel={t("dash.loading")}
       heading={<span>{t("dash.heading")}</span>}
-      actions={
-        <Button
-          size="sm"
-          variant="primary"
-          onClick={() => setCreating(true)}
-        >
-          <Icon name="plus" size={16} />
-          <span>{t("dash.create")}</span>
-        </Button>
-      }
+      /* 1180px 放不下 5 张 300px 的卡片；1600px 正好 5×300 + 4 个间距。 */
+      contentMax={1600}
       status={
         <>
           <span className="mx-statusbar__item">
@@ -104,9 +96,11 @@ export function DashboardClient({ user }: { user: ShellUser }) {
       }
     >
       <section className="mx-section">
-        {/* 搜索区 + 创建按钮：居中，输入频道码直接进；也能搜自己已加入的频道 */}
+        {/* 搜索区 + 创建按钮：居中，输入频道码直接进；也能搜自己已加入的频道。
+            创建按钮就在搜索框右侧，不用去顶栏找。 */}
         <RoomFinder
           rooms={rooms}
+          onCreate={() => setCreating(true)}
           onEnter={(code) => router.push(`/room/${code}`)}
         />
 
@@ -151,9 +145,11 @@ export function DashboardClient({ user }: { user: ShellUser }) {
 
 function RoomFinder({
   rooms,
+  onCreate,
   onEnter,
 }: {
   rooms: RoomRow[];
+  onCreate: () => void;
   onEnter: (code: string) => void;
 }) {
   const t = useT();
@@ -349,7 +345,16 @@ function RoomFinder({
         )}
       </div>
 
-    </div>
+        {/* 创建按钮紧贴搜索框右侧；下拉菜单只属于搜索框，所以按钮在 __box 外面 */}
+        <Button
+          className="mx-finder__create"
+          variant="primary"
+          onClick={onCreate}
+        >
+          <Icon name="plus" size={16} />
+          <span>{t("dash.create")}</span>
+        </Button>
+      </div>
   );
 }
 

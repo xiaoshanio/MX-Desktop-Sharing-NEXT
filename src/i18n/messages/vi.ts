@@ -784,8 +784,10 @@ const vi: Messages = {
   "sync.sdkFailedBody": "Lỗi khi lấy MX Player Pro từ CDN: {message}",
   "sync.sdkFailedHint": "Hãy kiểm tra xem mạng của bạn có vào được cdn.jsdelivr.net không.",
   "sync.playbackError": "Lỗi phát",
+  "sync.audioOnlyTitle": "Có tiếng nhưng hình đen",
+  "sync.audioOnlyBody": "Luồng video dùng codec trình duyệt này không giải mã được (thường là HEVC/H.265), nên chỉ có tiếng mà không có hình. Hãy thử nguồn mã hóa H.264.",
   "sync.badSourceTitle": "Nguồn này không phát được",
-  "sync.noSourceHost": "Hãy nhập URL video bên dưới",
+  "sync.noSourceHost": "Hãy nhập URL video vào thanh địa chỉ phía trên",
   "sync.noSourceViewer": "Bên trình chiếu chưa chọn gì",
   "sync.noSourceBody":
     "Video do trình duyệt của bạn đọc trực tiếp từ nguồn bằng yêu cầu Range — không đi qua máy chủ của trang này, cũng không qua LiveKit.",

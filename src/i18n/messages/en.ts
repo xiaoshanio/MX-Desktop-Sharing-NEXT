@@ -781,8 +781,10 @@ const en = {
   "sync.sdkFailedBody": "Error fetching MX Player Pro from the CDN: {message}",
   "sync.sdkFailedHint": "Check that cdn.jsdelivr.net is reachable from your network.",
   "sync.playbackError": "Playback error",
+  "sync.audioOnlyTitle": "Audio plays, but the picture is black",
+  "sync.audioOnlyBody": "The video track uses a codec this browser can't decode (HEVC/H.265 is the usual one). Sound still plays, pixels don't. Try an H.264 source.",
   "sync.badSourceTitle": "This source won't play",
-  "sync.noSourceHost": "Enter a video URL below",
+  "sync.noSourceHost": "Enter a video URL in the address bar above",
   "sync.noSourceViewer": "The projector hasn't picked anything yet",
   "sync.noSourceBody":
     "Video is read by your browser straight from the source with Range requests — it never passes through this site's server, or through LiveKit.",

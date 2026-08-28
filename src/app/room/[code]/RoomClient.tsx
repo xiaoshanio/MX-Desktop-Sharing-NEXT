@@ -725,30 +725,34 @@ function Stage({
 
   return (
     <div className="mx-stage" data-fill="true" data-mode={stageMode}>
-      <div className="mx-stage__bar">
-        <span className="mx-stage__live" data-live={live}>
-          <span className="mx-stage__live-dot" />
-          {live ? t("room.stage.live") : t("room.stage.noSignal")}
-        </span>
-        <div className="mx-stage__presence">
-          <span>{t("room.stage.inRoom", { count: participants.length })}</span>
-        </div>
-        {selected && <Badge tone="info">{t("room.stage.onlySelected")}</Badge>}
-        <span className="mx-stage__spacer" />
-        {stageMode === "screen" && canPublish ? (
-          <ShareControls />
-        ) : stageMode === "screen" && !canPublish ? (
-          /**
-           * 没有推流权限时给一句解释，而不是干脆什么都不显示。
-           * 「为什么我这里没有共享按钮」是最容易让人以为坏了的情况。
-           */
-          <span className="mx-stage__note">
-            {viewerCanPublish
-              ? t("room.stage.gettingPermission")
-              : t("room.stage.viewerOnly")}
+      {/* 播放器模式下这条顶栏整个撤掉：信号灯在这里是误导（看的不是直播流），
+          「房内 N 人」和地址栏都并进了同步播放器自己的顶栏。 */}
+      {stageMode === "screen" && (
+        <div className="mx-stage__bar">
+          <span className="mx-stage__live" data-live={live}>
+            <span className="mx-stage__live-dot" />
+            {live ? t("room.stage.live") : t("room.stage.noSignal")}
           </span>
-        ) : null}
-      </div>
+          <div className="mx-stage__presence">
+            <span>{t("room.stage.inRoom", { count: participants.length })}</span>
+          </div>
+          {selected && <Badge tone="info">{t("room.stage.onlySelected")}</Badge>}
+          <span className="mx-stage__spacer" />
+          {canPublish ? (
+            <ShareControls />
+          ) : (
+            /**
+             * 没有推流权限时给一句解释，而不是干脆什么都不显示。
+             * 「为什么我这里没有共享按钮」是最容易让人以为坏了的情况。
+             */
+            <span className="mx-stage__note">
+              {viewerCanPublish
+                ? t("room.stage.gettingPermission")
+                : t("room.stage.viewerOnly")}
+            </span>
+          )}
+        </div>
+      )}
 
       {stageMode === "screen" && live ? (
         <div className="mx-stage__grid" data-single={tracks.length === 1 ? "true" : undefined}>

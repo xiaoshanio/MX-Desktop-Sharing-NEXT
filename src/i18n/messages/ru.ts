@@ -791,8 +791,10 @@ const ru: Messages = {
   "sync.sdkFailedBody": "Ошибка при получении MX Player Pro с CDN: {message}",
   "sync.sdkFailedHint": "Проверьте, доступен ли cdn.jsdelivr.net из вашей сети.",
   "sync.playbackError": "Ошибка воспроизведения",
+  "sync.audioOnlyTitle": "Звук есть, но изображение чёрное",
+  "sync.audioOnlyBody": "Видеодорожка использует кодек, который браузер не может декодировать (чаще всего HEVC/H.265), поэтому есть только звук. Попробуйте источник в H.264.",
   "sync.badSourceTitle": "Этот источник не воспроизводится",
-  "sync.noSourceHost": "Укажите адрес видео ниже",
+  "sync.noSourceHost": "Укажите адрес видео в строке выше",
   "sync.noSourceViewer": "Киномеханик пока ничего не выбрал",
   "sync.noSourceBody":
     "Видео читает ваш браузер напрямую из источника Range-запросами — оно не проходит ни через сервер этого сайта, ни через LiveKit.",
